@@ -640,7 +640,22 @@ function kevinSystemPrompt(context) {
 
 Brand voice: knowing, dry wit, craft-proud, inclusive, concise. Never say "bespoke", "artisan", or "curated". No exclamation marks. Sentence case always.
 
-You have tools to read and write the app library. Always use listBorders before creating a shoutout so you pick a valid borderId. Confirm with the user before deleting anything. When creating shoutouts, use these default threads unless asked otherwise: Pitch black (DMC 310, #1A1A1A), Pitch green (DMC 3362, #4A6741), Coral (DMC 350, #CC3300).
+You have tools to read and write both shoutouts and borders. These are two separate things:
+- SHOUTOUT = a complete embroidery design (word + border + threads). Use createShoutout/updateShoutout/deleteShoutout.
+- BORDER = a reusable perimeter decoration pattern. Use createBorder/updateBorder/deleteBorder.
+
+When asked to "create a new border" or "design a border" — use createBorder, not createShoutout.
+When asked to "create a new shoutout" or "create an embroidery" — use createShoutout.
+Always use listBorders before createShoutout to pick a valid borderId.
+Confirm with the user before deleting anything.
+When creating shoutouts, use default threads unless asked otherwise: Pitch black (DMC 310, #1A1A1A), Pitch green (DMC 3362, #4A6741), Coral (DMC 350, #CC3300).
+
+For createBorder, generate a full spec. The spec format:
+- layers: array of {line, type, color} — line 0 is outermost. type=solid uses color (primary/secondary/accent). type=check uses colorA+colorB. type=empty skips.
+- cornerMotif: {color, pattern} — pattern is array of equal-length binary strings ("0"/"1"). Placed at all 4 corners.
+- sideMotifs: [{position, color, pattern}] — position is top-bottom, left-right, or all.
+- cornerInset: how many stitches from edge to place motifs (default = layers.length + 2).
+Primary=black, secondary=green, accent=coral.
 
 Your expertise:
 1. EMBROIDERY — cross-stitch pattern design, border traditions (British, Scandinavian, Hardanger, Blackwork, Assisi, folk styles), DMC thread selection, stitch density, difficulty, hoop sizing, Aida count
@@ -728,6 +743,72 @@ const KEVIN_TOOLS = [
     name: 'undoLastAction',
     description: 'Undo the last create, update, or delete action Kevin performed in this session.',
     input_schema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'createBorder',
+    description: 'Create a new border style and add it to the border library. Provide a full border spec with layers, cornerMotif and sideMotifs.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:        { type: 'string', description: 'Border name, e.g. "Nordic Stars"' },
+        style:       { type: 'string', description: 'Unique style key, lowercase-hyphen, e.g. "nordic-stars"' },
+        description: { type: 'string', description: 'What tradition/style this draws from' },
+        traits:      { type: 'array',  items: { type: 'string' }, description: 'Style traits, e.g. ["geometric","stars","folk"]' },
+        spec: {
+          type: 'object',
+          description: 'Full border spec. Must include layers array. Optional cornerMotif and sideMotifs.',
+          properties: {
+            cornerInset: { type: 'number', description: 'How many stitches from edge to place corner motifs' },
+            layers: {
+              type: 'array',
+              description: 'Border lines from outside in. Each layer has: line (0=outermost), type (solid/check/empty), color (primary/secondary/accent), colorA+colorB for check.',
+              items: { type: 'object' }
+            },
+            cornerMotif: {
+              type: 'object',
+              description: 'Motif placed at each corner. Has color (primary/secondary/accent) and pattern (array of binary strings, all same length).',
+              properties: {
+                color:   { type: 'string' },
+                pattern: { type: 'array', items: { type: 'string' } }
+              }
+            },
+            sideMotifs: {
+              type: 'array',
+              description: 'Motifs placed at centres of sides. Each has position (top-bottom/left-right/all), color, and pattern.',
+              items: { type: 'object' }
+            }
+          },
+          required: ['layers']
+        }
+      },
+      required: ['name', 'style', 'description', 'spec']
+    }
+  },
+  {
+    name: 'updateBorder',
+    description: 'Update an existing custom border by its id. Use listBorders to find the id. Cannot update built-in borders.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:          { type: 'string', description: 'Border id from listBorders' },
+        name:        { type: 'string' },
+        description: { type: 'string' },
+        traits:      { type: 'array', items: { type: 'string' } },
+        spec:        { type: 'object' },
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'deleteBorder',
+    description: 'Delete a custom border by its id. Cannot delete built-in borders.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Border id to delete' },
+      },
+      required: ['id']
+    }
   },
 ];
 
@@ -848,23 +929,80 @@ async function executeKevinTool(toolName, toolInput, appData) {
         return 'Undone — shoutout removed.';
       }
       if (last.action === 'updateShoutout' && last.previous) {
-        const prev = Object.assign({}, last.previous);
-        delete prev.id;
-        await fb.updateDoc(
-          fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id), prev
-        );
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.updateDoc(fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id), prev);
         return 'Undone — shoutout restored to previous state.';
       }
       if (last.action === 'deleteShoutout' && last.previous) {
-        const prev = Object.assign({}, last.previous);
-        delete prev.id;
-        await fb.setDoc(
-          fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id), prev
-        );
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.setDoc(fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id), prev);
         return 'Undone — shoutout restored.';
+      }
+      if (last.action === 'createBorder') {
+        await fb.deleteDoc(fb.doc(fb.db, 'borders', last.id));
+        return 'Undone — border removed.';
+      }
+      if (last.action === 'updateBorder' && last.previous) {
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.updateDoc(fb.doc(fb.db, 'borders', last.id), prev);
+        return 'Undone — border restored to previous state.';
+      }
+      if (last.action === 'deleteBorder' && last.previous) {
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.setDoc(fb.doc(fb.db, 'borders', last.id), prev);
+        return 'Undone — border restored.';
       }
       return 'Could not undo — previous state unavailable.';
     } catch(e) { return 'Undo failed: ' + e.message; }
+  }
+
+  if (toolName === 'createBorder') {
+    try {
+      const style = toolInput.style || toolInput.name.toLowerCase().replace(/\s+/g,'-');
+      const spec  = toolInput.spec || null;
+      if (!spec || !spec.layers) return 'Error: spec.layers is required.';
+      const data = {
+        name:        toolInput.name,
+        style:       style,
+        description: toolInput.description || '',
+        traits:      toolInput.traits || [],
+        spec:        spec,
+        builtIn:     false,
+        createdBy:   uid,
+        createdAt:   fb.serverTimestamp(),
+        updatedAt:   fb.serverTimestamp(),
+      };
+      const ref = await fb.addDoc(fb.collection(fb.db, 'borders'), data);
+      kevinLogUndo({ action: 'createBorder', id: ref.id });
+      return 'Border created with id: ' + ref.id + '. It is now available in the border library.';
+    } catch(e) { return 'Error creating border: ' + e.message; }
+  }
+
+  if (toolName === 'updateBorder') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.borders || []).find(function(b) { return b.id === id; });
+      if (current && current.builtIn) return 'Error: cannot update built-in borders.';
+      const fields = Object.assign({}, toolInput);
+      delete fields.id;
+      fields.updatedAt = fb.serverTimestamp();
+      await fb.updateDoc(fb.doc(fb.db, 'borders', id), fields);
+      kevinLogUndo({ action: 'updateBorder', id, previous: current });
+      return 'Border ' + id + ' updated.';
+    } catch(e) { return 'Error updating border: ' + e.message; }
+  }
+
+  if (toolName === 'deleteBorder') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.borders || []).find(function(b) { return b.id === id; });
+      if (current && current.builtIn) return 'Error: cannot delete built-in borders.';
+      await fb.deleteDoc(fb.doc(fb.db, 'borders', id));
+      kevinLogUndo({ action: 'deleteBorder', id, previous: current });
+      return 'Border ' + id + ' deleted.';
+    } catch(e) { return 'Error deleting border: ' + e.message; }
   }
 
   return 'Unknown tool: ' + toolName;
@@ -974,28 +1112,33 @@ const KEVIN_SUGGESTIONS = {
   ],
 };
 
-function KevinChat({ onClose, context, uid, appData }) {
-  const [messages,  setMessages]  = useState([]);
-  const [input,     setInput]     = useState('');
-  const [loading,   setLoading]   = useState(false);
-  const [welcomed,  setWelcomed]  = useState(false);
-  const [keyInput,  setKeyInput]  = useState(getKevinApiKey());
-  const [showKey,   setShowKey]   = useState(false);
-  const [keySaved,  setKeySaved]  = useState(hasKevinApiKey());
+function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
+  // Use lifted messages from App — persists across open/close
+  // extMessages=null means not yet initialised
+  const [input,    setInput]    = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [keyInput, setKeyInput] = useState(getKevinApiKey());
+  const [showKey,  setShowKey]  = useState(false);
+  const [keySaved, setKeySaved] = useState(hasKevinApiKey());
   const messagesEndRef = useRef(null);
   const inputRef       = useRef(null);
 
-  // Scroll to bottom on new messages
+  // Local alias — always use extMessages via setExtMessages
+  const messages = extMessages || [];
+  function setMessages(fn) {
+    setExtMessages(typeof fn === 'function' ? fn : function() { return fn; });
+  }
+
+  // Scroll to bottom
   useEffect(function() {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, loading]);
 
-  // Welcome message on first open
+  // Welcome — only on first ever open (extMessages === null)
   useEffect(function() {
-    if (welcomed) return;
-    setWelcomed(true);
+    if (extMessages !== null) return; // already has history
     if (!hasKevinApiKey() && !keySaved) {
       setMessages([{ role: 'kevin', text: "Add your Anthropic API key below to get started. You only need to do this once." }]);
       return;
@@ -1003,9 +1146,17 @@ function KevinChat({ onClose, context, uid, appData }) {
     const count = context.shoutoutCount;
     const welcome = count === 0
       ? "Right then. Library's empty — let's fix that. Tell me what you're after: a shoutout word, a football moment, a language. I'll sort the rest."
-      : `${count} shoutout${count > 1 ? 's' : ''} in. Looking decent. What are we working on — new words, border ideas, or something else?`;
+      : count + ' shoutout' + (count > 1 ? 's' : '') + ' in. What are we working on — new words, border ideas, or something else?';
     setMessages([{ role: 'kevin', text: welcome }]);
   }, []);
+
+  function newConversation() {
+    const count = context.shoutoutCount;
+    const welcome = count === 0
+      ? "Fresh start. What are we making?"
+      : "New conversation. " + count + " shoutout" + (count > 1 ? 's' : '') + " in the library. What's next?";
+    setMessages([{ role: 'kevin', text: welcome }]);
+  }
 
   async function handleSaveKey() {
     if (!keyInput.trim()) return;
@@ -1049,6 +1200,10 @@ function KevinChat({ onClose, context, uid, appData }) {
               Embroidery specialist · Football expert
             </div>
           </div>
+          <button className="btn btn-ghost" style={{fontSize:11,padding:'4px 8px',color:'var(--grey)'}}
+            onClick={newConversation} title="Start new conversation">
+            New chat
+          </button>
           <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
         </div>
 
@@ -2518,7 +2673,8 @@ function App() {
   const [saving,      setSaving]      = useState(false);
   const [toast,       showToast]      = useToast();
   const [kevinOpen,   setKevinOpen]   = useState(false);
-  const [tmCache,     setTmCache]     = useState({});  // trademark check cache
+  const [kevinMessages, setKevinMessages] = useState(null); // null = not yet initialised
+  const [tmCache,     setTmCache]     = useState({});
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -2732,6 +2888,8 @@ function App() {
           context={kevinContext}
           uid={authUser.uid}
           appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
+          messages={kevinMessages}
+          setMessages={setKevinMessages}
           onClose={function() { setKevinOpen(false); }}
         />
       )}
