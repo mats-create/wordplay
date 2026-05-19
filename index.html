@@ -980,8 +980,6 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   gap   = gap   || 4;
   cols  = cols  || 110;
   rows  = rows  || 110;
-  borderStyle = borderStyle || 'british';
-
   const grid = [];
   for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
 
@@ -992,74 +990,15 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
 
   const N = cols;
 
-  // ── Border: shared outer edge ──
-  for (let i = 0; i < N; i++) { setCell(0,i,'B'); setCell(N-1,i,'B'); }
-  for (let i = 0; i < N; i++) { setCell(i,0,'B'); setCell(i,N-1,'B'); }
+  // Resolve spec: accepts style string or full spec object
+  const spec = (typeof borderStyle === 'object' && borderStyle !== null)
+    ? borderStyle
+    : (BORDER_SPECS[borderStyle] || BORDER_SPECS['minimal']);
 
-  if (borderStyle === 'british') {
-    // 4 inner border lines: alternating check / solid accent
-    for (let line = 1; line < 5; line++) {
-      for (let i = line; i < N-line; i++) {
-        let kt, kb, kl, kr;
-        if (line % 2 === 1) {
-          kt = i%2===0?'D':'E'; kb = i%2===1?'D':'E';
-          kl = i%2===0?'D':'E'; kr = i%2===1?'D':'E';
-        } else { kt=kb=kl=kr='A'; }
-        setCell(line,i,kt); setCell(N-1-line,i,kb);
-        setCell(i,line,kl); setCell(i,N-1-line,kr);
-      }
-    }
-    // corner footballs 9x9
-    const ball = [
-      "011101110","101010101","110101011","001111100",
-      "011101110","001111100","110101011","101010101","011101110"
-    ];
-    [[7,7],[7,N-16],[N-16,7],[N-16,N-16]].forEach(([br,bc]) => {
-      ball.forEach((rs,dr) => rs.split('').forEach((ch,dc) => {
-        if (ch==='1') setCell(br+dr, bc+dc, 'F');
-      }));
-    });
-    // goal posts top/bottom 41x9
-    const gw=41, gh=9;
-    const goalRows = [];
-    for (let r2=0;r2<gh;r2++) {
-      if (r2<=5)       goalRows.push('11'+'0'.repeat(gw-4)+'11');
-      else if (r2===6) goalRows.push('1'.repeat(gw));
-      else             goalRows.push('0'.repeat(gw));
-    }
-    [7, N-7-gh+1].forEach(srs => {
-      const gc = Math.floor((N-gw)/2);
-      goalRows.forEach((rs,dr) => rs.split('').forEach((ch,dc) => {
-        if (ch==='1') setCell(srs+dr, gc+dc, 'G');
-      }));
-    });
-    // shot arrows left/right 9x9
-    const arrow = [
-      "000010000","000111000","001111100","011111110","111111111",
-      "011111110","001111100","000111000","000010000"
-    ];
-    [7, N-16].forEach(scs => {
-      const ar = Math.floor((N-9)/2);
-      arrow.forEach((rs,dr) => rs.split('').forEach((ch,dc) => {
-        if (ch==='1') setCell(ar+dr, scs+dc, 'S');
-      }));
-    });
+  renderBorderSpec(spec, N, setCell);
 
-  } else if (borderStyle === 'scandinavian') {
-    // Second solid line
-    for (let i=1;i<N-1;i++) { setCell(1,i,'A'); setCell(N-2,i,'A'); }
-    for (let i=1;i<N-1;i++) { setCell(i,1,'A'); setCell(i,N-2,'A'); }
-    // Diamond repeat every 8 on third line (placeholder — AI will refine)
-    for (let i=4;i<N-4;i+=8) {
-      [[3,i],[i,3],[3,N-1-i],[N-1-i,3]].forEach(([r2,c2]) => setCell(r2,c2,'D'));
-    }
-
-  } else if (borderStyle === 'minimal') {
-    // Just the outer solid line — already drawn above
-  }
-
-  // ── Text (shared across all border styles) ──
-  const chars = word.toUpperCase().split('').map(ch => LETTERS[ch] || LETTERS['?']);
+  // ── Text ──
+  const chars = word.toUpperCase().split('').map(function(ch) { return LETTERS[ch] || LETTERS['?']; });
   const tw = chars.reduce((s,l) => s + l[0].length*scale, 0) + gap*(chars.length-1);
   const th = 7*scale;
   let x = Math.floor((cols-tw)/2);
@@ -1076,6 +1015,135 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
 
   return grid;
 }
+
+// ── Border spec renderer ──────────────────────────────────────────────────────
+function renderBorderSpec(spec, N, setCell) {
+  if (!spec) return;
+  const layers = spec.layers || [];
+  layers.forEach(function(layer) {
+    const ln = layer.line;
+    if (layer.type === 'solid') {
+      const k = layer.color === 'secondary' ? 'D' : layer.color === 'accent' ? 'E' : 'B';
+      for (let i=ln; i<N-ln; i++) {
+        setCell(ln, i, k); setCell(N-1-ln, i, k);
+        setCell(i, ln, k); setCell(i, N-1-ln, k);
+      }
+    } else if (layer.type === 'check') {
+      const kA = layer.colorA === 'secondary' ? 'D' : layer.colorA === 'accent' ? 'E' : 'A';
+      const kB = layer.colorB === 'secondary' ? 'D' : layer.colorB === 'accent' ? 'E' : 'A';
+      for (let i=ln; i<N-ln; i++) {
+        setCell(ln,     i, i%2===0?kA:kB); setCell(N-1-ln, i, i%2===1?kA:kB);
+        setCell(i,     ln, i%2===0?kA:kB); setCell(i, N-1-ln, i%2===1?kA:kB);
+      }
+    }
+    // 'empty' — skip
+  });
+
+  if (spec.cornerMotif) {
+    const m = spec.cornerMotif;
+    const w = m.pattern[0].length;
+    const h = m.pattern.length;
+    const k = m.color === 'secondary' ? 'D' : m.color === 'accent' ? 'E' : 'F';
+    const inset = spec.cornerInset || layers.length + 2;
+    [[inset,inset],[inset,N-inset-w],[N-inset-h,inset],[N-inset-h,N-inset-w]]
+      .forEach(function(pos) {
+        m.pattern.forEach(function(rs,dr) {
+          rs.split('').forEach(function(ch,dc) {
+            if (ch==='1') setCell(pos[0]+dr, pos[1]+dc, k);
+          });
+        });
+      });
+  }
+
+  if (spec.sideMotifs) {
+    spec.sideMotifs.forEach(function(motif) {
+      const mw = motif.pattern[0].length;
+      const mh = motif.pattern.length;
+      const k  = motif.color === 'secondary' ? 'D' : motif.color === 'accent' ? 'E' : 'G';
+      const inset = spec.cornerInset || layers.length + 2;
+      const pos   = motif.position || 'all';
+      const midR  = Math.floor((N-mh)/2);
+      const midC  = Math.floor((N-mw)/2);
+      function draw(sr,sc) {
+        motif.pattern.forEach(function(rs,dr) {
+          rs.split('').forEach(function(ch,dc) {
+            if (ch==='1') setCell(sr+dr, sc+dc, k);
+          });
+        });
+      }
+      if (pos==='top-bottom'||pos==='all') { draw(inset,midC); draw(N-inset-mh,midC); }
+      if (pos==='left-right'||pos==='all') { draw(midR,inset); draw(midR,N-inset-mw); }
+    });
+  }
+}
+
+// ── Built-in border specs ─────────────────────────────────────────────────────
+const BORDER_SPECS = {
+  british: {
+    layers: [
+      { line:0, type:'solid',  color:'primary' },
+      { line:1, type:'check',  colorA:'secondary', colorB:'accent' },
+      { line:2, type:'solid',  color:'primary' },
+      { line:3, type:'check',  colorA:'accent',    colorB:'secondary' },
+      { line:4, type:'solid',  color:'primary' },
+    ],
+    cornerInset: 7,
+    cornerMotif: {
+      color: 'primary',
+      pattern: [
+        "011101110","101010101","110101011","001111100",
+        "011101110","001111100","110101011","101010101","011101110",
+      ]
+    },
+    sideMotifs: [
+      {
+        position:'top-bottom', color:'secondary',
+        pattern: [
+          "11000000000000000000000000000000000000011",
+          "11000000000000000000000000000000000000011",
+          "11000000000000000000000000000000000000011",
+          "11000000000000000000000000000000000000011",
+          "11000000000000000000000000000000000000011",
+          "11000000000000000000000000000000000000011",
+          "11111111111111111111111111111111111111111",
+          "00000000000000000000000000000000000000000",
+          "00000000000000000000000000000000000000000",
+        ]
+      },
+      {
+        position:'left-right', color:'accent',
+        pattern: [
+          "000010000","000111000","001111100","011111110","111111111",
+          "011111110","001111100","000111000","000010000",
+        ]
+      }
+    ]
+  },
+
+  scandinavian: {
+    layers: [
+      { line:0, type:'solid', color:'primary' },
+      { line:1, type:'empty' },
+      { line:2, type:'solid', color:'primary' },
+    ],
+    cornerInset: 5,
+    cornerMotif: {
+      color: 'secondary',
+      pattern: ["00100","01110","11111","01110","00100"]
+    },
+    sideMotifs: [{
+      position:'all', color:'accent',
+      pattern: ["01010","11111","01010","11111","01010"]
+    }]
+  },
+
+  minimal: {
+    layers: [
+      { line:0, type:'solid', color:'primary' },
+      { line:1, type:'solid', color:'secondary' },
+    ]
+  },
+};
 
 function stitchColor(kind, threads) {
   const black = threads&&threads[0] ? threads[0].hex : '#1A1A1A';
