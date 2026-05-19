@@ -1193,11 +1193,62 @@ const LETTERS = {
   'X':["10001","10001","01010","00100","01010","10001","10001"],
   'Y':["10001","10001","01010","00100","00100","00100","00100"],
   'Z':["11111","00001","00010","00100","01000","10000","11111"],
+  // Scandinavian
+  'Å':["01110","10001","01110","10001","11111","10001","10001"],
+  'Ä':["10001","01110","10001","10001","11111","10001","10001"],
+  'Ö':["10001","01110","10001","10001","10001","10001","01110"],
+  'Æ':["011111","100001","100000","111110","100000","100001","011111"],
+  'Ø':["011110","100011","100101","101001","110001","100001","011110"],
+  // German
+  'Ü':["10001","00000","10001","10001","10001","10001","01110"],
+  'ß':["01110","10001","10001","11110","10001","10001","11110"],
+  // French / Portuguese
+  'É':["11111","10000","10000","11110","10000","10001","11111"],
+  'È':["11111","10000","10000","11110","10000","10000","11111"],
+  'Ê':["11111","10000","10000","11110","10000","10000","11111"],
+  'Ë':["11111","10000","10000","11110","10000","10000","11111"],
+  'À':["01110","10001","10001","11111","10001","10001","10001"],
+  'Â':["01110","10001","10001","11111","10001","10001","10001"],
+  'Ã':["01110","10001","10001","11111","10001","10001","10001"],
+  'Ç':["01110","10001","10000","10000","10001","01110","00110"],
+  'Î':["111","010","010","010","010","010","111"],
+  'Ô':["01110","10001","10001","10001","10001","10001","01110"],
+  'Õ':["01110","10001","10001","10001","10001","10001","01110"],
+  'Û':["10001","00000","10001","10001","10001","10001","01110"],
+  'Ù':["10001","00000","10001","10001","10001","10001","01110"],
+  // Spanish
+  'Ñ':["10001","01010","11001","10101","10011","10001","10001"],
+  'Á':["01110","10001","10001","11111","10001","10001","10001"],
+  'Í':["111","010","010","010","010","010","111"],
+  'Ó':["01110","10001","10001","10001","10001","10001","01110"],
+  'Ú':["10001","00000","10001","10001","10001","10001","01110"],
+  // Punctuation
   '!':["1","1","1","1","0","0","1"],
   '?':["01110","10001","00001","00110","00100","00000","00100"],
   '.':["0","0","0","0","0","0","1"],
+  ',':["0","0","0","0","0","1","1"],
+  '-':["000","000","000","111","000","000","000"],
+  "'":["1","1","0","0","0","0","0"],
   ' ':["000","000","000","000","000","000","000"],
 };
+
+// Normalise a character — maps accented/special chars to their LETTERS key
+function normaliseChar(ch) {
+  // toUpperCase handles basic cases
+  ch = ch.toUpperCase();
+  // Map chars not in LETTERS to closest equivalent
+  const map = {
+    'À':'À','Á':'Á','Â':'Â','Ã':'Ã','Ä':'Ä','Å':'Å',
+    'Æ':'Æ','Ç':'Ç','È':'È','É':'É','Ê':'Ê','Ë':'Ë',
+    'Ì':'I','Í':'Í','Î':'Î','Ï':'I',
+    'Ð':'D','Ñ':'Ñ','Ò':'O','Ó':'Ó','Ô':'Ô','Õ':'Õ','Ö':'Ö','Ø':'Ø',
+    'Ù':'Ù','Ú':'Ú','Û':'Û','Ü':'Ü',
+    'Ý':'Y','Þ':'P','ß':'ß',
+    // lowercase accented (after toUpperCase these shouldn't appear, but just in case)
+    'À':'À','Á':'Á',
+  };
+  return (ch in LETTERS) ? ch : (map[ch] || '?');
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    BUILT-IN BORDERS — seeded to Firestore on first load
@@ -1261,7 +1312,7 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   renderBorderSpec(spec, N, setCell);
 
   // ── Text ──
-  const chars = word.toUpperCase().split('').map(function(ch) { return LETTERS[ch] || LETTERS['?']; });
+  const chars = word.toUpperCase().split('').map(function(ch) { return LETTERS[normaliseChar(ch)] || LETTERS['?']; });
   const tw = chars.reduce((s,l) => s + l[0].length*scale, 0) + gap*(chars.length-1);
   const th = 7*scale;
   let x = Math.floor((cols-tw)/2);
@@ -1409,10 +1460,14 @@ const BORDER_SPECS = {
 };
 
 function stitchColor(kind, threads) {
-  const black = threads&&threads[0] ? threads[0].hex : '#1A1A1A';
-  const green = threads&&threads[1] ? threads[1].hex : '#4A6741';
-  const coral = threads&&threads[2] ? threads[2].hex : '#CC3300';
-  return {'T':black,'B':black,'A':black,'F':black,'G':green,'D':green,'E':coral,'S':coral}[kind]||null;
+  const t = threads || [];
+  const black = t.find(function(x){ return x.hex&&x.hex.toLowerCase().startsWith('#1'); });
+  const green = t.find(function(x){ return x.hex&&(x.hex.toLowerCase().startsWith('#4')||x.hex.toLowerCase().startsWith('#3')); });
+  const coral = t.find(function(x){ return x.hex&&x.hex.toLowerCase().startsWith('#c'); });
+  const bk = black ? black.hex : '#1A1A1A';
+  const gn = green ? green.hex : '#4A6741';
+  const cr = coral ? coral.hex : '#CC3300';
+  return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1720,10 +1775,22 @@ const A4H = 297 * MM;   // 841pt
 
 // Stitch colour lookup (same as canvas)
 function pdfStitchColor(kind, threads) {
-  const black = (threads&&threads[0]&&threads[0].hex)||'#1A1A1A';
-  const green = (threads&&threads[1]&&threads[1].hex)||'#4A6741';
-  const coral = (threads&&threads[2]&&threads[2].hex)||'#CC3300';
-  return {'T':black,'B':black,'A':black,'F':black,'D':green,'G':green,'E':coral,'S':coral}[kind]||null;
+  // Find threads by role — fall back to brand defaults so colours never drop
+  const black = (threads && threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#1'); }))
+    ? threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#1'); }).hex
+    : '#1A1A1A';
+  const green = (threads && threads.find(function(t) { return t.hex && (t.hex.toLowerCase().startsWith('#4') || t.hex.toLowerCase().startsWith('#3')); }))
+    ? threads.find(function(t) { return t.hex && (t.hex.toLowerCase().startsWith('#4') || t.hex.toLowerCase().startsWith('#3')); }).hex
+    : '#4A6741';
+  const coral = (threads && threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#c'); }))
+    ? threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#c'); }).hex
+    : '#CC3300';
+  const map = {
+    'T': black, 'B': black, 'A': black, 'F': black,
+    'D': green, 'G': green,
+    'E': coral, 'S': coral,
+  };
+  return map[kind] || black; // never return null — default to black
 }
 
 function hexToRgb(hex) {
