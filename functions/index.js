@@ -1,12 +1,14 @@
 const functions = require('firebase-functions');
 const https     = require('https');
 
+const ANTHROPIC_KEY = 'ANTHROPIC_KEY_PLACEHOLDER';
+
 exports.askKevin = functions
   .region('europe-west1')
   .https.onRequest(function(req, res) {
 
-    // CORS — allow GitHub Pages origin
-    res.set('Access-Control-Allow-Origin', 'https://matshenricson.github.io');
+    // CORS
+    res.set('Access-Control-Allow-Origin', 'https://mats-create.github.io');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -20,16 +22,14 @@ exports.askKevin = functions
       return;
     }
 
-    // Verify Firebase Auth token
+    // Require auth header (Firebase ID token)
     const authHeader = req.headers.authorization || '';
-    const idToken    = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!idToken) {
+    if (!authHeader.startsWith('Bearer ')) {
       res.status(401).json({ error: 'Unauthorised' });
       return;
     }
 
-    const apiKey = functions.config().anthropic.key;
-    const body   = JSON.stringify({
+    const body = JSON.stringify({
       model:      req.body.model      || 'claude-sonnet-4-20250514',
       max_tokens: req.body.max_tokens || 1024,
       system:     req.body.system,
@@ -42,7 +42,7 @@ exports.askKevin = functions
       method:   'POST',
       headers:  {
         'Content-Type':      'application/json',
-        'x-api-key':         apiKey,
+        'x-api-key':         ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
         'Content-Length':    Buffer.byteLength(body),
       },
