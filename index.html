@@ -1010,23 +1010,29 @@ async function executeKevinTool(toolName, toolInput, appData) {
 
 // ── askKevin — tool-aware, multi-turn ─────────────────────────────────────────
 async function askKevin(messages, context, appData) {
-  // Convert internal message format to Anthropic API format
-  function toApiMessages(msgs) {
-    return msgs
-      .filter(function(m) { return m.role === 'user' || m.role === 'kevin' || m.role === 'tool_result'; })
-      .map(function(m) {
-        if (m.role === 'tool_result') return m.apiMsg;
-        return { role: m.role === 'kevin' ? 'assistant' : 'user', content: m.text };
-      });
+
+  // Build clean API messages from internal format
+  // Each turn is stored as {role, text} internally but the API needs proper structure
+  // We rebuild from the internal log, ignoring any previous tool-turn details
+  // (tool calls happen inside askKevin and are transparent to the UI)
+  function buildApiMessages(msgs) {
+    const result = [];
+    for (const m of msgs) {
+      if (m.role === 'user')  result.push({ role: 'user',      content: m.text });
+      if (m.role === 'kevin') result.push({ role: 'assistant', content: m.text });
+      // tool_result role is internal-only — never replayed to API
+    }
+    return result;
   }
 
-  let apiMessages = toApiMessages(messages);
-  let finalText = '';
-  let iterations = 0;
-  const MAX_ITER = 5; // safety limit
+  let apiMessages = buildApiMessages(messages);
+  let finalText   = '';
+  let iterations  = 0;
+  const MAX_ITER  = 6;
 
   while (iterations < MAX_ITER) {
     iterations++;
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method:  'POST',
       headers: kevinHeaders(),
@@ -1038,35 +1044,41 @@ async function askKevin(messages, context, appData) {
         messages:   apiMessages,
       }),
     });
-    if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error('Kevin unavailable — ' + response.status + ': ' + errText.slice(0, 200));
+    }
     const data = await response.json();
 
-    // Collect text content
-    const textBlocks = data.content.filter(function(b) { return b.type === 'text'; });
-    if (textBlocks.length > 0) finalText = textBlocks.map(function(b) { return b.text; }).join('\n');
-
-    // Check for tool use
-    const toolUseBlocks = data.content.filter(function(b) { return b.type === 'tool_use'; });
-
-    if (data.stop_reason === 'end_turn' || toolUseBlocks.length === 0) {
-      break; // Done
+    // Collect any text blocks
+    const textBlocks = (data.content || []).filter(function(b) { return b.type === 'text'; });
+    if (textBlocks.length > 0) {
+      finalText = textBlocks.map(function(b) { return b.text; }).join('\n');
     }
 
-    // Execute tools and build tool_result messages
-    const assistantMsg = { role: 'assistant', content: data.content };
-    const toolResults  = [];
+    // Check for tool use blocks
+    const toolUseBlocks = (data.content || []).filter(function(b) { return b.type === 'tool_use'; });
+
+    // If no tool calls, we're done
+    if (toolUseBlocks.length === 0) break;
+
+    // Execute each tool call
+    const toolResults = [];
     for (const toolUse of toolUseBlocks) {
       const result = await executeKevinTool(toolUse.name, toolUse.input, appData);
       toolResults.push({
         type:        'tool_result',
         tool_use_id: toolUse.id,
-        content:     result,
+        content:     String(result),
       });
     }
-    const toolResultMsg = { role: 'user', content: toolResults };
 
-    // Append to conversation and loop
-    apiMessages = [...apiMessages, assistantMsg, toolResultMsg];
+    // Append assistant turn (with tool_use blocks) + tool results, then loop
+    apiMessages = [
+      ...apiMessages,
+      { role: 'assistant', content: data.content },
+      { role: 'user',      content: toolResults  },
+    ];
   }
 
   return finalText || 'Done.';
@@ -1125,8 +1137,12 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
 
   // Local alias — always use extMessages via setExtMessages
   const messages = extMessages || [];
-  function setMessages(fn) {
-    setExtMessages(typeof fn === 'function' ? fn : function() { return fn; });
+  function setMessages(valOrFn) {
+    if (typeof valOrFn === 'function') {
+      setExtMessages(function(prev) { return valOrFn(prev || []); });
+    } else {
+      setExtMessages(valOrFn);
+    }
   }
 
   // Scroll to bottom
