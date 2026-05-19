@@ -1364,35 +1364,33 @@ const LETTERS = {
   'X':["10001","10001","01010","00100","01010","10001","10001"],
   'Y':["10001","10001","01010","00100","00100","00100","00100"],
   'Z':["11111","00001","00010","00100","01000","10000","11111"],
-  // Scandinavian — using unicode escapes to survive Babel transpilation
-  '\u00C5':["01110","10001","01110","10001","11111","10001","10001"], // Å
-  '\u00C4':["10001","01110","10001","10001","11111","10001","10001"], // Ä
-  '\u00D6':["10001","01110","10001","10001","10001","10001","01110"], // Ö
-  '\u00C6':["011111","100001","100000","111110","100000","100001","011111"], // Æ
-  '\u00D8':["011110","100011","100101","101001","110001","100001","011110"], // Ø
-  // German
-  '\u00DC':["10001","00000","10001","10001","10001","10001","01110"], // Ü
-  '\u00DF':["01110","10001","10001","11110","10001","10001","11110"], // ß
-  // French / Portuguese
-  '\u00C9':["11111","10000","10000","11110","10000","10001","11111"], // É
-  '\u00C8':["11111","10000","10000","11110","10000","10000","11111"], // È
-  '\u00CA':["11111","10000","10000","11110","10000","10000","11111"], // Ê
-  '\u00CB':["11111","10000","10000","11110","10000","10000","11111"], // Ë
-  '\u00C0':["01110","10001","10001","11111","10001","10001","10001"], // À
-  '\u00C2':["01110","10001","10001","11111","10001","10001","10001"], // Â
-  '\u00C3':["01110","10001","10001","11111","10001","10001","10001"], // Ã
-  '\u00C7':["01110","10001","10000","10000","10001","01110","00110"], // Ç
-  '\u00CE':["111","010","010","010","010","010","111"],               // Î
-  '\u00D4':["01110","10001","10001","10001","10001","10001","01110"], // Ô
-  '\u00D5':["01110","10001","10001","10001","10001","10001","01110"], // Õ
-  '\u00DB':["10001","00000","10001","10001","10001","10001","01110"], // Û
-  '\u00D9':["10001","00000","10001","10001","10001","10001","01110"], // Ù
-  // Spanish
-  '\u00D1':["10001","01010","11001","10101","10011","10001","10001"], // Ñ
-  '\u00C1':["01110","10001","10001","11111","10001","10001","10001"], // Á
-  '\u00CD':["111","010","010","010","010","010","111"],               // Í
-  '\u00D3':["01110","10001","10001","10001","10001","10001","01110"], // Ó
-  '\u00DA':["10001","00000","10001","10001","10001","10001","01110"], // Ú
+  // Scandinavian/accented chars — base letter only, diacritics drawn separately
+  // (see DIACRITICS map and buildGrid text renderer)
+  '\u00C5':'A', // Å → A + ring above
+  '\u00C4':'A', // Ä → A + umlaut
+  '\u00D6':'O', // Ö → O + umlaut
+  '\u00C6':["011111","100001","100000","111110","100000","100001","011111"], // Æ (unique shape)
+  '\u00D8':["011110","100011","100101","101001","110001","100001","011110"], // Ø (unique shape)
+  '\u00DC':'U', // Ü → U + umlaut
+  '\u00DF':["01110","10001","10001","11110","10001","10001","11110"], // ß (unique shape)
+  '\u00C9':'E', // É → E + acute
+  '\u00C8':'E', // È → E + grave
+  '\u00CA':'E', // Ê → E + circumflex
+  '\u00CB':'E', // Ë → E + umlaut
+  '\u00C0':'A', // À → A + grave
+  '\u00C2':'A', // Â → A + circumflex
+  '\u00C3':'A', // Ã → A + tilde
+  '\u00C7':["01110","10001","10000","10000","10001","01110","00110"], // Ç (unique shape)
+  '\u00CE':'I', // Î → I + circumflex
+  '\u00D4':'O', // Ô → O + circumflex
+  '\u00D5':'O', // Õ → O + tilde
+  '\u00DB':'U', // Û → U + circumflex
+  '\u00D9':'U', // Ù → U + grave
+  '\u00D1':'N', // Ñ → N + tilde
+  '\u00C1':'A', // Á → A + acute
+  '\u00CD':'I', // Í → I + acute
+  '\u00D3':'O', // Ó → O + acute
+  '\u00DA':'U', // Ú → U + acute
   // Punctuation
   '!':["1","1","1","1","0","0","1"],
   '?':["01110","10001","00001","00110","00100","00000","00100"],
@@ -1403,21 +1401,101 @@ const LETTERS = {
   ' ':["000","000","000","000","000","000","000"],
 };
 
+// Diacritic marks drawn above the base letter (2 rows tall, same width as letter)
+// Each entry is [top_row, bottom_row] as binary strings centred over the letter
+// drawn at scale 1 (will be scaled in buildGrid)
+const DIACRITICS = {
+  // umlaut (Ä Ö Ü Ë) — two dots
+  'umlaut': function(w) {
+    const mid = Math.floor(w/2);
+    const d1  = mid > 1 ? mid-1 : 0;
+    const d2  = mid < w-1 ? mid+1 : w-1;
+    const top = Array(w).fill('0');
+    top[d1] = '1'; top[d2] = '1';
+    return ['0'.repeat(w), top.join('')];
+  },
+  // ring above (Å)
+  'ring': function(w) {
+    const mid = Math.floor(w/2);
+    const row = Array(w).fill('0');
+    if (mid > 0) row[mid-1] = '1';
+    row[mid] = '0';
+    if (mid < w-1) row[mid+1] = '1';
+    return [row.join(''), Array(w).fill('0').join('')];
+  },
+  // acute accent (Á É Í Ó Ú)
+  'acute': function(w) {
+    const mid = Math.floor(w/2);
+    const r1 = Array(w).fill('0'); if (mid < w-1) r1[mid+1] = '1';
+    const r2 = Array(w).fill('0'); r2[mid] = '1';
+    return [r1.join(''), r2.join('')];
+  },
+  // grave accent (À È Ù)
+  'grave': function(w) {
+    const mid = Math.floor(w/2);
+    const r1 = Array(w).fill('0'); if (mid > 0) r1[mid-1] = '1';
+    const r2 = Array(w).fill('0'); r2[mid] = '1';
+    return [r1.join(''), r2.join('')];
+  },
+  // circumflex (Â Ê Î Ô Û)
+  'circumflex': function(w) {
+    const mid = Math.floor(w/2);
+    const r1 = Array(w).fill('0');
+    if (mid > 0) r1[mid-1] = '1';
+    if (mid < w-1) r1[mid+1] = '1';
+    const r2 = Array(w).fill('0'); r2[mid] = '1';
+    return [r1.join(''), r2.join('')];
+  },
+  // tilde (Ã Ñ Õ)
+  'tilde': function(w) {
+    const mid = Math.floor(w/2);
+    const r1 = Array(w).fill('0');
+    if (mid > 1) r1[mid-2] = '1';
+    r1[mid] = '1';
+    if (mid < w-1) r1[mid+1] = '1';
+    const r2 = Array(w).fill('0');
+    if (mid > 0) r2[mid-1] = '1';
+    r2[mid] = '1';
+    if (mid < w-2) r2[mid+2] = '1';
+    return [r1.join(''), r2.join('')];
+  },
+};
+
+// Map each accented char to {base, diacritic}
+const DIACRITIC_MAP = {
+  '\u00C5': {base:'A', mark:'ring'},
+  '\u00C4': {base:'A', mark:'umlaut'},
+  '\u00D6': {base:'O', mark:'umlaut'},
+  '\u00DC': {base:'U', mark:'umlaut'},
+  '\u00CB': {base:'E', mark:'umlaut'},
+  '\u00C9': {base:'E', mark:'acute'},
+  '\u00C1': {base:'A', mark:'acute'},
+  '\u00CD': {base:'I', mark:'acute'},
+  '\u00D3': {base:'O', mark:'acute'},
+  '\u00DA': {base:'U', mark:'acute'},
+  '\u00C8': {base:'E', mark:'grave'},
+  '\u00C0': {base:'A', mark:'grave'},
+  '\u00D9': {base:'U', mark:'grave'},
+  '\u00CA': {base:'E', mark:'circumflex'},
+  '\u00C2': {base:'A', mark:'circumflex'},
+  '\u00CE': {base:'I', mark:'circumflex'},
+  '\u00D4': {base:'O', mark:'circumflex'},
+  '\u00DB': {base:'U', mark:'circumflex'},
+  '\u00C3': {base:'A', mark:'tilde'},
+  '\u00D1': {base:'N', mark:'tilde'},
+  '\u00D5': {base:'O', mark:'tilde'},
+};
+
 // Normalise a character — maps accented/special chars to their LETTERS key
 function normaliseChar(ch) {
   ch = ch.toUpperCase();
-  // If already in LETTERS, return directly
   if (ch in LETTERS) return ch;
-  // Map accented chars to their unicode-escaped LETTERS key
+  // For chars with diacritics, return the base letter
+  // (diacritic will be drawn separately in buildGrid)
+  if (ch in DIACRITIC_MAP) return DIACRITIC_MAP[ch].base;
   const map = {
-    '\u00C0':'\u00C0','\u00C1':'\u00C1','\u00C2':'\u00C2','\u00C3':'\u00C3',
-    '\u00C4':'\u00C4','\u00C5':'\u00C5','\u00C6':'\u00C6','\u00C7':'\u00C7',
-    '\u00C8':'\u00C8','\u00C9':'\u00C9','\u00CA':'\u00CA','\u00CB':'\u00CB',
-    '\u00CC':'I',     '\u00CD':'\u00CD','\u00CE':'\u00CE','\u00CF':'I',
-    '\u00D0':'D',     '\u00D1':'\u00D1','\u00D2':'O',     '\u00D3':'\u00D3',
-    '\u00D4':'\u00D4','\u00D5':'\u00D5','\u00D6':'\u00D6','\u00D8':'\u00D8',
-    '\u00D9':'\u00D9','\u00DA':'\u00DA','\u00DB':'\u00DB','\u00DC':'\u00DC',
-    '\u00DD':'Y',     '\u00DE':'P',     '\u00DF':'\u00DF',
+    '\u00CC':'I', '\u00CF':'I', '\u00D0':'D', '\u00D2':'O',
+    '\u00DD':'Y', '\u00DE':'P',
   };
   return map[ch] || '?';
 }
@@ -1484,21 +1562,89 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   renderBorderSpec(spec, N, setCell);
 
   // ── Text ──
-  // Normalise to NFC (precomposed) so Ä = one char not A + combining diaeresis
+  // Normalise to NFC so Ä = one precomposed char
   const normWord = word.normalize ? word.normalize('NFC') : word;
-  const chars = normWord.toUpperCase().split('').map(function(ch) { return LETTERS[normaliseChar(ch)] || LETTERS['?']; });
-  const tw = chars.reduce((s,l) => s + l[0].length*scale, 0) + gap*(chars.length-1);
-  const th = 7*scale;
-  let x = Math.floor((cols-tw)/2);
-  const startRow = Math.floor((rows-th)/2);
-  chars.forEach(letter => {
-    letter.forEach((rs,r) => rs.split('').forEach((ch,c) => {
-      if (ch==='1') {
-        for (let dr=0;dr<scale;dr++) for (let dc=0;dc<scale;dc++)
-          setCell(startRow+r*scale+dr, x+c*scale+dc, 'T');
-      }
-    }));
-    x += letter[0].length*scale + gap;
+  const upperWord = normWord.toUpperCase();
+
+  // Build char list — each entry: {letter (bitmap), hasDiacritic, diacriticFn}
+  const charList = upperWord.split('').map(function(ch) {
+    const dm = DIACRITIC_MAP[ch];
+    if (dm) {
+      return { letter: LETTERS[dm.base] || LETTERS['?'], hasDiac: true, mark: dm.mark };
+    }
+    return { letter: LETTERS[normaliseChar(ch)] || LETTERS['?'], hasDiac: false };
+  });
+
+  const hasDiacritics = charList.some(function(c) { return c.hasDiac; });
+  // Letter body is 7 rows; diacritics add 2 rows above
+  const LETTER_H = 7;
+  const DIAC_H   = hasDiacritics ? 2 : 0;
+  const TEXT_H   = LETTER_H + DIAC_H; // total height per char slot
+
+  // ── Auto-scale ──
+  // Determine border depth from spec layers (or default 2)
+  const borderDepth = (spec && spec.layers) ? spec.layers.length : 2;
+  const cornerInset = (spec && spec.cornerInset) ? spec.cornerInset : borderDepth + 2;
+  // Interior available for text (leave 2 stitch padding inside border)
+  const interiorW = cols - cornerInset * 2 - 4;
+  const interiorH = rows - cornerInset * 2 - 4;
+
+  // Text width at scale 1
+  const tw1 = charList.reduce(function(s, c) { return s + c.letter[0].length; }, 0)
+              + gap * (charList.length - 1);
+
+  // Find largest scale that fits in both dimensions
+  const maxScaleW = Math.floor(interiorW / Math.max(tw1, 1));
+  const maxScaleH = Math.floor(interiorH / Math.max(TEXT_H, 1));
+  const autoScale = Math.max(1, Math.min(3, maxScaleW, maxScaleH));
+
+  // Use passed scale if explicitly > 0, else auto
+  const S = (scale && scale > 0) ? scale : autoScale;
+  const G = gap; // gap between letters (at scale 1, will be multiplied)
+
+  // Final text dimensions at chosen scale
+  const tw = charList.reduce(function(s, c) { return s + c.letter[0].length * S; }, 0)
+             + G * S * (charList.length - 1);
+  const th = TEXT_H * S;
+
+  let x        = Math.floor((cols - tw) / 2);
+  const startRow = Math.floor((rows - th) / 2);
+
+  charList.forEach(function(charEntry) {
+    const letter = charEntry.letter;
+    const lw     = letter[0].length;
+
+    // Draw diacritic mark above the letter (rows startRow to startRow+DIAC_H*S-1)
+    if (charEntry.hasDiac && hasDiacritics) {
+      const markRows = DIACRITICS[charEntry.mark](lw);
+      markRows.forEach(function(rs, dr) {
+        rs.split('').forEach(function(ch, dc) {
+          if (ch === '1') {
+            for (let sy = 0; sy < S; sy++) {
+              for (let sx = 0; sx < S; sx++) {
+                setCell(startRow + dr * S + sy, x + dc * S + sx, 'T');
+              }
+            }
+          }
+        });
+      });
+    }
+
+    // Draw letter body (below diacritic rows)
+    const letterStartRow = startRow + DIAC_H * S;
+    letter.forEach(function(rs, r) {
+      rs.split('').forEach(function(ch, c) {
+        if (ch === '1') {
+          for (let dr = 0; dr < S; dr++) {
+            for (let dc = 0; dc < S; dc++) {
+              setCell(letterStartRow + r * S + dr, x + c * S + dc, 'T');
+            }
+          }
+        }
+      });
+    });
+
+    x += lw * S + G * S;
   });
 
   return grid;
