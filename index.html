@@ -640,35 +640,298 @@ function kevinSystemPrompt(context) {
 
 Brand voice: knowing, dry wit, craft-proud, inclusive, concise. Never say "bespoke", "artisan", or "curated". No exclamation marks. Sentence case always.
 
-Your expertise covers:
+You have tools to read and write the app library. Always use listBorders before creating a shoutout so you pick a valid borderId. Confirm with the user before deleting anything. When creating shoutouts, use these default threads unless asked otherwise: Pitch black (DMC 310, #1A1A1A), Pitch green (DMC 3362, #4A6741), Coral (DMC 350, #CC3300).
+
+Your expertise:
 1. EMBROIDERY — cross-stitch pattern design, border traditions (British, Scandinavian, Hardanger, Blackwork, Assisi, folk styles), DMC thread selection, stitch density, difficulty, hoop sizing, Aida count
-2. FOOTBALL — words, terms, exclamations from all football cultures and languages. You know what "Siuuu", "Worldie", "Howler", "Gol", "But", "Tor", "Saet den ind" and hundreds more mean and where they come from
-3. TRADEMARK & COPYRIGHT — you proactively flag risks. Club names (Arsenal, Barcelona etc), competition names (Champions League, Premier League), trademarked phrases, and song lyrics are risks for commercial products. Generic football vocabulary is fine. You are clear but not alarmist — you inform, not block
-4. PATTERN GENERATION — you can suggest new shoutouts, describe border styles in enough detail for a developer to implement them, and recommend thread palettes
+2. FOOTBALL — words, terms, exclamations from all football cultures and languages. "Siuuu", "Worldie", "Howler", "Gol", "But", "Tor", "Saet den ind" and hundreds more
+3. TRADEMARK & COPYRIGHT — flag risks proactively. Club names, competition names, trademarked phrases are risks for commercial products. Generic football vocabulary is fine. Inform, not block.
+4. PATTERN CREATION — create shoutouts directly in the library, suggest words, recommend thread palettes
 
-Current app context:
+Current context:
 - Screen: ${context.tab}
-- Shoutouts in library: ${context.shoutoutCount} (${context.shoutoutNames})
-- Border styles available: ${context.borderNames}
-- Hoop size default: 280 x 250mm, 14-count Aida, 110 x 110 stitches
+- Shoutouts: ${context.shoutoutCount} (${context.shoutoutNames})
+- Borders available: ${context.borderNames}
+- Default hoop: 280 x 250mm, 14-count Aida, 110 x 110 stitches
 
-Keep responses concise and practical. When suggesting new shoutouts or borders, be specific. When flagging trademark issues, explain clearly and suggest a safe alternative if relevant.`;
+Be concise. When creating patterns, just do it — confirm after, not before. When deleting, always confirm first.`;
 }
 
-async function askKevin(messages, context) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method:  'POST',
-    headers: kevinHeaders(),
-    body: JSON.stringify({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system:     kevinSystemPrompt(context),
-      messages:   messages,
-    }),
-  });
-  if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
-  const data = await response.json();
-  return data.content[0].text;
+// ── Kevin tool definitions ────────────────────────────────────────────────────
+const KEVIN_TOOLS = [
+  {
+    name: 'listShoutouts',
+    description: 'List all football shoutouts in the library with their key details.',
+    input_schema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'listBorders',
+    description: 'List all border styles in the border library.',
+    input_schema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'createShoutout',
+    description: 'Create a new football shoutout and add it to the library. Use listBorders first to pick a valid borderId.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:      { type: 'string',  description: 'The word or phrase, e.g. "WORLDIE"' },
+        stitchesW: { type: 'number',  description: 'Width in stitches, default 110' },
+        stitchesH: { type: 'number',  description: 'Height in stitches, default 110' },
+        hoopW:     { type: 'number',  description: 'Hoop width in mm, default 280' },
+        hoopH:     { type: 'number',  description: 'Hoop height in mm, default 250' },
+        borderId:  { type: 'string',  description: 'ID of the border to use' },
+        borderName:{ type: 'string',  description: 'Display name of the border' },
+        threads:   { type: 'array',   description: 'Thread list: [{name, dmc, hex, usage}]',
+          items: { type: 'object', properties: {
+            name:  { type: 'string' }, dmc:   { type: 'string' },
+            hex:   { type: 'string' }, usage: { type: 'string' }
+          }}
+        },
+        notes:     { type: 'string',  description: 'Optional notes' },
+      },
+      required: ['name', 'borderId', 'borderName']
+    }
+  },
+  {
+    name: 'updateShoutout',
+    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:        { type: 'string', description: 'Shoutout id from listShoutouts' },
+        name:      { type: 'string' },
+        stitchesW: { type: 'number' },
+        stitchesH: { type: 'number' },
+        hoopW:     { type: 'number' },
+        hoopH:     { type: 'number' },
+        borderId:  { type: 'string' },
+        borderName:{ type: 'string' },
+        threads:   { type: 'array', items: { type: 'object' } },
+        notes:     { type: 'string' },
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'deleteShoutout',
+    description: 'Delete a shoutout by its id. Use listShoutouts to confirm the id first.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Shoutout id to delete' },
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'undoLastAction',
+    description: 'Undo the last create, update, or delete action Kevin performed in this session.',
+    input_schema: { type: 'object', properties: {}, required: [] }
+  },
+];
+
+// ── Kevin undo stack (session only) ──────────────────────────────────────────
+const _kevinUndoStack = [];
+
+function kevinLogUndo(entry) { _kevinUndoStack.push(entry); }
+
+// Execute a tool call — returns result string
+async function executeKevinTool(toolName, toolInput, appData) {
+  const fb  = appData.fb;
+  const uid = appData.uid;
+
+  // ── Read tools ──
+  if (toolName === 'listShoutouts') {
+    const shoutouts = appData.shoutouts || [];
+    if (shoutouts.length === 0) return 'No shoutouts in library yet.';
+    return JSON.stringify(shoutouts.map(function(s) {
+      return {
+        id: s.id, name: s.name,
+        stitches: s.stitchesW + 'x' + s.stitchesH,
+        hoop: s.hoopW + 'x' + s.hoopH + 'mm',
+        border: s.borderName || 'none',
+        threads: (s.threads || []).map(function(t) { return t.name + ' (' + t.dmc + ')'; }),
+        notes: s.notes || '',
+      };
+    }), null, 2);
+  }
+
+  if (toolName === 'listBorders') {
+    const borders = appData.borders || [];
+    if (borders.length === 0) return 'No borders in library yet.';
+    return JSON.stringify(borders.map(function(b) {
+      return {
+        id: b.id, name: b.name, style: b.style,
+        description: b.description, traits: b.traits || [],
+        builtIn: b.builtIn || false, hasSpec: !!b.spec,
+      };
+    }), null, 2);
+  }
+
+  // ── Write tools ──
+  if (toolName === 'createShoutout') {
+    try {
+      const border = (appData.borders || []).find(function(b) { return b.id === toolInput.borderId; });
+      const borderSpec = (border && border.spec) ? border.spec
+                       : (BORDER_SPECS[border && border.style] || null);
+      const data = {
+        name:        toolInput.name || '',
+        stitchesW:   toolInput.stitchesW || 110,
+        stitchesH:   toolInput.stitchesH || 110,
+        hoopW:       toolInput.hoopW || 280,
+        hoopH:       toolInput.hoopH || 250,
+        borderId:    toolInput.borderId || '',
+        borderName:  toolInput.borderName || '',
+        borderStyle: border ? border.style : 'british',
+        borderSpec:  borderSpec,
+        threads:     toolInput.threads || [
+          { name:'Pitch black', dmc:'DMC 310',  hex:'#1A1A1A', usage:'Main text' },
+          { name:'Pitch green', dmc:'DMC 3362', hex:'#4A6741', usage:'Border accents' },
+          { name:'Coral',       dmc:'DMC 350',  hex:'#CC3300', usage:'Highlights' },
+        ],
+        notes: toolInput.notes || '',
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      };
+      const ref = await fb.addDoc(
+        fb.collection(fb.db, 'users', uid, 'shoutouts'), data
+      );
+      kevinLogUndo({ action: 'createShoutout', id: ref.id, uid });
+      return 'Shoutout created with id: ' + ref.id;
+    } catch(e) { return 'Error creating shoutout: ' + e.message; }
+  }
+
+  if (toolName === 'updateShoutout') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      // Snapshot current state for undo
+      const current = (appData.shoutouts || []).find(function(s) { return s.id === id; });
+      const fields = Object.assign({}, toolInput);
+      delete fields.id;
+      // If border changed, update borderStyle and borderSpec too
+      if (fields.borderId) {
+        const border = (appData.borders || []).find(function(b) { return b.id === fields.borderId; });
+        if (border) {
+          fields.borderStyle = border.style;
+          fields.borderSpec  = border.spec || BORDER_SPECS[border.style] || null;
+          if (!fields.borderName) fields.borderName = border.name;
+        }
+      }
+      fields.updatedAt = fb.serverTimestamp();
+      await fb.updateDoc(
+        fb.doc(fb.db, 'users', uid, 'shoutouts', id), fields
+      );
+      kevinLogUndo({ action: 'updateShoutout', id, uid, previous: current });
+      return 'Shoutout ' + id + ' updated.';
+    } catch(e) { return 'Error updating shoutout: ' + e.message; }
+  }
+
+  if (toolName === 'deleteShoutout') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.shoutouts || []).find(function(s) { return s.id === id; });
+      await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'shoutouts', id));
+      kevinLogUndo({ action: 'deleteShoutout', id, uid, previous: current });
+      return 'Shoutout ' + id + ' deleted.';
+    } catch(e) { return 'Error deleting shoutout: ' + e.message; }
+  }
+
+  if (toolName === 'undoLastAction') {
+    const last = _kevinUndoStack.pop();
+    if (!last) return 'Nothing to undo.';
+    try {
+      if (last.action === 'createShoutout') {
+        await fb.deleteDoc(fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id));
+        return 'Undone — shoutout removed.';
+      }
+      if (last.action === 'updateShoutout' && last.previous) {
+        const prev = Object.assign({}, last.previous);
+        delete prev.id;
+        await fb.updateDoc(
+          fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id), prev
+        );
+        return 'Undone — shoutout restored to previous state.';
+      }
+      if (last.action === 'deleteShoutout' && last.previous) {
+        const prev = Object.assign({}, last.previous);
+        delete prev.id;
+        await fb.setDoc(
+          fb.doc(fb.db, 'users', last.uid, 'shoutouts', last.id), prev
+        );
+        return 'Undone — shoutout restored.';
+      }
+      return 'Could not undo — previous state unavailable.';
+    } catch(e) { return 'Undo failed: ' + e.message; }
+  }
+
+  return 'Unknown tool: ' + toolName;
+}
+
+// ── askKevin — tool-aware, multi-turn ─────────────────────────────────────────
+async function askKevin(messages, context, appData) {
+  // Convert internal message format to Anthropic API format
+  function toApiMessages(msgs) {
+    return msgs
+      .filter(function(m) { return m.role === 'user' || m.role === 'kevin' || m.role === 'tool_result'; })
+      .map(function(m) {
+        if (m.role === 'tool_result') return m.apiMsg;
+        return { role: m.role === 'kevin' ? 'assistant' : 'user', content: m.text };
+      });
+  }
+
+  let apiMessages = toApiMessages(messages);
+  let finalText = '';
+  let iterations = 0;
+  const MAX_ITER = 5; // safety limit
+
+  while (iterations < MAX_ITER) {
+    iterations++;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method:  'POST',
+      headers: kevinHeaders(),
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system:     kevinSystemPrompt(context),
+        tools:      KEVIN_TOOLS,
+        messages:   apiMessages,
+      }),
+    });
+    if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
+    const data = await response.json();
+
+    // Collect text content
+    const textBlocks = data.content.filter(function(b) { return b.type === 'text'; });
+    if (textBlocks.length > 0) finalText = textBlocks.map(function(b) { return b.text; }).join('\n');
+
+    // Check for tool use
+    const toolUseBlocks = data.content.filter(function(b) { return b.type === 'tool_use'; });
+
+    if (data.stop_reason === 'end_turn' || toolUseBlocks.length === 0) {
+      break; // Done
+    }
+
+    // Execute tools and build tool_result messages
+    const assistantMsg = { role: 'assistant', content: data.content };
+    const toolResults  = [];
+    for (const toolUse of toolUseBlocks) {
+      const result = await executeKevinTool(toolUse.name, toolUse.input, appData);
+      toolResults.push({
+        type:        'tool_result',
+        tool_use_id: toolUse.id,
+        content:     result,
+      });
+    }
+    const toolResultMsg = { role: 'user', content: toolResults };
+
+    // Append to conversation and loop
+    apiMessages = [...apiMessages, assistantMsg, toolResultMsg];
+  }
+
+  return finalText || 'Done.';
 }
 
 async function checkTrademark(word, context) {
@@ -711,7 +974,7 @@ const KEVIN_SUGGESTIONS = {
   ],
 };
 
-function KevinChat({ onClose, context, uid }) {
+function KevinChat({ onClose, context, uid, appData }) {
   const [messages,  setMessages]  = useState([]);
   const [input,     setInput]     = useState('');
   const [loading,   setLoading]   = useState(false);
@@ -759,10 +1022,7 @@ function KevinChat({ onClose, context, uid }) {
     setInput('');
     setLoading(true);
     try {
-      const apiMessages = next
-        .filter(function(m) { return m.role === 'user' || m.role === 'kevin'; })
-        .map(function(m) { return { role: m.role === 'kevin' ? 'assistant' : 'user', content: m.text }; });
-      const reply = await askKevin(apiMessages, context);
+      const reply = await askKevin(next, context, appData);
       setMessages(function(prev) { return [...prev, { role: 'kevin', text: reply }]; });
     } catch(e) {
       setMessages(function(prev) { return [...prev, { role: 'kevin', text: "Error: " + e.message }]; });
@@ -2398,7 +2658,12 @@ function App() {
 
       {/* Kevin chat panel */}
       {kevinOpen && (
-        <KevinChat context={kevinContext} uid={authUser.uid} onClose={function() { setKevinOpen(false); }}/>
+        <KevinChat
+          context={kevinContext}
+          uid={authUser.uid}
+          appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
+          onClose={function() { setKevinOpen(false); }}
+        />
       )}
 
       {/* Shoutout detail */}
