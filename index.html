@@ -595,72 +595,44 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
 /* ═══════════════════════════════════════════════════════════════════
    CLAUDE-KEVIN — API + ENGINE
 ═══════════════════════════════════════════════════════════════════ */
-const KEVIN_API_KEY = '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';
+const KEVIN_FUNCTION_URL = 'https://europe-west1-nutmegneedle-wordplay.cloudfunctions.net/askKevin';
 
-function kevinSystemPrompt(context) {
-  return `You are Claude-Kevin — the in-house embroidery specialist and football expert for Nutmeg&Needle, a Malmö-based brand making cross-stitch kits from football words, terms and exclamations. The tagline is "Handcrafted football moves."
-
-Brand voice: knowing, dry wit, craft-proud, inclusive, concise. Never say "bespoke", "artisan", or "curated". No exclamation marks. Sentence case always.
-
-Your expertise covers:
-1. EMBROIDERY — cross-stitch pattern design, border traditions (British, Scandinavian, Hardanger, Blackwork, Assisi, folk styles), DMC thread selection, stitch density, difficulty, hoop sizing, Aida count
-2. FOOTBALL — words, terms, exclamations from all football cultures and languages. You know what "Siuuu", "Worldie", "Howler", "Gol", "But", "Tor", "Sæt den ind" and hundreds more mean and where they come from
-3. TRADEMARK & COPYRIGHT — you proactively flag risks. Club names (Arsenal, Barcelona etc), competition names (Champions League, Premier League), trademarked phrases, and song lyrics are risks for commercial products. Generic football vocabulary is fine. You are clear but not alarmist — you inform, not block
-4. PATTERN GENERATION — you can suggest new shoutouts, describe border styles in enough detail for a developer to implement them, and recommend thread palettes
-
-Current app context:
-- Screen: ${context.tab}
-- Shoutouts in library: ${context.shoutoutCount} (${context.shoutoutNames})
-- Border styles available: ${context.borderNames}
-- Hoop size default: 280 × 250mm, 14-count Aida, 110 × 110 stitches
-
-Keep responses concise and practical. When suggesting new shoutouts or borders, be specific. When flagging trademark issues, explain clearly and suggest a safe alternative if relevant.`;
+async function kevinFetch(payload) {
+  const user  = window.__firebase.auth.currentUser;
+  const token = user ? await user.getIdToken() : '';
+  const response = await fetch(KEVIN_FUNCTION_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer ' + token,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
+  return response.json();
 }
 
 async function askKevin(messages, context) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': KEVIN_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: kevinSystemPrompt(context),
-      messages: messages,
-    }),
+  const data = await kevinFetch({
+    model:      'claude-sonnet-4-20250514',
+    max_tokens: 1024,
+    system:     kevinSystemPrompt(context),
+    messages:   messages,
   });
-  if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
-  const data = await response.json();
   return data.content[0].text;
 }
 
 async function checkTrademark(word, context) {
-  const messages = [{
-    role: 'user',
-    content: `Quick trademark/copyright check for a commercial embroidery product. The word or phrase is: "${word}". Reply in JSON only: {"risk": "none"|"low"|"medium"|"high", "reason": "one sentence", "suggestion": "safe alternative or null"}. No other text.`
-  }];
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': KEVIN_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 200,
-      system: 'You are a trademark and copyright advisor for a commercial embroidery brand. Reply only in the JSON format requested.',
-      messages,
-    }),
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
   try {
+    const data = await kevinFetch({
+      model:      'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      system:     'You are a trademark and copyright advisor for a commercial embroidery brand. Reply only in the JSON format requested.',
+      messages:   [{
+        role:    'user',
+        content: `Quick trademark/copyright check for a commercial embroidery product. The word or phrase is: "${word}". Reply in JSON only: {"risk": "none"|"low"|"medium"|"high", "reason": "one sentence", "suggestion": "safe alternative or null"}. No other text.`
+      }],
+    });
     const text = data.content[0].text.trim();
     return JSON.parse(text);
   } catch(e) { return null; }
