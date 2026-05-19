@@ -1808,7 +1808,7 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.fillStyle = '#F0E6D3';
     ctx.fillRect(0,0,px,px);
 
-    const grid = buildGrid(word, cols, rows, borderStyle, 2, 4);
+    const grid = buildGrid(word, cols, rows, borderStyle, 0, 4); // 0 = auto-scale
     const pad = cell*0.1;
     const lw  = Math.max(cell*0.24, 0.5);
 
@@ -2178,7 +2178,7 @@ function generateChartPDF(shoutout) {
   const rows = shoutout.stitchesH || 110;
   const threads = shoutout.threads || [];
   const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
-  const grid = buildGrid(shoutout.name, cols, rows, bs, 2, 4);
+  const grid = buildGrid(shoutout.name, cols, rows, bs, 0, 4); // 0 = auto-scale
 
   const MARGIN_X = 14 * MM;
   const HEADER_H = 16 * MM;
@@ -2303,32 +2303,72 @@ function generateAidaPDF(shoutout, showBg) {
   const rows = shoutout.stitchesH || 110;
   const threads = shoutout.threads || [];
   const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
-  const grid = buildGrid(shoutout.name, cols, rows, bs, 2, 4);
+  const grid = buildGrid(shoutout.name, cols, rows, bs, 0, 4); // 0 = auto-scale
 
-  // Physical accuracy: 14-count = 14 stitches per inch = 1 stitch per (25.4/14)mm
-  const STITCH_MM   = 25.4 / 14;             // 1.814mm per stitch
-  const GRID_W_MM   = cols * STITCH_MM;       // physical width in mm
-  const GRID_H_MM   = rows * STITCH_MM;       // physical height in mm
-  const GRID_W_PT   = GRID_W_MM * MM;
-  const GRID_H_PT   = GRID_H_MM * MM;
+  // Physical size at 14-count Aida: 1 stitch = 25.4/14 = 1.814mm
+  const STITCH_MM = 25.4 / 14;
 
-  // Centre on A4
-  const ORIGIN_X = (A4W - GRID_W_PT) / 2;
-  const ORIGIN_Y = (A4H - GRID_H_PT) / 2;
-  const CELL     = GRID_W_PT / cols;          // = STITCH_MM * MM
+  // Maximum print area = hoop size (280×250mm) with 15mm mounting margin each side
+  const HOOP_W_MM  = shoutout.hoopW || 280;
+  const HOOP_H_MM  = shoutout.hoopH || 250;
+  const MOUNT_MM   = 15; // margin for mounting fabric in hoop
+  const MAX_W_MM   = HOOP_W_MM + MOUNT_MM * 2; // 310mm — but A4 is only 210mm wide
+  const MAX_H_MM   = HOOP_H_MM + MOUNT_MM * 2; // 280mm
 
-  // White page
+  // A4 usable area (leave 10mm page margin)
+  const PAGE_MARGIN_MM = 10;
+  const A4_USE_W_MM = 210 - PAGE_MARGIN_MM * 2; // 190mm
+  const A4_USE_H_MM = 297 - PAGE_MARGIN_MM * 2; // 277mm
+
+  // Grid natural size at 14-count
+  const NATURAL_W_MM = cols * STITCH_MM; // e.g. 110 × 1.814 = 199.5mm
+  const NATURAL_H_MM = rows * STITCH_MM;
+
+  // Cap to usable A4 area (the design should never exceed the page)
+  const FINAL_W_MM = Math.min(NATURAL_W_MM, A4_USE_W_MM, MAX_W_MM);
+  const FINAL_H_MM = Math.min(NATURAL_H_MM, A4_USE_H_MM, MAX_H_MM);
+
+  // Scale factor if natural size exceeds limits
+  const scaleFactorW = FINAL_W_MM / NATURAL_W_MM;
+  const scaleFactorH = FINAL_H_MM / NATURAL_H_MM;
+  const scaleFactor  = Math.min(scaleFactorW, scaleFactorH); // uniform scale
+
+  const GRID_W_MM = NATURAL_W_MM * scaleFactor;
+  const GRID_H_MM = NATURAL_H_MM * scaleFactor;
+
+  // Convert to points and centre on A4
+  const GRID_W_PT  = GRID_W_MM * MM;
+  const GRID_H_PT  = GRID_H_MM * MM;
+  const ORIGIN_X   = (A4W - GRID_W_PT) / 2;
+  const ORIGIN_Y   = (A4H - GRID_H_PT) / 2;
+  const CELL       = GRID_W_PT / cols;
+
+  // White page background
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, A4W, A4H, 'F');
 
-  // Draw grid
+  // Draw grid (linen bg only within grid bounds, not full page)
   drawGridOnPDF(doc, grid, cols, rows, ORIGIN_X, ORIGIN_Y, CELL, threads, showBg);
 
-  // Small size note in corner (light grey, won't interfere with stitching)
-  doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
+  // Hoop outline guide (dashed rectangle showing hoop area)
+  const HOOP_W_PT = HOOP_W_MM * MM;
+  const HOOP_H_PT = HOOP_H_MM * MM;
+  const HOOP_X    = (A4W - HOOP_W_PT) / 2;
+  const HOOP_Y    = (A4H - HOOP_H_PT) / 2;
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.4);
+  doc.setLineDashPattern([3, 3], 0);
+  doc.rect(HOOP_X, HOOP_Y, HOOP_W_PT, HOOP_H_PT, 'S');
+  doc.setLineDashPattern([], 0);
+
+  // Size note
+  doc.setFontSize(6);
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(160, 160, 160);
   const note = 'Aida print  ·  14-count  ·  ' +
-    GRID_W_MM.toFixed(1) + ' × ' + GRID_H_MM.toFixed(1) + 'mm  ·  ' + shoutout.name;
-  doc.text(note, A4W/2 - doc.getTextWidth(note)/2, A4H - 8*MM);
+    GRID_W_MM.toFixed(1) + ' \u00d7 ' + GRID_H_MM.toFixed(1) + 'mm  ·  ' +
+    'hoop ' + HOOP_W_MM + ' \u00d7 ' + HOOP_H_MM + 'mm  ·  ' + shoutout.name;
+  doc.text(note, A4W/2 - doc.getTextWidth(note)/2, A4H - 6*MM);
 
   doc.save((shoutout.name||'shoutout').toLowerCase().replace(/[^a-z0-9]/g,'-') + '-aida-print.pdf');
 }
@@ -2342,9 +2382,17 @@ function AidaOptionsSheet({ shoutout, onClose }) {
 
   const cols = shoutout.stitchesW || 110;
   const rows = shoutout.stitchesH || 110;
-  const stitchMM = 25.4 / 14;
-  const gridWmm  = (cols * stitchMM).toFixed(1);
-  const gridHmm  = (rows * stitchMM).toFixed(1);
+  const stitchMM  = 25.4 / 14;
+  const hoopW     = shoutout.hoopW || 280;
+  const hoopH     = shoutout.hoopH || 250;
+  const naturalW  = cols * stitchMM;
+  const naturalH  = rows * stitchMM;
+  const mountMM   = 15;
+  const maxW      = Math.min(hoopW + mountMM*2, 190); // A4 usable
+  const maxH      = Math.min(hoopH + mountMM*2, 277);
+  const sf        = Math.min(1, maxW/naturalW, maxH/naturalH);
+  const gridWmm   = (naturalW * sf).toFixed(1);
+  const gridHmm   = (naturalH * sf).toFixed(1);
 
   function handleGenerate() {
     setGenerating(true);
@@ -2368,7 +2416,8 @@ function AidaOptionsSheet({ shoutout, onClose }) {
 
           <div className="aida-size-note">
             <strong>Print size:</strong> {gridWmm} × {gridHmm}mm<br/>
-            14-count Aida · {cols} × {rows} stitches · centred on A4<br/>
+            14-count Aida · {cols} × {rows} stitches · hoop {hoopW} × {hoopH}mm<br/>
+            A dashed line on the print shows the hoop boundary.<br/>
             Print at 100% scale — do not scale to fit page.
           </div>
 
