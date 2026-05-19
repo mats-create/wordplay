@@ -951,24 +951,27 @@ const BUILTIN_BORDERS = [
     traits: ['diagonal-check','corner-footballs','goal-posts','shot-arrows'],
     builtIn: true,
     createdBy: null,
+    get spec() { return BORDER_SPECS.british; },
   },
   {
     id: 'scandinavian',
     name: 'Scandinavian',
     style: 'scandinavian',
-    description: 'Clean geometric border with repeating diamond motifs and a simple two-line frame. Inspired by Nordic folk embroidery traditions. AI-defined — coming soon.',
+    description: 'Clean geometric border with repeating diamond motifs and a simple two-line frame. Inspired by Nordic folk embroidery traditions.',
     traits: ['geometric','diamond-repeat','two-line-frame'],
     builtIn: true,
     createdBy: null,
+    get spec() { return BORDER_SPECS.scandinavian; },
   },
   {
     id: 'minimal',
     name: 'Minimal',
     style: 'minimal',
-    description: 'A single solid border line with no fill or motifs. Clean, modern. Lets the word do all the work.',
+    description: 'A solid border line with a secondary inner line and no motifs. Clean, modern. Lets the word do all the work.',
     traits: ['single-line'],
     builtIn: true,
     createdBy: null,
+    get spec() { return BORDER_SPECS.minimal; },
   },
 ];
 
@@ -1527,7 +1530,7 @@ function generateChartPDF(shoutout) {
   const cols = shoutout.stitchesW || 110;
   const rows = shoutout.stitchesH || 110;
   const threads = shoutout.threads || [];
-  const bs = shoutout.borderStyle || 'british';
+  const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
   const grid = buildGrid(shoutout.name, cols, rows, bs, 2, 4);
 
   const MARGIN_X = 14 * MM;
@@ -1652,7 +1655,7 @@ function generateAidaPDF(shoutout, showBg) {
   const cols = shoutout.stitchesW || 110;
   const rows = shoutout.stitchesH || 110;
   const threads = shoutout.threads || [];
-  const bs = shoutout.borderStyle || 'british';
+  const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
   const grid = buildGrid(shoutout.name, cols, rows, bs, 2, 4);
 
   // Physical accuracy: 14-count = 14 stitches per inch = 1 stitch per (25.4/14)mm
@@ -1759,7 +1762,7 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
       setChartGenerating(false);
     }, 50);
   }
-  const bs = shoutout.borderStyle || 'british';
+  const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="sheet">
@@ -2098,7 +2101,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect }) {
                 <div className="card-badge">{s.borderName||'No border'}</div>
                 <CrossStitchCanvas word={s.name}
                   cols={s.stitchesW} rows={s.stitchesH}
-                  borderStyle={s.borderStyle||'british'}
+                  borderStyle={s.borderSpec||s.borderStyle||'british'}
                   threads={s.threads} size={220}
                   className="canvas-thumb"/>
                 <div className="card-title">{s.name}</div>
@@ -2212,11 +2215,21 @@ function App() {
   async function seedBorders() {
     try {
       const snap = await fb.getDocs(fb.collection(fb.db,'borders'));
-      if (!snap.empty) return;
+      const existing = {};
+      snap.docs.forEach(function(d) { existing[d.id] = d.data(); });
       for (const b of BUILTIN_BORDERS) {
-        await fb.setDoc(fb.doc(fb.db,'borders',b.id), {
-          ...b, createdAt: fb.serverTimestamp()
-        });
+        const spec = BORDER_SPECS[b.style] || null;
+        if (!existing[b.id]) {
+          // New — create
+          await fb.setDoc(fb.doc(fb.db,'borders',b.id), {
+            name:b.name, style:b.style, description:b.description,
+            traits:b.traits, builtIn:true, createdBy:null,
+            spec: spec, createdAt: fb.serverTimestamp()
+          });
+        } else if (!existing[b.id].spec) {
+          // Exists but missing spec — update
+          await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { spec: spec });
+        }
       }
     } catch(e) { console.warn('Border seed failed:', e); }
   }
@@ -2259,7 +2272,13 @@ function App() {
     setSaving(true);
     try {
       const border = borders.find(function(b) { return b.id === data.borderId; });
-      const fullData = {...data, borderStyle: border ? border.style : 'british'};
+      const borderSpec = (border && border.spec) ? border.spec
+                       : (BORDER_SPECS[border && border.style] || null);
+      const fullData = {
+        ...data,
+        borderStyle: border ? border.style : 'british',
+        borderSpec:  borderSpec,
+      };
       if (editShoutout && editShoutout !== 'new') {
         await fb.updateDoc(
           fb.doc(fb.db,'users',authUser.uid,'shoutouts',editShoutout.id),
@@ -2274,7 +2293,6 @@ function App() {
         showToast('Shoutout created');
       }
       setEditShoutout(null); setSelShoutout(null);
-      // Async trademark check — doesn't block save
       const word = data.name;
       if (word && !tmCache[word]) {
         checkTrademark(word, kevinContext).then(function(result) {
@@ -2289,16 +2307,19 @@ function App() {
   async function saveBorder(data) {
     setSaving(true);
     try {
-      if (editBorder && editBorder!=='new') {
+      // If no spec provided but style matches a built-in, use that spec
+      const spec = data.spec || BORDER_SPECS[data.style] || null;
+      const fullData = { ...data, spec };
+      if (editBorder && editBorder !== 'new') {
         await fb.updateDoc(
           fb.doc(fb.db,'borders',editBorder.id),
-          {...data, updatedAt:fb.serverTimestamp()}
+          {...fullData, updatedAt: fb.serverTimestamp()}
         );
         showToast('Border updated');
       } else {
         await fb.addDoc(fb.collection(fb.db,'borders'), {
-          ...data, builtIn:false, createdBy:authUser.uid,
-          createdAt:fb.serverTimestamp(), updatedAt:fb.serverTimestamp()
+          ...fullData, builtIn: false, createdBy: authUser.uid,
+          createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()
         });
         showToast('Border created');
       }
