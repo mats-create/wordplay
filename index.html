@@ -48,7 +48,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   RESET & TOKENS 
+   RESET & TOKENS
 ═══════════════════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -595,46 +595,52 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
 /* ═══════════════════════════════════════════════════════════════════
    CLAUDE-KEVIN — API + ENGINE
 ═══════════════════════════════════════════════════════════════════ */
-const KEVIN_FUNCTION_URL = 'https://europe-west1-nutmegneedle-wordplay.cloudfunctions.net/askKevin';
-
-async function kevinFetch(payload) {
-  const user  = window.__firebase.auth.currentUser;
-  const token = user ? await user.getIdToken() : '';
-  const response = await fetch(KEVIN_FUNCTION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': 'Bearer ' + token,
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
-  return response.json();
-}
+const KEVIN_API_KEY = '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'; // stored client-side, app is auth-gated
 
 async function askKevin(messages, context) {
-  const data = await kevinFetch({
-    model:      'claude-sonnet-4-20250514',
-    max_tokens: 1024,
-    system:     kevinSystemPrompt(context),
-    messages:   messages,
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': KEVIN_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model:      'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system:     kevinSystemPrompt(context),
+      messages:   messages,
+    }),
   });
+  if (!response.ok) throw new Error('Kevin unavailable — ' + response.status);
+  const data = await response.json();
   return data.content[0].text;
 }
 
 async function checkTrademark(word, context) {
   try {
-    const data = await kevinFetch({
-      model:      'claude-sonnet-4-20250514',
-      max_tokens: 200,
-      system:     'You are a trademark and copyright advisor for a commercial embroidery brand. Reply only in the JSON format requested.',
-      messages:   [{
-        role:    'user',
-        content: `Quick trademark/copyright check for a commercial embroidery product. The word or phrase is: "${word}". Reply in JSON only: {"risk": "none"|"low"|"medium"|"high", "reason": "one sentence", "suggestion": "safe alternative or null"}. No other text.`
-      }],
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': KEVIN_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        system:     'You are a trademark and copyright advisor for a commercial embroidery brand. Reply only in the JSON format requested.',
+        messages:   [{
+          role:    'user',
+          content: `Quick trademark/copyright check for a commercial embroidery product. The word or phrase is: "${word}". Reply in JSON only: {"risk": "none"|"low"|"medium"|"high", "reason": "one sentence", "suggestion": "safe alternative or null"}. No other text.`
+        }],
+      }),
     });
-    const text = data.content[0].text.trim();
-    return JSON.parse(text);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return JSON.parse(data.content[0].text.trim());
   } catch(e) { return null; }
 }
 
