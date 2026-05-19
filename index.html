@@ -660,7 +660,7 @@ async function askKevin(messages, context) {
     method:  'POST',
     headers: kevinHeaders(),
     body: JSON.stringify({
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-6',
       max_tokens: 1024,
       system:     kevinSystemPrompt(context),
       messages:   messages,
@@ -678,7 +678,7 @@ async function checkTrademark(word, context) {
       method:  'POST',
       headers: kevinHeaders(),
       body: JSON.stringify({
-        model:      'claude-sonnet-4-20250514',
+        model:      'claude-sonnet-4-6',
         max_tokens: 200,
         system:     'You are a trademark and copyright advisor for a commercial embroidery brand. Reply only in the JSON format requested.',
         messages:   [{
