@@ -745,7 +745,7 @@ function KevinChat({ onClose, context, uid }) {
       const reply = await askKevin(apiMessages, context);
       setMessages(function(prev) { return [...prev, { role: 'kevin', text: reply }]; });
     } catch(e) {
-      setMessages(function(prev) { return [...prev, { role: 'kevin', text: "Something went wrong on my end. Try again in a moment." }]; });
+      setMessages(function(prev) { return [...prev, { role: 'kevin', text: "Error: " + e.message }]; });
     } finally { setLoading(false); }
   }
 
