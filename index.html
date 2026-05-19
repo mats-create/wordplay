@@ -713,7 +713,7 @@ function KevinChat({ onClose, context, uid }) {
   useEffect(function() {
     if (welcomed) return;
     setWelcomed(true);
-    if (!hasKevinApiKey()) {
+    if (!hasKevinApiKey() && !keySaved) {
       setMessages([{ role: 'kevin', text: "Add your Anthropic API key below to get started. You only need to do this once." }]);
       return;
     }
@@ -754,7 +754,7 @@ function KevinChat({ onClose, context, uid }) {
   }
 
   const suggestions = KEVIN_SUGGESTIONS[context.tab] || KEVIN_SUGGESTIONS.shoutouts;
-  const hasKey = hasKevinApiKey();
+  const hasKey = keySaved || hasKevinApiKey();
 
   return (
     <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
