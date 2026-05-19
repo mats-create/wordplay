@@ -22,15 +22,14 @@ jobs:
       - name: Install function dependencies
         run: cd functions && npm install
 
-      - name: Write service account key
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
+      - name: Inject API key into function
+        run: |
+          sed -i "s|ANTHROPIC_KEY_PLACEHOLDER|${{ secrets.ANTHROPIC_API_KEY }}|g" functions/index.js
 
-      - name: Deploy Firebase Functions with config
+      - name: Deploy Firebase Functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa.json
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          firebase functions:config:set anthropic.key="$ANTHROPIC_API_KEY" \
-            --project nutmegneedle-wordplay
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
           firebase deploy --only functions \
             --project nutmegneedle-wordplay
