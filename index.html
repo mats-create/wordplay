@@ -16,6 +16,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -385,6 +386,50 @@ html, body, #root {
   .overlay { align-items: center; }
   .sheet { border-radius: var(--radius); margin: 24px; max-height: 82vh; }
 }
+
+/* ── Export buttons ── */
+.export-actions {
+  display: flex; gap: 8px; padding: 0 20px 4px; flex-wrap: wrap;
+}
+.btn-export {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  border: 1.5px solid var(--lgrey); background: var(--white); color: var(--black);
+}
+.btn-export:hover:not(:disabled) { border-color: var(--black); background: var(--offwht); }
+.btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-export svg { width: 15px; height: 15px; flex-shrink: 0; }
+.btn-export-primary { background: var(--black); color: var(--white); border-color: var(--black); }
+.btn-export-primary:hover:not(:disabled) { background: #333; border-color: #333; }
+
+/* ── Aida options sheet ── */
+.aida-option-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--offwht);
+}
+.aida-option-row:last-of-type { border-bottom: none; }
+.aida-option-label { font-size: 14px; font-weight: 500; }
+.aida-option-hint  { font-size: 12px; color: var(--grey); margin-top: 2px; }
+.toggle {
+  width: 44px; height: 24px; border-radius: 12px;
+  background: var(--lgrey); border: none; cursor: pointer;
+  position: relative; transition: background 0.2s; flex-shrink: 0;
+}
+.toggle.on { background: var(--green); }
+.toggle-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: white; transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle.on .toggle-knob { transform: translateX(20px); }
+.aida-size-note {
+  padding: 12px; background: var(--linen); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--grey); line-height: 1.6; margin-bottom: 4px;
+}
+.aida-size-note strong { color: var(--black); }
 </style>
 </head>
 <body>
@@ -869,9 +914,318 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   PDF ENGINE
+═══════════════════════════════════════════════════════════════════ */
+
+// PT per mm (jsPDF uses pt internally, 1mm = 2.8346pt)
+const MM = 2.8346;
+const A4W = 210 * MM;   // 595pt
+const A4H = 297 * MM;   // 841pt
+
+// Stitch colour lookup (same as canvas)
+function pdfStitchColor(kind, threads) {
+  const black = (threads&&threads[0]&&threads[0].hex)||'#1A1A1A';
+  const green = (threads&&threads[1]&&threads[1].hex)||'#4A6741';
+  const coral = (threads&&threads[2]&&threads[2].hex)||'#CC3300';
+  return {'T':black,'B':black,'A':black,'F':black,'D':green,'G':green,'E':coral,'S':coral}[kind]||null;
+}
+
+function hexToRgb(hex) {
+  const h = hex.replace('#','');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+
+// Draw the stitch grid onto a jsPDF doc at given origin/cellSize
+function drawGridOnPDF(doc, grid, cols, rows, originX, originY, cellPt, threads, showBg) {
+  // Background
+  if (showBg) {
+    doc.setFillColor(240, 230, 211); // linen #F0E6D3
+    doc.rect(originX, originY, cols*cellPt, rows*cellPt, 'F');
+  }
+
+  // Stitches
+  const pad = cellPt * 0.1;
+  grid.forEach(function(rowArr, row) {
+    rowArr.forEach(function(kind, col) {
+      if (kind === ' ') return;
+      const cv = pdfStitchColor(kind, threads);
+      if (!cv) return;
+      const rgb = hexToRgb(cv);
+      const x = originX + col * cellPt;
+      const y = originY + row * cellPt;
+      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+      doc.setLineWidth(Math.max(cellPt * 0.22, 0.3));
+      doc.line(x+pad, y+pad, x+cellPt-pad, y+cellPt-pad);
+      doc.line(x+cellPt-pad, y+pad, x+pad, y+cellPt-pad);
+    });
+  });
+
+  // Minor grid lines
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.1);
+  for (let i=0; i<=cols; i++) {
+    doc.line(originX+i*cellPt, originY, originX+i*cellPt, originY+rows*cellPt);
+  }
+  for (let i=0; i<=rows; i++) {
+    doc.line(originX, originY+i*cellPt, originX+cols*cellPt, originY+i*cellPt);
+  }
+
+  // Every-10 lines
+  doc.setDrawColor(160, 160, 160);
+  doc.setLineWidth(0.4);
+  for (let i=0; i<=cols; i+=10) {
+    doc.line(originX+i*cellPt, originY, originX+i*cellPt, originY+rows*cellPt);
+  }
+  for (let i=0; i<=rows; i+=10) {
+    doc.line(originX, originY+i*cellPt, originX+cols*cellPt, originY+i*cellPt);
+  }
+
+  // Outer frame
+  doc.setDrawColor(26, 26, 26);
+  doc.setLineWidth(1.2);
+  doc.rect(originX, originY, cols*cellPt, rows*cellPt, 'S');
+}
+
+// ── Chart PDF (branded A4) ────────────────────────────────────────────────────
+function generateChartPDF(shoutout) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+
+  const cols = shoutout.stitchesW || 110;
+  const rows = shoutout.stitchesH || 110;
+  const threads = shoutout.threads || [];
+  const bs = shoutout.borderStyle || 'british';
+  const grid = buildGrid(shoutout.name, cols, rows, 2, 4, bs);
+
+  const MARGIN_X = 14 * MM;
+  const HEADER_H = 16 * MM;
+  const FOOTER_H = 12 * MM;
+  const LEGEND_H = 28 * MM;
+  const AXIS_H   = 5  * MM;
+  const SUB_H    = 7  * MM;
+  const CONTENT_TOP    = A4H - HEADER_H;
+  const CONTENT_BOTTOM = FOOTER_H;
+  const CONTENT_H = CONTENT_TOP - CONTENT_BOTTOM;
+  const GRID_SIZE = A4W - 2 * MARGIN_X;
+  const BLOCK_H   = SUB_H + GRID_SIZE + AXIS_H + LEGEND_H;
+  const PAD       = (CONTENT_H - BLOCK_H) / 2;
+  const GRID_X    = MARGIN_X;
+  const GRID_Y    = CONTENT_BOTTOM + PAD + LEGEND_H + AXIS_H;
+  const CELL      = GRID_SIZE / cols;
+
+  // ── Page background ──
+  doc.setFillColor(245, 245, 245);
+  doc.rect(0, 0, A4W, A4H, 'F');
+
+  // ── Header (linen bar) ──
+  doc.setFillColor(240, 230, 211);
+  doc.rect(0, 0, A4W, HEADER_H, 'F');
+  doc.setDrawColor(26, 26, 26);
+  doc.setLineWidth(0.8);
+  doc.line(0, HEADER_H, A4W, HEADER_H);
+
+  // Wordmark
+  const midY = HEADER_H / 2;
+  doc.setFontSize(13); doc.setTextColor(26, 26, 26);
+  doc.setFont('helvetica','bold');
+  const wNutmeg = doc.getTextWidth('Nutmeg');
+  const wAmp    = doc.getTextWidth('&');
+  doc.text('Nutmeg', MARGIN_X, midY + 4);
+  doc.setTextColor(204, 51, 0);
+  doc.text('&', MARGIN_X + wNutmeg, midY + 4);
+  doc.setTextColor(26, 26, 26);
+  doc.text('Needle', MARGIN_X + wNutmeg + wAmp, midY + 4);
+  // Tagline
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.setTextColor(74, 103, 65);
+  doc.text('Handcrafted football moves', MARGIN_X + wNutmeg + wAmp + doc.getTextWidth('Needle') + 5*MM, midY + 3);
+  // Pattern title right
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,26);
+  const titleStr = shoutout.name + '  —  Cross-stitch pattern';
+  doc.text(titleStr, A4W - MARGIN_X - doc.getTextWidth(titleStr), midY + 3);
+
+  // ── Footer ──
+  doc.setFillColor(240, 230, 211);
+  doc.rect(0, A4H - FOOTER_H, A4W, FOOTER_H, 'F');
+  doc.setDrawColor(26, 26, 26); doc.setLineWidth(0.8);
+  doc.line(0, A4H - FOOTER_H, A4W, A4H - FOOTER_H);
+  const fMidY = A4H - FOOTER_H/2;
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,26);
+  const wFN = doc.getTextWidth('Nutmeg');
+  doc.text('Nutmeg', MARGIN_X, fMidY + 3);
+  doc.setTextColor(204,51,0);
+  doc.text('&', MARGIN_X + wFN, fMidY + 3);
+  doc.setTextColor(26,26,26);
+  doc.text('Needle', MARGIN_X + wFN + doc.getTextWidth('&'), fMidY + 3);
+  doc.setFont('helvetica','normal'); doc.setTextColor(102,102,102);
+  const urlStr = 'nutmegneedle.com';
+  doc.text(urlStr, A4W - MARGIN_X - doc.getTextWidth(urlStr), fMidY + 3);
+  doc.setFontSize(7); doc.setTextColor(153,153,153);
+  doc.text('1', A4W/2 - doc.getTextWidth('1')/2, fMidY + 2.5);
+
+  // ── Subtitle ──
+  const subY = A4H - HEADER_H - PAD - BLOCK_H + SUB_H - 2;
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(102,102,102);
+  const subStr = cols + ' × ' + rows + ' stitches  ·  14-count Aida  ·  ~' +
+    Math.round(cols/5.51) + ' × ' + Math.round(rows/5.51) + 'mm finished  ·  fits ' +
+    shoutout.hoopW + ' × ' + shoutout.hoopH + 'mm hoop';
+  doc.text(subStr, GRID_X, subY);
+
+  // ── Grid ──
+  drawGridOnPDF(doc, grid, cols, rows, GRID_X, GRID_Y, CELL, threads, true);
+
+  // ── Axis labels ──
+  doc.setFontSize(5); doc.setTextColor(153,153,153);
+  for (let i=0; i<=cols; i+=10) {
+    doc.text(String(i), GRID_X + i*CELL, GRID_Y + rows*CELL + 4, {align:'center'});
+  }
+
+  // ── Legend ──
+  const legTopY   = GRID_Y - AXIS_H - 2;
+  const legLabelY = legTopY - 5;
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,26);
+  doc.text('Thread key', GRID_X, legLabelY);
+  doc.setDrawColor(204,204,204); doc.setLineWidth(0.4);
+  doc.line(GRID_X, legLabelY + 2, GRID_X + 110*MM, legLabelY + 2);
+
+  const box = 5 * MM;
+  const colW = (A4W - 2*MARGIN_X) / threads.length;
+  threads.forEach(function(t, idx) {
+    const lx = GRID_X + idx * colW;
+    const ly = legLabelY + 4;
+    const rgb = hexToRgb(t.hex || '#1A1A1A');
+    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    doc.rect(lx, ly, box, box, 'F');
+    // X preview on swatch
+    doc.setDrawColor(255,255,255); doc.setLineWidth(0.7);
+    doc.line(lx+1, ly+1, lx+box-1, ly+box-1);
+    doc.line(lx+box-1, ly+1, lx+1, ly+box-1);
+    // Name
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,26);
+    doc.text(t.name||'', lx + box + 2*MM, ly + 3.5);
+    // DMC
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(74,103,65);
+    doc.text(t.dmc||'', lx + box + 2*MM, ly + box - 1);
+  });
+
+  doc.save((shoutout.name||'shoutout').toLowerCase().replace(/[^a-z0-9]/g,'-') + '-chart.pdf');
+}
+
+// ── Aida Print PDF (physically accurate, centred, no branding) ───────────────
+function generateAidaPDF(shoutout, showBg) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+
+  const cols = shoutout.stitchesW || 110;
+  const rows = shoutout.stitchesH || 110;
+  const threads = shoutout.threads || [];
+  const bs = shoutout.borderStyle || 'british';
+  const grid = buildGrid(shoutout.name, cols, rows, 2, 4, bs);
+
+  // Physical accuracy: 14-count = 14 stitches per inch = 1 stitch per (25.4/14)mm
+  const STITCH_MM   = 25.4 / 14;             // 1.814mm per stitch
+  const GRID_W_MM   = cols * STITCH_MM;       // physical width in mm
+  const GRID_H_MM   = rows * STITCH_MM;       // physical height in mm
+  const GRID_W_PT   = GRID_W_MM * MM;
+  const GRID_H_PT   = GRID_H_MM * MM;
+
+  // Centre on A4
+  const ORIGIN_X = (A4W - GRID_W_PT) / 2;
+  const ORIGIN_Y = (A4H - GRID_H_PT) / 2;
+  const CELL     = GRID_W_PT / cols;          // = STITCH_MM * MM
+
+  // White page
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, A4W, A4H, 'F');
+
+  // Draw grid
+  drawGridOnPDF(doc, grid, cols, rows, ORIGIN_X, ORIGIN_Y, CELL, threads, showBg);
+
+  // Small size note in corner (light grey, won't interfere with stitching)
+  doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
+  const note = 'Aida print  ·  14-count  ·  ' +
+    GRID_W_MM.toFixed(1) + ' × ' + GRID_H_MM.toFixed(1) + 'mm  ·  ' + shoutout.name;
+  doc.text(note, A4W/2 - doc.getTextWidth(note)/2, A4H - 8*MM);
+
+  doc.save((shoutout.name||'shoutout').toLowerCase().replace(/[^a-z0-9]/g,'-') + '-aida-print.pdf');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AIDA PRINT OPTIONS SHEET
+═══════════════════════════════════════════════════════════════════ */
+function AidaOptionsSheet({ shoutout, onClose }) {
+  const [showBg,    setShowBg]    = useState(true);
+  const [generating,setGenerating]= useState(false);
+
+  const cols = shoutout.stitchesW || 110;
+  const rows = shoutout.stitchesH || 110;
+  const stitchMM = 25.4 / 14;
+  const gridWmm  = (cols * stitchMM).toFixed(1);
+  const gridHmm  = (rows * stitchMM).toFixed(1);
+
+  function handleGenerate() {
+    setGenerating(true);
+    setTimeout(function() {
+      generateAidaPDF(shoutout, showBg);
+      setGenerating(false);
+      onClose();
+    }, 50);
+  }
+
+  return (
+    <div className="overlay overlay-center"
+      onClick={function(e){ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="sheet" style={{maxWidth:420}}>
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">Aida print options</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+
+          <div className="aida-size-note">
+            <strong>Print size:</strong> {gridWmm} × {gridHmm}mm<br/>
+            14-count Aida · {cols} × {rows} stitches · centred on A4<br/>
+            Print at 100% scale — do not scale to fit page.
+          </div>
+
+          <div className="aida-option-row">
+            <div>
+              <div className="aida-option-label">Fabric background</div>
+              <div className="aida-option-hint">Linen colour fill behind stitches. Turn off to print stitch lines only on bare Aida.</div>
+            </div>
+            <button className={'toggle'+(showBg?' on':'')}
+              onClick={function(){ setShowBg(function(v){ return !v; }); }}>
+              <div className="toggle-knob"/>
+            </button>
+          </div>
+
+          <div className="form-actions" style={{paddingTop:16}}>
+            <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
+            <button className="btn btn-coral" onClick={handleGenerate} disabled={generating}>
+              {generating ? 'Generating…' : 'Download PDF'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    SHOUTOUT DETAIL
 ═══════════════════════════════════════════════════════════════════ */
 function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
+  const [showAidaOptions, setShowAidaOptions] = useState(false);
+  const [chartGenerating, setChartGenerating] = useState(false);
+
+  function handleChartPDF() {
+    setChartGenerating(true);
+    setTimeout(function() {
+      generateChartPDF(shoutout);
+      setChartGenerating(false);
+    }, 50);
+  }
   const bs = shoutout.borderStyle || 'british';
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -925,6 +1279,33 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
             <Ico.Edit/> Edit
           </button>
         </div>
+
+        {/* Export row */}
+        <div className="export-actions">
+          <button className="btn-export btn-export-primary"
+            onClick={handleChartPDF} disabled={chartGenerating}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <polyline points="9 15 12 18 15 15"/>
+            </svg>
+            {chartGenerating ? 'Generating…' : 'Chart PDF'}
+          </button>
+          <button className="btn-export"
+            onClick={function(){ setShowAidaOptions(true); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
+            </svg>
+            Aida print
+          </button>
+        </div>
+
+        {showAidaOptions && (
+          <AidaOptionsSheet shoutout={shoutout}
+            onClose={function(){ setShowAidaOptions(false); }}/>
+        )}
       </div>
     </div>
   );
