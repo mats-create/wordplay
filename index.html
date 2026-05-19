@@ -4,11 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1A1A1A">
-<meta name="description" content="Wordplay — cross-stitch patterns for football words, terms and exclamations">
+<meta name="description" content="Wordplay — football shoutouts in cross-stitch">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Wordplay — Nutmeg&amp;Needle</title>
-
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,8 +21,8 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-  import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
-    onSnapshot, query, orderBy, serverTimestamp }
+  import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc,
+    getDocs, onSnapshot, query, orderBy, where, serverTimestamp }
     from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
   const firebaseConfig = {
@@ -39,771 +38,673 @@
   const auth = getAuth(app);
   const db   = getFirestore(app);
 
-  window.__firebase = { auth, db, GoogleAuthProvider, signInWithPopup, signOut,
-    onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc,
-    onSnapshot, query, orderBy, serverTimestamp };
+  window.__firebase = {
+    auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+    collection, doc, setDoc, addDoc, updateDoc, deleteDoc,
+    getDocs, onSnapshot, query, orderBy, where, serverTimestamp
+  };
 </script>
 
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ═══════════════════════════════════════════════════════════════════
+   RESET & TOKENS
+═══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --black:   #1A1A1A;
-    --coral:   #CC3300;
-    --green:   #4A6741;
-    --linen:   #F0E6D3;
-    --offwht:  #F5F5F5;
-    --grey:    #666666;
-    --lgrey:   #CCCCCC;
-    --white:   #FFFFFF;
-    --surface: #FFFFFF;
-    --on-surface: #1A1A1A;
-    --radius:  12px;
-    --radius-sm: 8px;
-    --shadow:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-  }
+:root {
+  --black:   #1A1A1A;
+  --coral:   #CC3300;
+  --green:   #4A6741;
+  --linen:   #F0E6D3;
+  --offwht:  #F5F5F5;
+  --grey:    #666666;
+  --lgrey:   #CCCCCC;
+  --white:   #FFFFFF;
+  --surface: #FFFFFF;
+  --radius:  12px;
+  --radius-sm: 8px;
+  --nav-h:   56px;
+  --top-h:   56px;
+}
 
-  html, body, #root {
-    height: 100%;
-    font-family: 'Inter', system-ui, sans-serif;
-    background: var(--offwht);
-    color: var(--black);
-    -webkit-font-smoothing: antialiased;
-  }
+html, body, #root {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--offwht);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--lgrey); border-radius: 2px; }
 
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--lgrey); border-radius: 2px; }
+/* ═══════════════════════════════════════════════════════════════════
+   TOP BAR
+═══════════════════════════════════════════════════════════════════ */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: var(--top-h);
+  background: var(--linen);
+  border-bottom: 1px solid rgba(26,26,26,0.12);
+  display: flex; align-items: center; padding: 0 16px; gap: 12px;
+}
+.topbar-wordmark { font-size: 17px; font-weight: 700; color: var(--black); flex: 1; }
+.topbar-wordmark span { color: var(--coral); }
+.topbar-app-name { font-size: 12px; font-weight: 500; color: var(--grey);
+  letter-spacing: 0.5px; text-transform: uppercase; }
+.topbar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+  cursor: pointer; border: 2px solid var(--lgrey); transition: border-color 0.15s; }
+.topbar-avatar:hover { border-color: var(--coral); }
 
-  /* ── Top bar ── */
-  .topbar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    height: 56px;
-    background: var(--linen);
-    border-bottom: 1px solid rgba(26,26,26,0.12);
-    display: flex; align-items: center;
-    padding: 0 16px;
-    gap: 12px;
-  }
-  .topbar-wordmark {
-    font-size: 17px; font-weight: 700; letter-spacing: -0.3px;
-    color: var(--black); flex: 1;
-  }
-  .topbar-wordmark span { color: var(--coral); }
-  .topbar-app-name {
-    font-size: 13px; font-weight: 500; color: var(--grey);
-    letter-spacing: 0.3px; text-transform: uppercase;
-  }
-  .topbar-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    object-fit: cover; cursor: pointer;
-    border: 2px solid var(--lgrey);
-    transition: border-color 0.15s;
-  }
-  .topbar-avatar:hover { border-color: var(--coral); }
+/* ═══════════════════════════════════════════════════════════════════
+   BOTTOM NAV
+═══════════════════════════════════════════════════════════════════ */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  height: var(--nav-h);
+  background: var(--linen);
+  border-top: 1px solid rgba(26,26,26,0.12);
+  display: flex;
+}
+.nav-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 10px; font-weight: 500;
+  color: var(--grey); letter-spacing: 0.3px; text-transform: uppercase;
+  transition: color 0.15s; padding: 6px 0;
+}
+.nav-tab.active { color: var(--coral); }
+.nav-tab svg { width: 22px; height: 22px; }
+.nav-tab-label { font-size: 10px; }
 
-  /* ── Sign-in screen ── */
-  .signin-screen {
-    min-height: 100vh;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 32px 24px;
-    background: var(--offwht);
-  }
-  .signin-logo {
-    margin-bottom: 8px;
-  }
-  .signin-wordmark {
-    font-size: 32px; font-weight: 700; letter-spacing: -0.5px;
-    color: var(--black);
-  }
-  .signin-wordmark span { color: var(--coral); }
-  .signin-tagline {
-    font-size: 13px; color: var(--green); font-weight: 500;
-    letter-spacing: 0.5px; margin-bottom: 48px; margin-top: 4px;
-  }
-  .signin-card {
-    background: var(--surface);
-    border: 1px solid var(--lgrey);
-    border-radius: var(--radius);
-    padding: 32px 28px;
-    max-width: 360px; width: 100%;
-    text-align: center;
-  }
-  .signin-card h2 {
-    font-size: 18px; font-weight: 700; margin-bottom: 8px;
-  }
-  .signin-card p {
-    font-size: 13px; color: var(--grey); margin-bottom: 28px; line-height: 1.5;
-  }
-  .signin-needle {
-    font-size: 48px; margin-bottom: 16px; display: block;
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   SCREEN LAYOUT
+═══════════════════════════════════════════════════════════════════ */
+.screen {
+  padding: calc(var(--top-h) + 12px) 16px calc(var(--nav-h) + 72px);
+  max-width: 640px; margin: 0 auto;
+}
+.screen-header {
+  padding: 12px 0 14px;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.screen-title { font-size: 22px; font-weight: 700; }
+.screen-count { font-size: 13px; color: var(--grey); }
 
-  /* ── Buttons ── */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    gap: 8px; padding: 10px 20px;
-    border-radius: var(--radius-sm); border: none; cursor: pointer;
-    font-family: inherit; font-size: 14px; font-weight: 500;
-    transition: all 0.15s; text-decoration: none;
-  }
-  .btn-primary {
-    background: var(--black); color: var(--white);
-  }
-  .btn-primary:hover { background: #333; }
-  .btn-coral {
-    background: var(--coral); color: var(--white);
-  }
-  .btn-coral:hover { background: #aa2900; }
-  .btn-outlined {
-    background: transparent; color: var(--black);
-    border: 1.5px solid var(--lgrey);
-  }
-  .btn-outlined:hover { border-color: var(--black); background: var(--offwht); }
-  .btn-ghost {
-    background: transparent; color: var(--grey); padding: 8px 12px;
-  }
-  .btn-ghost:hover { background: var(--offwht); color: var(--black); }
-  .btn-danger {
-    background: transparent; color: #CC3300;
-    border: 1.5px solid #CC3300;
-  }
-  .btn-danger:hover { background: #fff0ed; }
-  .btn-google {
-    background: var(--white); color: var(--black);
-    border: 1.5px solid var(--lgrey); width: 100%; padding: 12px;
-    font-size: 15px;
-  }
-  .btn-google:hover { border-color: var(--black); }
-  .btn-google svg { flex-shrink: 0; }
-  .btn-icon {
-    width: 40px; height: 40px; padding: 0; border-radius: 50%;
-    background: transparent; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s; color: var(--grey);
-  }
-  .btn-icon:hover { background: var(--offwht); color: var(--black); }
-  .btn-icon svg { width: 20px; height: 20px; }
+/* ═══════════════════════════════════════════════════════════════════
+   CARDS GRID
+═══════════════════════════════════════════════════════════════════ */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--lgrey);
+  border-radius: var(--radius); padding: 16px;
+  cursor: pointer; transition: all 0.15s; position: relative;
+}
+.card:hover { border-color: var(--black); transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card-badge {
+  position: absolute; top: 12px; right: 12px;
+  font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase; padding: 2px 6px;
+  border-radius: 20px; border: 1px solid var(--lgrey); color: var(--grey);
+}
+.card-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+  margin-bottom: 2px; line-height: 1.1; }
+.card-sub { font-size: 12px; color: var(--grey); margin-bottom: 10px; line-height: 1.4; }
+.card-desc { font-size: 12px; color: var(--grey); line-height: 1.5; margin-bottom: 10px; }
+.card-traits { display: flex; gap: 4px; flex-wrap: wrap; }
+.trait-chip {
+  font-size: 10px; font-weight: 500; padding: 2px 7px;
+  border-radius: 20px; border: 1px solid var(--lgrey);
+  background: var(--offwht); color: var(--grey);
+}
+.thread-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.thread-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
+  border-radius: 20px; border: 1px solid var(--lgrey); background: var(--offwht);
+  font-size: 11px; font-weight: 500; }
+.thread-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
-  /* ── FAB ── */
-  .fab {
-    position: fixed; bottom: 24px; right: 24px; z-index: 90;
-    width: 56px; height: 56px; border-radius: 16px;
-    background: var(--coral); color: var(--white); border: none;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(204,51,0,0.4);
-    transition: all 0.2s;
-  }
-  .fab:hover { background: #aa2900; transform: scale(1.05); }
-  .fab:active { transform: scale(0.97); }
-  .fab svg { width: 24px; height: 24px; }
+/* ═══════════════════════════════════════════════════════════════════
+   CANVAS
+═══════════════════════════════════════════════════════════════════ */
+.canvas-thumb { background: var(--linen); border-radius: 6px;
+  overflow: hidden; line-height: 0; margin-bottom: 10px; }
+.canvas-thumb canvas { display: block; width: 100%; height: auto; }
+.canvas-full  { background: var(--linen); border-radius: var(--radius-sm);
+  overflow: hidden; line-height: 0; }
+.canvas-full canvas { display: block; width: 100%; height: auto; }
 
-  /* ── Library screen ── */
-  .library-screen {
-    padding: 72px 16px 88px;
-    max-width: 640px; margin: 0 auto;
-  }
-  .library-header {
-    padding: 16px 0 12px;
-    display: flex; align-items: baseline; gap: 8px;
-  }
-  .library-title {
-    font-size: 22px; font-weight: 700; color: var(--black);
-  }
-  .library-count {
-    font-size: 13px; color: var(--grey); font-weight: 400;
-  }
-  .pattern-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════════════════════════════════════ */
+.empty { text-align: center; padding: 56px 24px; }
+.empty-icon { font-size: 52px; opacity: 0.35; display: block; margin-bottom: 14px; }
+.empty h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.empty p { font-size: 13px; color: var(--grey); line-height: 1.5;
+  max-width: 260px; margin: 0 auto; }
 
-  /* ── Pattern card ── */
-  .pattern-card {
-    background: var(--surface);
-    border: 1px solid var(--lgrey);
-    border-radius: var(--radius);
-    padding: 20px;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-  }
-  .pattern-card:hover {
-    border-color: var(--black);
-    box-shadow: var(--shadow);
-    transform: translateY(-1px);
-  }
-  .pattern-card-word {
-    font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
-    color: var(--black); margin-bottom: 4px;
-    line-height: 1.1;
-  }
-  .pattern-card-meta {
-    font-size: 12px; color: var(--grey); margin-bottom: 14px;
-    line-height: 1.4;
-  }
-  .pattern-card-threads {
-    display: flex; gap: 6px; flex-wrap: wrap;
-  }
-  .thread-chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-size: 11px; font-weight: 500;
-    border: 1px solid var(--lgrey);
-    background: var(--offwht);
-    color: var(--black);
-  }
-  .thread-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .pattern-card-date {
-    position: absolute; top: 16px; right: 16px;
-    font-size: 10px; color: var(--lgrey); font-weight: 500;
-    letter-spacing: 0.3px;
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   FAB
+═══════════════════════════════════════════════════════════════════ */
+.fab {
+  position: fixed; bottom: calc(var(--nav-h) + 16px); right: 20px; z-index: 90;
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--coral); color: var(--white); border: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(204,51,0,0.35); transition: all 0.2s;
+}
+.fab:hover { background: #aa2900; transform: scale(1.05); }
+.fab:active { transform: scale(0.97); }
+.fab svg { width: 22px; height: 22px; }
 
-  /* ── Empty state ── */
-  .empty-state {
-    text-align: center; padding: 64px 24px;
-  }
-  .empty-state-icon {
-    font-size: 56px; margin-bottom: 16px; display: block;
-    opacity: 0.4;
-  }
-  .empty-state h3 {
-    font-size: 18px; font-weight: 700; margin-bottom: 8px;
-  }
-  .empty-state p {
-    font-size: 14px; color: var(--grey); line-height: 1.5; max-width: 280px; margin: 0 auto;
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   OVERLAY / SHEET
+═══════════════════════════════════════════════════════════════════ */
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(26,26,26,0.5);
+  display: flex; align-items: flex-end;
+  animation: fadeIn 0.15s ease;
+}
+.overlay-center { align-items: center; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  /* ── Overlay / modal ── */
-  .overlay {
-    position: fixed; inset: 0; z-index: 200;
-    background: rgba(26,26,26,0.5);
-    display: flex; align-items: flex-end;
-    animation: fadeIn 0.15s ease;
-  }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.sheet {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 640px; margin: 0 auto;
+  max-height: 92vh; overflow-y: auto;
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.sheet-handle { width: 36px; height: 4px; border-radius: 2px;
+  background: var(--lgrey); margin: 12px auto 0; }
+.sheet-header { padding: 14px 18px 12px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--offwht); }
+.sheet-title { font-size: 16px; font-weight: 700; }
+.sheet-body { padding: 18px; }
 
-  .sheet {
-    background: var(--surface);
-    border-radius: 20px 20px 0 0;
-    width: 100%; max-width: 640px; margin: 0 auto;
-    padding: 0 0 32px;
-    max-height: 92vh; overflow-y: auto;
-    animation: slideUp 0.2s ease;
-  }
-  @keyframes slideUp {
-    from { transform: translateY(40px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-  }
-  .sheet-handle {
-    width: 36px; height: 4px; border-radius: 2px;
-    background: var(--lgrey); margin: 12px auto 0;
-  }
-  .sheet-header {
-    padding: 16px 20px 12px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--offwht);
-  }
-  .sheet-title {
-    font-size: 17px; font-weight: 700;
-  }
-  .sheet-body { padding: 20px; }
+/* ── Detail sheet ── */
+.detail-title { font-size: 36px; font-weight: 700; letter-spacing: -0.8px;
+  padding: 16px 18px 2px; line-height: 1.1; }
+.detail-meta { font-size: 12px; color: var(--grey); padding: 0 18px 14px;
+  border-bottom: 1px solid var(--offwht); line-height: 1.5; }
+.detail-section { padding: 14px 18px 0; }
+.detail-section-label { font-size: 10px; font-weight: 600; color: var(--grey);
+  letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; }
+.detail-thread-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.detail-swatch { width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0; }
+.detail-thread-name { font-size: 13px; font-weight: 500; }
+.detail-thread-dmc  { font-size: 11px; color: var(--grey); }
+.detail-notes { font-size: 13px; line-height: 1.6; padding: 10px;
+  background: var(--offwht); border-radius: var(--radius-sm); }
+.detail-actions { display: flex; gap: 10px; padding: 16px 18px;
+  border-top: 1px solid var(--offwht); margin-top: 16px; }
+.detail-builtin-note { font-size: 11px; color: var(--grey); font-style: italic;
+  padding: 0 18px 14px; }
 
-  /* ── Form ── */
-  .form-group { margin-bottom: 18px; }
-  .form-label {
-    display: block; font-size: 12px; font-weight: 500;
-    color: var(--grey); margin-bottom: 6px;
-    letter-spacing: 0.3px; text-transform: uppercase;
-  }
-  .form-input, .form-textarea, .form-select {
-    width: 100%; padding: 10px 12px;
-    border: 1.5px solid var(--lgrey); border-radius: var(--radius-sm);
-    font-family: inherit; font-size: 15px; color: var(--black);
-    background: var(--white);
-    transition: border-color 0.15s; outline: none;
-    -webkit-appearance: none;
-  }
-  .form-input:focus, .form-textarea:focus, .form-select:focus {
-    border-color: var(--black);
-  }
-  .form-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .form-hint { font-size: 11px; color: var(--grey); margin-top: 4px; }
+/* ═══════════════════════════════════════════════════════════════════
+   FORM
+═══════════════════════════════════════════════════════════════════ */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 11px; font-weight: 600; color: var(--grey);
+  margin-bottom: 5px; letter-spacing: 0.4px; text-transform: uppercase; }
+.form-input, .form-textarea {
+  width: 100%; padding: 9px 11px;
+  border: 1.5px solid var(--lgrey); border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; color: var(--black);
+  background: var(--white); transition: border-color 0.15s; outline: none;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-textarea:focus { border-color: var(--black); }
+.form-input.error, .form-textarea.error { border-color: var(--coral); }
+.form-error { font-size: 11px; color: var(--coral); margin-top: 3px; }
+.form-hint  { font-size: 11px; color: var(--grey);  margin-top: 3px; }
+.form-textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 6px; }
 
-  /* ── Thread editor ── */
-  .thread-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-  .thread-row {
-    display: grid; grid-template-columns: 36px 1fr 1fr auto;
-    gap: 8px; align-items: center;
-  }
-  .thread-color-btn {
-    width: 36px; height: 36px; border-radius: var(--radius-sm);
-    border: 1.5px solid var(--lgrey); cursor: pointer;
-    padding: 0; position: relative; overflow: hidden;
-  }
-  .thread-color-input {
-    position: absolute; inset: -4px; opacity: 0; cursor: pointer; width: 150%;
-  }
-  .thread-remove {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: transparent; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--grey); transition: all 0.15s;
-  }
-  .thread-remove:hover { background: #fff0ed; color: var(--coral); }
-  .add-thread-btn {
-    display: flex; align-items: center; gap: 6px;
-    padding: 8px 0; background: none; border: none;
-    font-family: inherit; font-size: 13px; font-weight: 500;
-    color: var(--green); cursor: pointer;
-  }
-  .add-thread-btn:hover { color: var(--black); }
+/* ── Thread editor ── */
+.thread-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
+.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr auto;
+  gap: 6px; align-items: center; }
+.thread-color-btn { width: 32px; height: 32px; border-radius: 6px;
+  border: 1.5px solid var(--lgrey); cursor: pointer; padding: 0;
+  position: relative; overflow: hidden; }
+.thread-color-input { position: absolute; inset: -4px; opacity: 0; cursor: pointer; width: 150%; }
+.thread-remove { width: 28px; height: 28px; border-radius: 50%; background: transparent;
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--grey); transition: all 0.15s; }
+.thread-remove:hover { background: #fff0ed; color: var(--coral); }
+.add-thread-btn { display: flex; align-items: center; gap: 5px; padding: 6px 0;
+  background: none; border: none; font-family: inherit; font-size: 12px;
+  font-weight: 500; color: var(--green); cursor: pointer; }
+.add-thread-btn:hover { color: var(--black); }
 
-  /* ── Form actions ── */
-  .form-actions {
-    display: flex; gap: 10px; justify-content: flex-end;
-    padding-top: 8px;
-  }
+/* ── Border picker ── */
+.border-picker { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.border-picker::-webkit-scrollbar { height: 3px; }
+.border-option {
+  flex-shrink: 0; width: 88px; cursor: pointer;
+  border: 2px solid var(--lgrey); border-radius: var(--radius-sm);
+  overflow: hidden; transition: all 0.15s;
+}
+.border-option.selected { border-color: var(--coral); }
+.border-option:hover { border-color: var(--black); }
+.border-option-thumb { background: var(--linen); line-height: 0; }
+.border-option-thumb canvas { display: block; width: 100%; height: auto; }
+.border-option-label { font-size: 10px; font-weight: 500; padding: 4px 5px;
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* ── Detail sheet ── */
-  .detail-word {
-    font-size: 40px; font-weight: 700; letter-spacing: -1px;
-    color: var(--black); padding: 20px 20px 4px;
-    line-height: 1.1;
-  }
-  .detail-meta {
-    font-size: 13px; color: var(--grey);
-    padding: 0 20px 16px;
-    border-bottom: 1px solid var(--offwht);
-  }
-  .detail-section {
-    padding: 16px 20px 0;
-  }
-  .detail-section-title {
-    font-size: 11px; font-weight: 600; color: var(--grey);
-    letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px;
-  }
-  .detail-threads {
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .detail-thread-row {
-    display: flex; align-items: center; gap: 10px;
-  }
-  .detail-thread-swatch {
-    width: 28px; height: 28px; border-radius: 6px;
-    border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;
-  }
-  .detail-thread-info { flex: 1; }
-  .detail-thread-name { font-size: 14px; font-weight: 500; }
-  .detail-thread-dmc  { font-size: 12px; color: var(--grey); }
-  .detail-notes {
-    font-size: 14px; color: var(--black); line-height: 1.6;
-    padding: 12px; background: var(--offwht);
-    border-radius: var(--radius-sm);
-  }
-  .detail-actions {
-    display: flex; gap: 10px; padding: 20px;
-    border-top: 1px solid var(--offwht); margin-top: 20px;
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════════════ */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 18px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary  { background: var(--black); color: var(--white); }
+.btn-primary:hover:not(:disabled)  { background: #333; }
+.btn-coral    { background: var(--coral); color: var(--white); }
+.btn-coral:hover:not(:disabled)    { background: #aa2900; }
+.btn-outlined { background: transparent; color: var(--black); border: 1.5px solid var(--lgrey); }
+.btn-outlined:hover:not(:disabled) { border-color: var(--black); background: var(--offwht); }
+.btn-danger   { background: transparent; color: var(--coral); border: 1.5px solid var(--coral); }
+.btn-danger:hover:not(:disabled)   { background: #fff0ed; }
+.btn-ghost    { background: transparent; color: var(--grey); padding: 7px 10px; }
+.btn-ghost:hover:not(:disabled)    { background: var(--offwht); color: var(--black); }
+.btn-google   { background: var(--white); color: var(--black); border: 1.5px solid var(--lgrey);
+  width: 100%; padding: 11px; font-size: 14px; }
+.btn-google:hover { border-color: var(--black); }
+.btn-icon { width: 36px; height: 36px; padding: 0; border-radius: 50%; background: transparent;
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; color: var(--grey); }
+.btn-icon:hover { background: var(--offwht); color: var(--black); }
+.btn-icon svg { width: 18px; height: 18px; }
 
-  /* ── Confirm dialog ── */
-  .dialog {
-    background: var(--surface);
-    border-radius: var(--radius);
-    width: calc(100% - 48px); max-width: 360px;
-    margin: auto;
-    padding: 24px;
-    animation: scaleIn 0.15s ease;
-  }
-  @keyframes scaleIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to   { transform: scale(1);    opacity: 1; }
-  }
-  .overlay-center { align-items: center; }
-  .dialog h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-  .dialog p  { font-size: 14px; color: var(--grey); line-height: 1.5; margin-bottom: 20px; }
-  .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+/* ═══════════════════════════════════════════════════════════════════
+   DIALOG
+═══════════════════════════════════════════════════════════════════ */
+.dialog { background: var(--surface); border-radius: var(--radius);
+  width: calc(100% - 48px); max-width: 340px; margin: auto; padding: 22px;
+  animation: scaleIn 0.15s ease; }
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.dialog h3 { font-size: 16px; font-weight: 700; margin-bottom: 7px; }
+.dialog p  { font-size: 13px; color: var(--grey); line-height: 1.5; margin-bottom: 18px; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
-  /* ── Loading ── */
-  .loading-screen {
-    min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 16px;
-  }
-  .spinner {
-    width: 32px; height: 32px; border-radius: 50%;
-    border: 3px solid var(--lgrey);
-    border-top-color: var(--coral);
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text { font-size: 13px; color: var(--grey); }
+/* ═══════════════════════════════════════════════════════════════════
+   SIGN-IN
+═══════════════════════════════════════════════════════════════════ */
+.signin-screen { min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 32px 24px; }
+.signin-wordmark { font-size: 30px; font-weight: 700; color: var(--black); }
+.signin-wordmark span { color: var(--coral); }
+.signin-tagline { font-size: 12px; color: var(--green); font-weight: 500;
+  letter-spacing: 0.5px; margin-bottom: 44px; margin-top: 4px; }
+.signin-card { background: var(--surface); border: 1px solid var(--lgrey);
+  border-radius: var(--radius); padding: 28px 24px; max-width: 340px; width: 100%;
+  text-align: center; }
+.signin-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.signin-card p { font-size: 12px; color: var(--grey); margin-bottom: 24px; line-height: 1.5; }
+.signin-icon { font-size: 44px; margin-bottom: 12px; display: block; }
 
-  /* ── Toast ── */
-  .toast {
-    position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%);
-    background: var(--black); color: var(--white);
-    padding: 10px 18px; border-radius: 20px;
-    font-size: 13px; font-weight: 500;
-    z-index: 300; white-space: nowrap;
-    animation: toastIn 0.2s ease;
-    pointer-events: none;
-  }
-  @keyframes toastIn {
-    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   LOADING / TOAST
+═══════════════════════════════════════════════════════════════════ */
+.loading-screen { min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; }
+.spinner { width: 28px; height: 28px; border-radius: 50%;
+  border: 3px solid var(--lgrey); border-top-color: var(--coral);
+  animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 12px; color: var(--grey); }
 
-  /* ── Grid canvas ── */
-  .grid-canvas-wrap {
-    background: var(--linen);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    line-height: 0;
-  }
-  .grid-canvas-wrap canvas { display: block; width: 100%; height: auto; }
-  .grid-thumb-wrap {
-    background: var(--linen);
-    border-radius: 6px;
-    overflow: hidden;
-    line-height: 0;
-    margin-bottom: 12px;
-  }
-  .grid-thumb-wrap canvas { display: block; width: 100%; height: auto; }
-  .detail-canvas-section {
-    padding: 16px 20px 0;
-  }
+.toast { position: fixed; bottom: calc(var(--nav-h) + 12px); left: 50%;
+  transform: translateX(-50%); background: var(--black); color: var(--white);
+  padding: 9px 16px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  z-index: 300; white-space: nowrap; pointer-events: none;
+  animation: toastIn 0.2s ease; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
-  /* ── Responsive ── */
-  @media (min-width: 600px) {
-    .overlay { align-items: center; }
-    .sheet {
-      border-radius: var(--radius); margin: 24px;
-      max-height: 80vh;
-    }
-  }
+@media (min-width: 600px) {
+  .overlay { align-items: center; }
+  .sheet { border-radius: var(--radius); margin: 24px; max-height: 82vh; }
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function formatDate(ts) {
-  if (!ts) return '';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-}
-
-function useToast() {
-  const [msg, setMsg] = useState(null);
-  const show = useCallback((m) => {
-    setMsg(m);
-    setTimeout(() => setMsg(null), 2500);
-  }, []);
-  return [msg, show];
-}
-
-// ── Icons (SVG inline) ────────────────────────────────────────────────────────
-const IconPlus = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-);
-const IconEdit = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-  </svg>
-);
-const IconDelete = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-  </svg>
-);
-const IconClose = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
-const IconSignOut = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-  </svg>
-);
-const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-  </svg>
-);
-
-// ── Grid engine (ported from goal_crossstitch_pattern.py) ────────────────────
-const LETTER_MAP = {
-  'G': ["011110","100000","100111","100001","100001","100011","011110"],
-  'O': ["01110","10001","10001","10001","10001","10001","01110"],
-  'A': ["01110","10001","10001","11111","10001","10001","10001"],
-  'L': ["10000","10000","10000","10000","10000","10000","11111"],
-  '!': ["1","1","1","1","0","0","1"],
-  'S': ["01110","10001","10000","01110","00001","10001","01110"],
-  'E': ["11111","10000","10000","11110","10000","10000","11111"],
-  'T': ["11111","00100","00100","00100","00100","00100","00100"],
-  'N': ["10001","11001","10101","10011","10001","10001","10001"],
-  'I': ["111","010","010","010","010","010","111"],
-  'U': ["10001","10001","10001","10001","10001","10001","01110"],
-  'C': ["01110","10001","10000","10000","10000","10001","01110"],
-  'K': ["10001","10010","10100","11000","10100","10010","10001"],
-  'H': ["10001","10001","10001","11111","10001","10001","10001"],
-  'P': ["11110","10001","10001","11110","10000","10000","10000"],
-  'R': ["11110","10001","10001","11110","10100","10010","10001"],
-  'F': ["11111","10000","10000","11110","10000","10000","10000"],
-  'W': ["10001","10001","10001","10101","10101","11011","10001"],
-  'Y': ["10001","10001","01010","00100","00100","00100","00100"],
-  'B': ["11110","10001","10001","11110","10001","10001","11110"],
-  'D': ["11110","10001","10001","10001","10001","10001","11110"],
-  'M': ["10001","11011","10101","10001","10001","10001","10001"],
-  'V': ["10001","10001","10001","10001","01010","01010","00100"],
-  'X': ["10001","10001","01010","00100","01010","10001","10001"],
-  'Z': ["11111","00001","00010","00100","01000","10000","11111"],
-  'Q': ["01110","10001","10001","10001","10101","10010","01101"],
-  'J': ["00111","00010","00010","00010","00010","10010","01100"],
-  ' ': ["000","000","000","000","000","000","000"],
-  '.': ["0","0","0","0","0","0","1"],
-  '?': ["01110","10001","00001","00110","00100","00000","00100"],
+/* ═══════════════════════════════════════════════════════════════════
+   CONSTANTS — LETTER BITMAPS
+═══════════════════════════════════════════════════════════════════ */
+const LETTERS = {
+  'A':["01110","10001","10001","11111","10001","10001","10001"],
+  'B':["11110","10001","10001","11110","10001","10001","11110"],
+  'C':["01110","10001","10000","10000","10000","10001","01110"],
+  'D':["11110","10001","10001","10001","10001","10001","11110"],
+  'E':["11111","10000","10000","11110","10000","10000","11111"],
+  'F':["11111","10000","10000","11110","10000","10000","10000"],
+  'G':["011110","100000","100111","100001","100001","100011","011110"],
+  'H':["10001","10001","10001","11111","10001","10001","10001"],
+  'I':["111","010","010","010","010","010","111"],
+  'J':["00111","00010","00010","00010","00010","10010","01100"],
+  'K':["10001","10010","10100","11000","10100","10010","10001"],
+  'L':["10000","10000","10000","10000","10000","10000","11111"],
+  'M':["10001","11011","10101","10001","10001","10001","10001"],
+  'N':["10001","11001","10101","10011","10001","10001","10001"],
+  'O':["01110","10001","10001","10001","10001","10001","01110"],
+  'P':["11110","10001","10001","11110","10000","10000","10000"],
+  'Q':["01110","10001","10001","10001","10101","10010","01101"],
+  'R':["11110","10001","10001","11110","10100","10010","10001"],
+  'S':["01110","10001","10000","01110","00001","10001","01110"],
+  'T':["11111","00100","00100","00100","00100","00100","00100"],
+  'U':["10001","10001","10001","10001","10001","10001","01110"],
+  'V':["10001","10001","10001","10001","01010","01010","00100"],
+  'W':["10001","10001","10001","10101","10101","11011","10001"],
+  'X':["10001","10001","01010","00100","01010","10001","10001"],
+  'Y':["10001","10001","01010","00100","00100","00100","00100"],
+  'Z':["11111","00001","00010","00100","01000","10000","11111"],
+  '!':["1","1","1","1","0","0","1"],
+  '?':["01110","10001","00001","00110","00100","00000","00100"],
+  '.':["0","0","0","0","0","0","1"],
+  ' ':["000","000","000","000","000","000","000"],
 };
 
-function buildGrid(word, cols, rows, scale, gap) {
+/* ═══════════════════════════════════════════════════════════════════
+   BUILT-IN BORDERS — seeded to Firestore on first load
+═══════════════════════════════════════════════════════════════════ */
+const BUILTIN_BORDERS = [
+  {
+    id: 'classic-british',
+    name: 'Classic British',
+    style: 'british',
+    description: 'Alternating diagonal check in two colours with corner football motifs, centred goal posts on top and bottom, and shot arrows on the sides. Rooted in traditional British cross-stitch samplers.',
+    traits: ['diagonal-check','corner-footballs','goal-posts','shot-arrows'],
+    builtIn: true,
+    createdBy: null,
+  },
+  {
+    id: 'scandinavian',
+    name: 'Scandinavian',
+    style: 'scandinavian',
+    description: 'Clean geometric border with repeating diamond motifs and a simple two-line frame. Inspired by Nordic folk embroidery traditions. AI-defined — coming soon.',
+    traits: ['geometric','diamond-repeat','two-line-frame'],
+    builtIn: true,
+    createdBy: null,
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    style: 'minimal',
+    description: 'A single solid border line with no fill or motifs. Clean, modern. Lets the word do all the work.',
+    traits: ['single-line'],
+    builtIn: true,
+    createdBy: null,
+  },
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   GRID ENGINE — pure logic, no React, no Firebase
+═══════════════════════════════════════════════════════════════════ */
+function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   scale = scale || 2;
   gap   = gap   || 4;
   cols  = cols  || 110;
   rows  = rows  || 110;
+  borderStyle = borderStyle || 'british';
 
   const grid = [];
-  for (let r = 0; r < rows; r++) {
-    grid.push(new Array(cols).fill(' '));
-  }
+  for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
 
   function setCell(r, c, kind) {
-    if (r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c] === ' ') {
+    if (r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c] === ' ')
       grid[r][c] = kind;
-    }
   }
 
-  // ── Border ──
   const N = cols;
-  for (let i = 0; i < N; i++) { setCell(0, i, 'B'); setCell(N-1, i, 'B'); }
-  for (let i = 0; i < N; i++) { setCell(i, 0, 'B'); setCell(i, N-1, 'B'); }
-  for (let line = 1; line < 5; line++) {
-    for (let i = line; i < N-line; i++) {
-      let kt, kb, kl, kr;
-      if (line % 2 === 1) {
-        kt = i % 2 === 0 ? 'D' : 'E'; kb = i % 2 === 1 ? 'D' : 'E';
-        kl = i % 2 === 0 ? 'D' : 'E'; kr = i % 2 === 1 ? 'D' : 'E';
-      } else { kt = kb = kl = kr = 'A'; }
-      setCell(line,   i, kt); setCell(N-1-line, i, kb);
-      setCell(i, line, kl);   setCell(i, N-1-line, kr);
+
+  // ── Border: shared outer edge ──
+  for (let i = 0; i < N; i++) { setCell(0,i,'B'); setCell(N-1,i,'B'); }
+  for (let i = 0; i < N; i++) { setCell(i,0,'B'); setCell(i,N-1,'B'); }
+
+  if (borderStyle === 'british') {
+    // 4 inner border lines: alternating check / solid accent
+    for (let line = 1; line < 5; line++) {
+      for (let i = line; i < N-line; i++) {
+        let kt, kb, kl, kr;
+        if (line % 2 === 1) {
+          kt = i%2===0?'D':'E'; kb = i%2===1?'D':'E';
+          kl = i%2===0?'D':'E'; kr = i%2===1?'D':'E';
+        } else { kt=kb=kl=kr='A'; }
+        setCell(line,i,kt); setCell(N-1-line,i,kb);
+        setCell(i,line,kl); setCell(i,N-1-line,kr);
+      }
     }
+    // corner footballs 9x9
+    const ball = [
+      "011101110","101010101","110101011","001111100",
+      "011101110","001111100","110101011","101010101","011101110"
+    ];
+    [[7,7],[7,N-16],[N-16,7],[N-16,N-16]].forEach(([br,bc]) => {
+      ball.forEach((rs,dr) => rs.split('').forEach((ch,dc) => {
+        if (ch==='1') setCell(br+dr, bc+dc, 'F');
+      }));
+    });
+    // goal posts top/bottom 41x9
+    const gw=41, gh=9;
+    const goalRows = [];
+    for (let r2=0;r2<gh;r2++) {
+      if (r2<=5)       goalRows.push('11'+'0'.repeat(gw-4)+'11');
+      else if (r2===6) goalRows.push('1'.repeat(gw));
+      else             goalRows.push('0'.repeat(gw));
+    }
+    [7, N-7-gh+1].forEach(srs => {
+      const gc = Math.floor((N-gw)/2);
+      goalRows.forEach((rs,dr) => rs.split('').forEach((ch,dc) => {
+        if (ch==='1') setCell(srs+dr, gc+dc, 'G');
+      }));
+    });
+    // shot arrows left/right 9x9
+    const arrow = [
+      "000010000","000111000","001111100","011111110","111111111",
+      "011111110","001111100","000111000","000010000"
+    ];
+    [7, N-16].forEach(scs => {
+      const ar = Math.floor((N-9)/2);
+      arrow.forEach((rs,dr) => rs.split('').forEach((ch,dc) => {
+        if (ch==='1') setCell(ar+dr, scs+dc, 'S');
+      }));
+    });
+
+  } else if (borderStyle === 'scandinavian') {
+    // Second solid line
+    for (let i=1;i<N-1;i++) { setCell(1,i,'A'); setCell(N-2,i,'A'); }
+    for (let i=1;i<N-1;i++) { setCell(i,1,'A'); setCell(i,N-2,'A'); }
+    // Diamond repeat every 8 on third line (placeholder — AI will refine)
+    for (let i=4;i<N-4;i+=8) {
+      [[3,i],[i,3],[3,N-1-i],[N-1-i,3]].forEach(([r2,c2]) => setCell(r2,c2,'D'));
+    }
+
+  } else if (borderStyle === 'minimal') {
+    // Just the outer solid line — already drawn above
   }
 
-  // ── Corner footballs 9x9 ──
-  const ball = [
-    "011101110","101010101","110101011","001111100",
-    "011101110","001111100","110101011","101010101","011101110"
-  ];
-  [[7,7],[7,N-16],[N-16,7],[N-16,N-16]].forEach(function(pos) {
-    const br = pos[0], bc = pos[1];
-    ball.forEach(function(row_str, dr) {
-      row_str.split('').forEach(function(ch, dc) {
-        if (ch === '1') setCell(br+dr, bc+dc, 'F');
-      });
-    });
-  });
-
-  // ── Goal posts top/bottom 41x9 ──
-  const gw = 41, gh = 9;
-  const goal = [];
-  for (let r2 = 0; r2 < gh; r2++) {
-    if (r2 <= 5)       goal.push('11' + '0'.repeat(gw-4) + '11');
-    else if (r2 === 6) goal.push('1'.repeat(gw));
-    else               goal.push('0'.repeat(gw));
-  }
-  [7, N-7-gh+1].forEach(function(srs) {
-    const gc = Math.floor((N - gw) / 2);
-    goal.forEach(function(row_str, dr) {
-      row_str.split('').forEach(function(ch, dc) {
-        if (ch === '1') setCell(srs+dr, gc+dc, 'G');
-      });
-    });
-  });
-
-  // ── Shot arrows left/right 9x9 ──
-  const arrow = [
-    "000010000","000111000","001111100","011111110","111111111",
-    "011111110","001111100","000111000","000010000"
-  ];
-  [7, N-16].forEach(function(scs) {
-    const ar = Math.floor((N - 9) / 2);
-    arrow.forEach(function(row_str, dr) {
-      row_str.split('').forEach(function(ch, dc) {
-        if (ch === '1') setCell(ar+dr, scs+dc, 'S');
-      });
-    });
-  });
-
-  // ── Text ──
-  const letters = word.toUpperCase().split('').map(function(ch) {
-    return LETTER_MAP[ch] || LETTER_MAP['?'];
-  });
-  const tw = letters.reduce(function(sum, l) { return sum + l[0].length * scale; }, 0)
-             + gap * (letters.length - 1);
-  const th = 7 * scale;
-  let startCol = Math.floor((cols - tw) / 2);
-  const startRow = Math.floor((rows - th) / 2);
-  let x = startCol;
-  letters.forEach(function(letter) {
-    letter.forEach(function(row_str, r) {
-      row_str.split('').forEach(function(ch, c) {
-        if (ch === '1') {
-          for (let dr = 0; dr < scale; dr++) {
-            for (let dc = 0; dc < scale; dc++) {
-              setCell(startRow + r*scale + dr, x + c*scale + dc, 'T');
-            }
-          }
-        }
-      });
-    });
-    x += letter[0].length * scale + gap;
+  // ── Text (shared across all border styles) ──
+  const chars = word.toUpperCase().split('').map(ch => LETTERS[ch] || LETTERS['?']);
+  const tw = chars.reduce((s,l) => s + l[0].length*scale, 0) + gap*(chars.length-1);
+  const th = 7*scale;
+  let x = Math.floor((cols-tw)/2);
+  const startRow = Math.floor((rows-th)/2);
+  chars.forEach(letter => {
+    letter.forEach((rs,r) => rs.split('').forEach((ch,c) => {
+      if (ch==='1') {
+        for (let dr=0;dr<scale;dr++) for (let dc=0;dc<scale;dc++)
+          setCell(startRow+r*scale+dr, x+c*scale+dc, 'T');
+      }
+    }));
+    x += letter[0].length*scale + gap;
   });
 
   return grid;
 }
 
 function stitchColor(kind, threads) {
-  // Use thread colours from pattern if available, else brand defaults
-  const black = (threads && threads[0] && threads[0].hex) || '#1A1A1A';
-  const green = (threads && threads[1] && threads[1].hex) || '#4A6741';
-  const coral = (threads && threads[2] && threads[2].hex) || '#CC3300';
-  const map = { 'T': black, 'B': black, 'A': black, 'F': black,
-                'D': green, 'G': green, 'E': coral,  'S': coral };
-  return map[kind] || null;
+  const black = threads&&threads[0] ? threads[0].hex : '#1A1A1A';
+  const green = threads&&threads[1] ? threads[1].hex : '#4A6741';
+  const coral = threads&&threads[2] ? threads[2].hex : '#CC3300';
+  return {'T':black,'B':black,'A':black,'F':black,'G':green,'D':green,'E':coral,'S':coral}[kind]||null;
 }
 
-// ── CrossStitchCanvas ─────────────────────────────────────────────────────────
-function CrossStitchCanvas({ pattern, size, className }) {
+/* ═══════════════════════════════════════════════════════════════════
+   CANVAS COMPONENT
+═══════════════════════════════════════════════════════════════════ */
+function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className }) {
   const canvasRef = useRef(null);
-  const cols = (pattern && pattern.stitchesW) || 110;
-  const rows = (pattern && pattern.stitchesH) || 110;
-  const word = (pattern && pattern.name)      || '';
-  const threads = (pattern && pattern.threads) || [];
+  cols = cols||110; rows = rows||110;
 
-  useEffect(function() {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !word) return;
-    const px   = size || 440;
-    const cell = px / cols;
-    canvas.width  = px;
-    canvas.height = px;
+    const px = size||440;
+    const cell = px/cols;
+    canvas.width = px; canvas.height = px;
     const ctx = canvas.getContext('2d');
 
-    // Background
     ctx.fillStyle = '#F0E6D3';
-    ctx.fillRect(0, 0, px, px);
+    ctx.fillRect(0,0,px,px);
 
-    // Build and draw grid
-    const grid = buildGrid(word, cols, rows, 2, 4);
-    const pad  = cell * 0.1;
-    const lw   = Math.max(cell * 0.24, 0.5);
+    const grid = buildGrid(word, cols, rows, borderStyle, 2, 4);
+    const pad = cell*0.1;
+    const lw  = Math.max(cell*0.24, 0.5);
 
-    grid.forEach(function(rowArr, row) {
-      rowArr.forEach(function(kind, col) {
-        if (kind === ' ') return;
-        const col_val = stitchColor(kind, threads);
-        if (!col_val) return;
-        const x = col * cell;
-        const y = row * cell;
-        ctx.strokeStyle = col_val;
-        ctx.lineWidth   = lw;
-        ctx.beginPath();
-        ctx.moveTo(x+pad, y+pad); ctx.lineTo(x+cell-pad, y+cell-pad);
-        ctx.moveTo(x+cell-pad, y+pad); ctx.lineTo(x+pad, y+cell-pad);
-        ctx.stroke();
-      });
-    });
-
-    // Grid lines minor
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-    ctx.lineWidth   = 0.3;
-    for (let i = 0; i <= cols; i++) {
+    grid.forEach((rowArr,row) => rowArr.forEach((kind,col) => {
+      if (kind===' ') return;
+      const c = stitchColor(kind, threads);
+      if (!c) return;
+      const x=col*cell, y=row*cell;
+      ctx.strokeStyle=c; ctx.lineWidth=lw;
       ctx.beginPath();
-      ctx.moveTo(i*cell, 0); ctx.lineTo(i*cell, px); ctx.stroke();
-    }
-    for (let i = 0; i <= rows; i++) {
-      ctx.beginPath();
-      ctx.moveTo(0, i*cell); ctx.lineTo(px, i*cell); ctx.stroke();
-    }
+      ctx.moveTo(x+pad,y+pad); ctx.lineTo(x+cell-pad,y+cell-pad);
+      ctx.moveTo(x+cell-pad,y+pad); ctx.lineTo(x+pad,y+cell-pad);
+      ctx.stroke();
+    }));
 
-    // Every-10 lines
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-    ctx.lineWidth   = 0.5;
-    for (let i = 0; i <= cols; i += 10) {
-      ctx.beginPath();
-      ctx.moveTo(i*cell, 0); ctx.lineTo(i*cell, px); ctx.stroke();
-    }
-    for (let i = 0; i <= rows; i += 10) {
-      ctx.beginPath();
-      ctx.moveTo(0, i*cell); ctx.lineTo(px, i*cell); ctx.stroke();
-    }
+    // minor grid
+    ctx.strokeStyle='rgba(0,0,0,0.07)'; ctx.lineWidth=0.3;
+    for(let i=0;i<=cols;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,px);ctx.stroke();}
+    for(let i=0;i<=rows;i++){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(px,i*cell);ctx.stroke();}
+    // every-10
+    ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=0.5;
+    for(let i=0;i<=cols;i+=10){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,px);ctx.stroke();}
+    for(let i=0;i<=rows;i+=10){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(px,i*cell);ctx.stroke();}
+    // frame
+    ctx.strokeStyle='#1A1A1A'; ctx.lineWidth=1.5;
+    ctx.strokeRect(0,0,px,px);
 
-    // Outer border
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth   = 1.5;
-    ctx.strokeRect(0, 0, px, px);
-
-  }, [word, cols, rows, size, JSON.stringify(threads)]);
+  }, [word, cols, rows, borderStyle, size, JSON.stringify(threads)]);
 
   return (
-    <div className={className || 'grid-canvas-wrap'}>
-      <canvas ref={canvasRef} />
+    <div className={className||'canvas-full'}>
+      <canvas ref={canvasRef}/>
     </div>
   );
 }
 
-// ── Default threads ───────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
+   VALIDATION HELPERS
+═══════════════════════════════════════════════════════════════════ */
+function validateShoutout(fields) {
+  const errors = {};
+  if (!fields.name || !fields.name.trim()) errors.name = 'Word or phrase is required';
+  if (!fields.stitchesW || fields.stitchesW < 10 || fields.stitchesW > 300) errors.stitchesW = '10–300';
+  if (!fields.stitchesH || fields.stitchesH < 10 || fields.stitchesH > 300) errors.stitchesH = '10–300';
+  if (!fields.hoopW || fields.hoopW < 50 || fields.hoopW > 600) errors.hoopW = '50–600mm';
+  if (!fields.hoopH || fields.hoopH < 50 || fields.hoopH > 600) errors.hoopH = '50–600mm';
+  if (!fields.borderId) errors.borderId = 'Select a border style';
+  return errors;
+}
+function validateBorder(fields) {
+  const errors = {};
+  if (!fields.name || !fields.name.trim()) errors.name = 'Name is required';
+  if (!fields.description || !fields.description.trim()) errors.description = 'Description is required';
+  return errors;
+}
+function hasErrors(e) { return Object.keys(e).length > 0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   HOOKS
+═══════════════════════════════════════════════════════════════════ */
+function useToast() {
+  const [msg, setMsg] = useState(null);
+  const show = useCallback(m => { setMsg(m); setTimeout(()=>setMsg(null),2500); }, []);
+  return [msg, show];
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ICONS
+═══════════════════════════════════════════════════════════════════ */
+const Ico = {
+  Plus:    ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Edit:    ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  Delete:  ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+  Close:   ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  SignOut: ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  Lock:    ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  Shout:   ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  Border:  ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>,
+  Google:  ()=><svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>,
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   DEFAULT THREADS
+═══════════════════════════════════════════════════════════════════ */
 const DEFAULT_THREADS = [
-  { id: 1, name: 'Pitch black', dmc: 'DMC 310',  hex: '#1A1A1A', usage: 'Main text' },
-  { id: 2, name: 'Pitch green', dmc: 'DMC 3362', hex: '#4A6741', usage: 'Border accents' },
-  { id: 3, name: 'Coral',       dmc: 'DMC 350',  hex: '#CC3300', usage: 'Highlights' },
+  {id:1, name:'Pitch black', dmc:'DMC 310',  hex:'#1A1A1A', usage:'Main text'},
+  {id:2, name:'Pitch green', dmc:'DMC 3362', hex:'#4A6741', usage:'Border accents'},
+  {id:3, name:'Coral',       dmc:'DMC 350',  hex:'#CC3300', usage:'Highlights'},
 ];
 
-// ── Thread row (in form) ──────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
+   THREAD ROW (form sub-component)
+═══════════════════════════════════════════════════════════════════ */
 function ThreadRow({ thread, onChange, onRemove }) {
   return (
     <div className="thread-row">
-      <button className="thread-color-btn" style={{ background: thread.hex }}
-        title="Pick colour">
+      <button className="thread-color-btn" style={{background:thread.hex}}>
         <input type="color" className="thread-color-input" value={thread.hex}
-          onChange={e => onChange({ ...thread, hex: e.target.value })} />
+          onChange={e=>onChange({...thread,hex:e.target.value})}/>
       </button>
       <input className="form-input" placeholder="Name" value={thread.name}
-        onChange={e => onChange({ ...thread, name: e.target.value })} />
+        onChange={e=>onChange({...thread,name:e.target.value})}/>
       <input className="form-input" placeholder="DMC code" value={thread.dmc}
-        onChange={e => onChange({ ...thread, dmc: e.target.value })} />
-      <button className="thread-remove" onClick={onRemove} title="Remove">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        onChange={e=>onChange({...thread,dmc:e.target.value})}/>
+      <button className="thread-remove" onClick={onRemove}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
       </button>
@@ -811,66 +712,104 @@ function ThreadRow({ thread, onChange, onRemove }) {
   );
 }
 
-// ── Pattern form (create / edit) ──────────────────────────────────────────────
-function PatternForm({ initial, onSave, onClose, saving }) {
-  const isEdit = !!initial;
-  const [name,      setName]      = useState(initial ? initial.name      : '');
-  const [stitchesW, setStitchesW] = useState(initial ? initial.stitchesW : 110);
-  const [stitchesH, setStitchesH] = useState(initial ? initial.stitchesH : 110);
-  const [hoopW,     setHoopW]     = useState(initial ? initial.hoopW     : 280);
-  const [hoopH,     setHoopH]     = useState(initial ? initial.hoopH     : 250);
-  const [notes,     setNotes]     = useState(initial ? initial.notes     : '');
-  const [threads,   setThreads]   = useState(
-    initial && initial.threads && initial.threads.length > 0
-      ? initial.threads
-      : DEFAULT_THREADS
+/* ═══════════════════════════════════════════════════════════════════
+   BORDER PICKER (used inside shoutout form)
+═══════════════════════════════════════════════════════════════════ */
+function BorderPicker({ borders, selected, onSelect }) {
+  return (
+    <div className="border-picker">
+      {borders.map(b => (
+        <div key={b.id}
+          className={'border-option' + (selected===b.id?' selected':'')}
+          onClick={()=>onSelect(b.id, b.name)}>
+          <div className="border-option-thumb">
+            <CrossStitchCanvas word="ABC" cols={40} rows={40}
+              borderStyle={b.style} threads={DEFAULT_THREADS} size={88}/>
+          </div>
+          <div className="border-option-label">{b.name}</div>
+        </div>
+      ))}
+    </div>
   );
+}
 
-  function updateThread(idx, updated) {
-    setThreads(prev => prev.map((t, i) => i === idx ? updated : t));
-  }
-  function removeThread(idx) {
-    setThreads(prev => prev.filter((_, i) => i !== idx));
-  }
-  function addThread() {
-    setThreads(prev => [...prev, {
-      id: Date.now(), name: '', dmc: '', hex: '#666666', usage: ''
-    }]);
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   SHOUTOUT FORM
+═══════════════════════════════════════════════════════════════════ */
+function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
+  const isEdit = !!initial;
+  const [name,      setName]      = useState(initial?initial.name:'');
+  const [stitchesW, setStitchesW] = useState(initial?initial.stitchesW:110);
+  const [stitchesH, setStitchesH] = useState(initial?initial.stitchesH:110);
+  const [hoopW,     setHoopW]     = useState(initial?initial.hoopW:280);
+  const [hoopH,     setHoopH]     = useState(initial?initial.hoopH:250);
+  const [notes,     setNotes]     = useState(initial?initial.notes:'');
+  const [borderId,  setBorderId]  = useState(initial?initial.borderId:'');
+  const [borderName,setBorderName]= useState(initial?initial.borderName:'');
+  const [threads,   setThreads]   = useState(
+    initial&&initial.threads&&initial.threads.length>0 ? initial.threads : DEFAULT_THREADS
+  );
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  function touch(field) { setTouched(p=>({...p,[field]:true})); }
+
+  function updateThread(i,u) { setThreads(p=>p.map((t,idx)=>idx===i?u:t)); }
+  function removeThread(i)   { setThreads(p=>p.filter((_,idx)=>idx!==i)); }
+  function addThread()       { setThreads(p=>[...p,{id:Date.now(),name:'',dmc:'',hex:'#666666',usage:''}]); }
 
   function handleSave() {
-    if (!name.trim()) return;
-    onSave({ name: name.trim(), stitchesW: +stitchesW, stitchesH: +stitchesH,
-      hoopW: +hoopW, hoopH: +hoopH, notes, threads });
+    const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads};
+    const errs = validateShoutout(fields);
+    setErrors(errs);
+    setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
+    if (hasErrors(errs)) return;
+    onSave(fields);
   }
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="sheet">
-        <div className="sheet-handle" />
+        <div className="sheet-handle"/>
         <div className="sheet-header">
-          <span className="sheet-title">{isEdit ? 'Edit pattern' : 'New pattern'}</span>
-          <button className="btn-icon" onClick={onClose}><IconClose /></button>
+          <span className="sheet-title">{isEdit?'Edit shoutout':'New shoutout'}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
         </div>
         <div className="sheet-body">
+
           <div className="form-group">
             <label className="form-label">Word or phrase</label>
-            <input className="form-input" placeholder='e.g. GOAL!' value={name}
-              onChange={e => setName(e.target.value)} autoFocus />
+            <input className={'form-input'+(touched.name&&errors.name?' error':'')}
+              placeholder="e.g. GOAL!" value={name}
+              onChange={e=>setName(e.target.value)}
+              onBlur={()=>touch('name')} autoFocus/>
+            {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Border style</label>
+            <BorderPicker borders={borders} selected={borderId}
+              onSelect={(id,nm)=>{setBorderId(id);setBorderName(nm);touch('borderId');}}/>
+            {touched.borderId&&errors.borderId && <div className="form-error">{errors.borderId}</div>}
           </div>
 
           <div className="form-group">
             <label className="form-label">Stitch count</label>
             <div className="form-row">
               <div>
-                <input type="number" className="form-input" placeholder="Width" value={stitchesW}
-                  onChange={e => setStitchesW(e.target.value)} />
-                <div className="form-hint">Width (stitches)</div>
+                <input type="number" className={'form-input'+(touched.stitchesW&&errors.stitchesW?' error':'')}
+                  value={stitchesW} onChange={e=>setStitchesW(e.target.value)} onBlur={()=>touch('stitchesW')}/>
+                <div className={touched.stitchesW&&errors.stitchesW?'form-error':'form-hint'}>
+                  {touched.stitchesW&&errors.stitchesW?errors.stitchesW:'Width (stitches)'}
+                </div>
               </div>
               <div>
-                <input type="number" className="form-input" placeholder="Height" value={stitchesH}
-                  onChange={e => setStitchesH(e.target.value)} />
-                <div className="form-hint">Height (stitches)</div>
+                <input type="number" className={'form-input'+(touched.stitchesH&&errors.stitchesH?' error':'')}
+                  value={stitchesH} onChange={e=>setStitchesH(e.target.value)} onBlur={()=>touch('stitchesH')}/>
+                <div className={touched.stitchesH&&errors.stitchesH?'form-error':'form-hint'}>
+                  {touched.stitchesH&&errors.stitchesH?errors.stitchesH:'Height (stitches)'}
+                </div>
               </div>
             </div>
           </div>
@@ -879,14 +818,18 @@ function PatternForm({ initial, onSave, onClose, saving }) {
             <label className="form-label">Hoop size (mm)</label>
             <div className="form-row">
               <div>
-                <input type="number" className="form-input" placeholder="Width" value={hoopW}
-                  onChange={e => setHoopW(e.target.value)} />
-                <div className="form-hint">Width (mm)</div>
+                <input type="number" className={'form-input'+(touched.hoopW&&errors.hoopW?' error':'')}
+                  value={hoopW} onChange={e=>setHoopW(e.target.value)} onBlur={()=>touch('hoopW')}/>
+                <div className={touched.hoopW&&errors.hoopW?'form-error':'form-hint'}>
+                  {touched.hoopW&&errors.hoopW?errors.hoopW:'Width (mm)'}
+                </div>
               </div>
               <div>
-                <input type="number" className="form-input" placeholder="Height" value={hoopH}
-                  onChange={e => setHoopH(e.target.value)} />
-                <div className="form-hint">Height (mm)</div>
+                <input type="number" className={'form-input'+(touched.hoopH&&errors.hoopH?' error':'')}
+                  value={hoopH} onChange={e=>setHoopH(e.target.value)} onBlur={()=>touch('hoopH')}/>
+                <div className={touched.hoopH&&errors.hoopH?'form-error':'form-hint'}>
+                  {touched.hoopH&&errors.hoopH?errors.hoopH:'Height (mm)'}
+                </div>
               </div>
             </div>
           </div>
@@ -894,14 +837,13 @@ function PatternForm({ initial, onSave, onClose, saving }) {
           <div className="form-group">
             <label className="form-label">Threads</label>
             <div className="thread-list">
-              {threads.map((t, i) => (
-                <ThreadRow key={t.id || i} thread={t}
-                  onChange={u => updateThread(i, u)}
-                  onRemove={() => removeThread(i)} />
+              {threads.map((t,i)=>(
+                <ThreadRow key={t.id||i} thread={t}
+                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}/>
               ))}
             </div>
             <button className="add-thread-btn" onClick={addThread}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
               Add thread
@@ -910,15 +852,14 @@ function PatternForm({ initial, onSave, onClose, saving }) {
 
           <div className="form-group">
             <label className="form-label">Notes</label>
-            <textarea className="form-textarea" placeholder="Any notes about this pattern..."
-              value={notes} onChange={e => setNotes(e.target.value)} />
+            <textarea className="form-textarea" placeholder="Any notes about this shoutout…"
+              value={notes} onChange={e=>setNotes(e.target.value)}/>
           </div>
 
           <div className="form-actions">
             <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
-            <button className="btn btn-coral" onClick={handleSave}
-              disabled={!name.trim() || saving}>
-              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create pattern'}
+            <button className="btn btn-coral" onClick={handleSave} disabled={saving}>
+              {saving?'Saving…':isEdit?'Save changes':'Create shoutout'}
             </button>
           </div>
         </div>
@@ -927,60 +868,61 @@ function PatternForm({ initial, onSave, onClose, saving }) {
   );
 }
 
-// ── Pattern detail ────────────────────────────────────────────────────────────
-function PatternDetail({ pattern, onEdit, onDelete, onClose }) {
+/* ═══════════════════════════════════════════════════════════════════
+   SHOUTOUT DETAIL
+═══════════════════════════════════════════════════════════════════ */
+function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
+  const bs = shoutout.borderStyle || 'british';
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="sheet">
-        <div className="sheet-handle" />
+        <div className="sheet-handle"/>
         <div className="sheet-header">
-          <span className="sheet-title">Pattern details</span>
-          <button className="btn-icon" onClick={onClose}><IconClose /></button>
+          <span className="sheet-title">Football shoutout</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
         </div>
-
-        <div className="detail-word">{pattern.name}</div>
+        <div className="detail-title">{shoutout.name}</div>
         <div className="detail-meta">
-          {pattern.stitchesW} × {pattern.stitchesH} stitches
-          &nbsp;·&nbsp; {pattern.hoopW} × {pattern.hoopH}mm hoop
+          {shoutout.stitchesW} × {shoutout.stitchesH} stitches
+          &nbsp;·&nbsp; {shoutout.hoopW} × {shoutout.hoopH}mm hoop
           &nbsp;·&nbsp; 14-count Aida
-          {pattern.createdAt && <span>&nbsp;·&nbsp; {formatDate(pattern.createdAt)}</span>}
+          {shoutout.borderName && <span>&nbsp;·&nbsp; {shoutout.borderName} border</span>}
+          {shoutout.createdAt && <span>&nbsp;·&nbsp; {formatDate(shoutout.createdAt)}</span>}
         </div>
 
-        <div className="detail-canvas-section">
-          <div className="detail-section-title">Pattern</div>
-          <CrossStitchCanvas pattern={pattern} size={550} className="grid-canvas-wrap" />
+        <div className="detail-section">
+          <div className="detail-section-label">Pattern</div>
+          <CrossStitchCanvas word={shoutout.name}
+            cols={shoutout.stitchesW} rows={shoutout.stitchesH}
+            borderStyle={bs} threads={shoutout.threads} size={550}/>
         </div>
 
-        {pattern.threads && pattern.threads.length > 0 && (
+        {shoutout.threads&&shoutout.threads.length>0 && (
           <div className="detail-section">
-            <div className="detail-section-title">Threads</div>
-            <div className="detail-threads">
-              {pattern.threads.map((t, i) => (
-                <div className="detail-thread-row" key={i}>
-                  <div className="detail-thread-swatch" style={{ background: t.hex }} />
-                  <div className="detail-thread-info">
-                    <div className="detail-thread-name">{t.name}</div>
-                    <div className="detail-thread-dmc">{t.dmc}{t.usage ? '  ·  ' + t.usage : ''}</div>
-                  </div>
+            <div className="detail-section-label">Threads</div>
+            {shoutout.threads.map((t,i)=>(
+              <div className="detail-thread-row" key={i}>
+                <div className="detail-swatch" style={{background:t.hex}}/>
+                <div>
+                  <div className="detail-thread-name">{t.name}</div>
+                  <div className="detail-thread-dmc">{t.dmc}{t.usage?'  ·  '+t.usage:''}</div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {pattern.notes && (
+        {shoutout.notes && (
           <div className="detail-section">
-            <div className="detail-section-title">Notes</div>
-            <div className="detail-notes">{pattern.notes}</div>
+            <div className="detail-section-label">Notes</div>
+            <div className="detail-notes">{shoutout.notes}</div>
           </div>
         )}
 
         <div className="detail-actions">
-          <button className="btn btn-danger" onClick={onDelete}>
-            <IconDelete /> Delete
-          </button>
-          <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={onEdit}>
-            <IconEdit /> Edit
+          <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
+          <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}>
+            <Ico.Edit/> Edit
           </button>
         </div>
       </div>
@@ -988,271 +930,549 @@ function PatternDetail({ pattern, onEdit, onDelete, onClose }) {
   );
 }
 
-// ── Confirm dialog ────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
+   BORDER FORM
+═══════════════════════════════════════════════════════════════════ */
+const STYLE_OPTIONS = ['british','scandinavian','minimal','custom'];
+const TRAIT_OPTIONS = ['diagonal-check','corner-footballs','goal-posts','shot-arrows',
+  'geometric','diamond-repeat','two-line-frame','single-line','floral','folk-motifs'];
+
+function BorderForm({ initial, onSave, onClose, saving }) {
+  const isEdit = !!initial;
+  const [name,   setName]   = useState(initial?initial.name:'');
+  const [style,  setStyle]  = useState(initial?initial.style:'custom');
+  const [desc,   setDesc]   = useState(initial?initial.description:'');
+  const [traits, setTraits] = useState(initial?initial.traits:[]);
+  const [errors, setErrors] = useState({});
+  const [touched,setTouched]= useState({});
+
+  function toggleTrait(t) {
+    setTraits(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t]);
+  }
+
+  function handleSave() {
+    const fields = {name,style,description:desc,traits};
+    const errs = validateBorder(fields);
+    setErrors(errs); setTouched({name:true,description:true});
+    if (hasErrors(errs)) return;
+    onSave(fields);
+  }
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">{isEdit?'Edit border':'New border'}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+
+          <div className="form-group">
+            <label className="form-label">Border name</label>
+            <input className={'form-input'+(touched.name&&errors.name?' error':'')}
+              placeholder="e.g. Nordic Diamonds" value={name}
+              onChange={e=>setName(e.target.value)} onBlur={()=>setTouched(p=>({...p,name:true}))}
+              autoFocus/>
+            {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Style</label>
+            <select className="form-input" value={style} onChange={e=>setStyle(e.target.value)}>
+              {STYLE_OPTIONS.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+            </select>
+            <div className="form-hint">Drives the canvas rendering logic</div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea className={'form-textarea'+(touched.description&&errors.description?' error':'')}
+              placeholder="Describe the visual character and tradition of this border…"
+              value={desc} onChange={e=>setDesc(e.target.value)}
+              onBlur={()=>setTouched(p=>({...p,description:true}))}/>
+            {touched.description&&errors.description &&
+              <div className="form-error">{errors.description}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Traits</label>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+              {TRAIT_OPTIONS.map(t=>(
+                <button key={t}
+                  className="btn btn-outlined"
+                  style={{
+                    fontSize:11,padding:'4px 10px',
+                    background:traits.includes(t)?'var(--black)':'',
+                    color:traits.includes(t)?'var(--white)':'',
+                    borderColor:traits.includes(t)?'var(--black)':''
+                  }}
+                  onClick={()=>toggleTrait(t)}>{t}
+                </button>
+              ))}
+            </div>
+            <div className="form-hint">Select all that apply</div>
+          </div>
+
+          <div className="form-actions">
+            <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
+            <button className="btn btn-coral" onClick={handleSave} disabled={saving}>
+              {saving?'Saving…':isEdit?'Save changes':'Create border'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BORDER DETAIL
+═══════════════════════════════════════════════════════════════════ */
+function BorderDetail({ border, onEdit, onDelete, onClose }) {
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">Border style</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="detail-title">{border.name}</div>
+        <div className="detail-meta">
+          Style: {border.style}
+          {border.builtIn && <span>&nbsp;·&nbsp; Built-in</span>}
+          {border.createdAt && <span>&nbsp;·&nbsp; {formatDate(border.createdAt)}</span>}
+        </div>
+
+        {border.builtIn &&
+          <div className="detail-builtin-note">
+            This is a built-in border. The description and traits are read-only and will be refined by the AI.
+          </div>
+        }
+
+        <div className="detail-section">
+          <div className="detail-section-label">Preview</div>
+          <CrossStitchCanvas word="ABC" cols={60} rows={60}
+            borderStyle={border.style} threads={DEFAULT_THREADS} size={400}/>
+        </div>
+
+        {border.description && (
+          <div className="detail-section">
+            <div className="detail-section-label">Description</div>
+            <div className="detail-notes">{border.description}</div>
+          </div>
+        )}
+
+        {border.traits&&border.traits.length>0 && (
+          <div className="detail-section">
+            <div className="detail-section-label">Traits</div>
+            <div className="card-traits" style={{paddingTop:2}}>
+              {border.traits.map(t=><span key={t} className="trait-chip">{t}</span>)}
+            </div>
+          </div>
+        )}
+
+        <div className="detail-actions">
+          {!border.builtIn && (
+            <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
+          )}
+          <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}
+            disabled={border.builtIn}>
+            {border.builtIn ? <><Ico.Lock/> Built-in</> : <><Ico.Edit/> Edit</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONFIRM DIALOG
+═══════════════════════════════════════════════════════════════════ */
 function ConfirmDialog({ title, message, onConfirm, onCancel }) {
   return (
-    <div className="overlay overlay-center" onClick={e => e.target === e.currentTarget && onCancel()}>
+    <div className="overlay overlay-center" onClick={e=>e.target===e.currentTarget&&onCancel()}>
       <div className="dialog">
-        <h3>{title}</h3>
-        <p>{message}</p>
+        <h3>{title}</h3><p>{message}</p>
         <div className="dialog-actions">
           <button className="btn btn-outlined" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-danger" onClick={onConfirm}>Delete</button>
+          <button className="btn btn-danger"   onClick={onConfirm}>Delete</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Pattern card ──────────────────────────────────────────────────────────────
-function PatternCard({ pattern, onClick }) {
+/* ═══════════════════════════════════════════════════════════════════
+   TOP BAR + USER MENU
+═══════════════════════════════════════════════════════════════════ */
+function TopBar({ user, onSignOut }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="pattern-card" onClick={onClick}>
-      <CrossStitchCanvas pattern={pattern} size={220} className="grid-thumb-wrap" />
-      <div className="pattern-card-date">{formatDate(pattern.createdAt)}</div>
-      <div className="pattern-card-word">{pattern.name}</div>
-      <div className="pattern-card-meta">
-        {pattern.stitchesW} × {pattern.stitchesH} stitches
-        &nbsp;·&nbsp; {pattern.hoopW} × {pattern.hoopH}mm
+    <div className="topbar">
+      <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
+      <div className="topbar-app-name">Wordplay</div>
+      <div style={{position:'relative'}}>
+        <img className="topbar-avatar"
+          src={user.photoURL||'https://via.placeholder.com/32'}
+          alt={user.displayName} onClick={()=>setOpen(o=>!o)}/>
+        {open && (
+          <div style={{position:'absolute',top:40,right:0,background:'var(--surface)',
+            border:'1px solid var(--lgrey)',borderRadius:10,padding:'4px 0',minWidth:180,
+            boxShadow:'0 4px 16px rgba(0,0,0,0.12)',zIndex:200}}>
+            <div style={{padding:'7px 13px 5px',fontSize:11,color:'var(--grey)',
+              borderBottom:'1px solid var(--offwht)',marginBottom:3}}>
+              {user.displayName||user.email}
+            </div>
+            <button className="btn btn-ghost"
+              style={{width:'100%',justifyContent:'flex-start',gap:7,padding:'7px 13px',
+                borderRadius:0,fontSize:12}}
+              onClick={()=>{setOpen(false);onSignOut();}}>
+              <Ico.SignOut/> Sign out
+            </button>
+          </div>
+        )}
       </div>
-      {pattern.threads && pattern.threads.length > 0 && (
-        <div className="pattern-card-threads">
-          {pattern.threads.slice(0, 4).map((t, i) => (
-            <span className="thread-chip" key={i}>
-              <span className="thread-dot" style={{ background: t.hex }} />
-              {t.dmc || t.name}
-            </span>
-          ))}
-          {pattern.threads.length > 4 && (
-            <span className="thread-chip">+{pattern.threads.length - 4}</span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
-// ── Sign-in screen ────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
+   SIGN-IN SCREEN
+═══════════════════════════════════════════════════════════════════ */
 function SignInScreen({ onSignIn, error }) {
   return (
     <div className="signin-screen">
       <div className="signin-wordmark">Nutmeg<span>&</span>Needle</div>
       <div className="signin-tagline">Handcrafted football moves</div>
       <div className="signin-card">
-        <span className="signin-needle">🧵</span>
+        <span className="signin-icon">🧵</span>
         <h2>Wordplay</h2>
-        <p>Your cross-stitch pattern library for football words, terms and exclamations.</p>
-        {error && <p style={{ color: 'var(--coral)', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+        <p>Your library of football shoutouts in cross-stitch.</p>
+        {error && <p style={{color:'var(--coral)',fontSize:12,marginBottom:10}}>{error}</p>}
         <button className="btn btn-google" onClick={onSignIn}>
-          <GoogleIcon />
-          Sign in with Google
+          <Ico.Google/> Sign in with Google
         </button>
       </div>
     </div>
   );
 }
 
-// ── Top bar ───────────────────────────────────────────────────────────────────
-function TopBar({ user, onSignOut }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+/* ═══════════════════════════════════════════════════════════════════
+   SHOUTOUTS SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function ShoutoutsScreen({ shoutouts, borders, onSelect }) {
   return (
-    <div className="topbar">
-      <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
-      <div className="topbar-app-name">Wordplay</div>
-      <div style={{ position: 'relative' }}>
-        <img className="topbar-avatar" src={user.photoURL || 'https://via.placeholder.com/32'}
-          alt={user.displayName} onClick={() => setMenuOpen(o => !o)} />
-        {menuOpen && (
-          <div style={{
-            position: 'absolute', top: 40, right: 0,
-            background: 'var(--surface)', border: '1px solid var(--lgrey)',
-            borderRadius: 10, padding: '4px 0', minWidth: 180,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200
-          }}>
-            <div style={{ padding: '8px 14px 6px', fontSize: 12, color: 'var(--grey)',
-              borderBottom: '1px solid var(--offwht)', marginBottom: 4 }}>
-              {user.displayName || user.email}
-            </div>
-            <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start',
-              gap: 8, padding: '8px 14px', borderRadius: 0, fontSize: 13 }}
-              onClick={() => { setMenuOpen(false); onSignOut(); }}>
-              <IconSignOut /> Sign out
-            </button>
-          </div>
-        )}
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">Football shoutouts</span>
+        <span className="screen-count">{shoutouts.length} {shoutouts.length===1?'shoutout':'shoutouts'}</span>
       </div>
+      {shoutouts.length===0 ? (
+        <div className="empty">
+          <span className="empty-icon">🧵</span>
+          <h3>No shoutouts yet</h3>
+          <p>Tap + to create your first football shoutout in cross-stitch.</p>
+        </div>
+      ) : (
+        <div className="card-grid">
+          {shoutouts.map(s=>(
+            <div key={s.id} className="card" onClick={()=>onSelect(s)}>
+              <div className="card-badge">{s.borderName||'No border'}</div>
+              <CrossStitchCanvas word={s.name}
+                cols={s.stitchesW} rows={s.stitchesH}
+                borderStyle={s.borderStyle||'british'}
+                threads={s.threads} size={220}
+                className="canvas-thumb"/>
+              <div className="card-title">{s.name}</div>
+              <div className="card-sub">
+                {s.stitchesW}×{s.stitchesH} stitches · {s.hoopW}×{s.hoopH}mm
+              </div>
+              {s.threads&&s.threads.length>0 && (
+                <div className="thread-chips">
+                  {s.threads.slice(0,3).map((t,i)=>(
+                    <span key={i} className="thread-chip">
+                      <span className="thread-dot" style={{background:t.hex}}/>
+                      {t.dmc||t.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Main app ──────────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
+   BORDERS SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function BordersScreen({ borders, onSelect }) {
+  return (
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">Border library</span>
+        <span className="screen-count">{borders.length} {borders.length===1?'border':'borders'}</span>
+      </div>
+      {borders.length===0 ? (
+        <div className="empty">
+          <span className="empty-icon">🪡</span>
+          <h3>No borders yet</h3>
+          <p>Tap + to add a custom border style.</p>
+        </div>
+      ) : (
+        <div className="card-grid">
+          {borders.map(b=>(
+            <div key={b.id} className="card" onClick={()=>onSelect(b)}>
+              {b.builtIn && <div className="card-badge">Built-in</div>}
+              <CrossStitchCanvas word="ABC" cols={60} rows={60}
+                borderStyle={b.style} threads={DEFAULT_THREADS} size={220}
+                className="canvas-thumb"/>
+              <div className="card-title">{b.name}</div>
+              {b.description && (
+                <div className="card-desc">{b.description.slice(0,90)}{b.description.length>90?'…':''}</div>
+              )}
+              {b.traits&&b.traits.length>0 && (
+                <div className="card-traits">
+                  {b.traits.slice(0,4).map(t=><span key={t} className="trait-chip">{t}</span>)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN APP
+═══════════════════════════════════════════════════════════════════ */
 function App() {
-  const [authUser,    setAuthUser]    = useState(undefined);  // undefined = loading
+  const [authUser,    setAuthUser]    = useState(undefined);
   const [authError,   setAuthError]   = useState(null);
-  const [patterns,    setPatterns]    = useState([]);
-  const [selected,    setSelected]    = useState(null);       // pattern being viewed
-  const [editing,     setEditing]     = useState(null);       // pattern being edited (or 'new')
-  const [confirmDel,  setConfirmDel]  = useState(null);       // pattern id to delete
+  const [tab,         setTab]         = useState('shoutouts');
+  const [shoutouts,   setShoutouts]   = useState([]);
+  const [borders,     setBorders]     = useState([]);
+  const [selShoutout, setSelShoutout] = useState(null);
+  const [selBorder,   setSelBorder]   = useState(null);
+  const [editShoutout,setEditShoutout]= useState(null);
+  const [editBorder,  setEditBorder]  = useState(null);
+  const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [toast,       showToast]      = useToast();
-  const unsubRef = useRef(null);
-
   const fb = window.__firebase;
 
-  // ── Auth state ──
-  useEffect(() => {
-    const unsub = fb.onAuthStateChanged(fb.auth, user => {
-      setAuthUser(user || null);
-    });
-    return () => unsub();
-  }, []);
+  // ── Auth ──
+  useEffect(()=>{
+    const unsub = fb.onAuthStateChanged(fb.auth, u=>setAuthUser(u||null));
+    return ()=>unsub();
+  },[]);
 
-  // ── Firestore listener ──
-  useEffect(() => {
-    if (!authUser) { setPatterns([]); return; }
-    const col = fb.collection(fb.db, 'users', authUser.uid, 'patterns');
-    const q   = fb.query(col, fb.orderBy('createdAt', 'desc'));
-    unsubRef.current = fb.onSnapshot(q, snap => {
-      setPatterns(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsubRef.current && unsubRef.current();
-  }, [authUser]);
+  // ── Seed built-in borders once ──
+  async function seedBorders() {
+    try {
+      const snap = await fb.getDocs(fb.collection(fb.db,'borders'));
+      if (!snap.empty) return;
+      for (const b of BUILTIN_BORDERS) {
+        await fb.setDoc(fb.doc(fb.db,'borders',b.id), {
+          ...b, createdAt: fb.serverTimestamp()
+        });
+      }
+    } catch(e) { console.warn('Border seed failed:', e); }
+  }
 
-  // ── Sign in ──
+  // ── Borders listener (shared collection) ──
+  useEffect(()=>{
+    if (!authUser) { setBorders([]); return; }
+    seedBorders();
+    const q = fb.query(fb.collection(fb.db,'borders'), fb.orderBy('createdAt','asc'));
+    const unsub = fb.onSnapshot(q, snap=>{
+      setBorders(snap.docs.map(d=>({id:d.id,...d.data()})));
+    });
+    return ()=>unsub();
+  },[authUser]);
+
+  // ── Shoutouts listener (per-user) ──
+  useEffect(()=>{
+    if (!authUser) { setShoutouts([]); return; }
+    const q = fb.query(
+      fb.collection(fb.db,'users',authUser.uid,'shoutouts'),
+      fb.orderBy('createdAt','desc')
+    );
+    const unsub = fb.onSnapshot(q, snap=>{
+      setShoutouts(snap.docs.map(d=>({id:d.id,...d.data()})));
+    });
+    return ()=>unsub();
+  },[authUser]);
+
+  // ── Sign in/out ──
   async function handleSignIn() {
     setAuthError(null);
     try {
-      const provider = new fb.GoogleAuthProvider();
-      await fb.signInWithPopup(fb.auth, provider);
-    } catch (e) {
-      setAuthError('Sign-in failed. Please try again.');
-    }
+      await fb.signInWithPopup(fb.auth, new fb.GoogleAuthProvider());
+    } catch(e) { setAuthError('Sign-in failed. Please try again.'); }
   }
+  async function handleSignOut() { await fb.signOut(fb.auth); }
 
-  // ── Sign out ──
-  async function handleSignOut() {
-    await fb.signOut(fb.auth);
-  }
-
-  // ── Save (create or update) ──
-  async function handleSave(data) {
+  // ── Save shoutout ──
+  async function saveShoutout(data) {
     setSaving(true);
     try {
-      if (editing && editing !== 'new') {
-        const ref = fb.doc(fb.db, 'users', authUser.uid, 'patterns', editing.id);
-        await fb.updateDoc(ref, { ...data, updatedAt: fb.serverTimestamp() });
-        showToast('Pattern updated');
+      // Carry borderStyle from the selected border
+      const border = borders.find(b=>b.id===data.borderId);
+      const fullData = {...data, borderStyle: border?border.style:'british'};
+      if (editShoutout && editShoutout!=='new') {
+        await fb.updateDoc(
+          fb.doc(fb.db,'users',authUser.uid,'shoutouts',editShoutout.id),
+          {...fullData, updatedAt:fb.serverTimestamp()}
+        );
+        showToast('Shoutout updated');
       } else {
-        const col = fb.collection(fb.db, 'users', authUser.uid, 'patterns');
-        await fb.addDoc(col, { ...data, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp() });
-        showToast('Pattern created');
+        await fb.addDoc(
+          fb.collection(fb.db,'users',authUser.uid,'shoutouts'),
+          {...fullData, createdAt:fb.serverTimestamp(), updatedAt:fb.serverTimestamp()}
+        );
+        showToast('Shoutout created');
       }
-      setEditing(null);
-      setSelected(null);
-    } catch (e) {
-      showToast('Something went wrong — try again');
-    } finally {
-      setSaving(false);
-    }
+      setEditShoutout(null); setSelShoutout(null);
+    } catch(e) { showToast('Something went wrong — try again'); }
+    finally { setSaving(false); }
+  }
+
+  // ── Save border ──
+  async function saveBorder(data) {
+    setSaving(true);
+    try {
+      if (editBorder && editBorder!=='new') {
+        await fb.updateDoc(
+          fb.doc(fb.db,'borders',editBorder.id),
+          {...data, updatedAt:fb.serverTimestamp()}
+        );
+        showToast('Border updated');
+      } else {
+        await fb.addDoc(fb.collection(fb.db,'borders'), {
+          ...data, builtIn:false, createdBy:authUser.uid,
+          createdAt:fb.serverTimestamp(), updatedAt:fb.serverTimestamp()
+        });
+        showToast('Border created');
+      }
+      setEditBorder(null); setSelBorder(null);
+    } catch(e) { showToast('Something went wrong — try again'); }
+    finally { setSaving(false); }
   }
 
   // ── Delete ──
   async function handleDelete() {
     if (!confirmDel) return;
     try {
-      const ref = fb.doc(fb.db, 'users', authUser.uid, 'patterns', confirmDel);
-      await fb.deleteDoc(ref);
-      showToast('Pattern deleted');
+      if (confirmDel.type==='shoutout') {
+        await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',confirmDel.id));
+        showToast('Shoutout deleted'); setSelShoutout(null);
+      } else {
+        await fb.deleteDoc(fb.doc(fb.db,'borders',confirmDel.id));
+        showToast('Border deleted'); setSelBorder(null);
+      }
       setConfirmDel(null);
-      setSelected(null);
-    } catch (e) {
-      showToast('Delete failed — try again');
-    }
+    } catch(e) { showToast('Delete failed — try again'); }
   }
 
   // ── Loading ──
-  if (authUser === undefined) {
-    return (
-      <div className="loading-screen">
-        <div className="spinner" />
-        <div className="loading-text">Loading Wordplay…</div>
-      </div>
-    );
-  }
+  if (authUser===undefined) return (
+    <div className="loading-screen">
+      <div className="spinner"/>
+      <div className="loading-text">Loading Wordplay…</div>
+    </div>
+  );
 
-  // ── Sign-in ──
-  if (!authUser) {
-    return <SignInScreen onSignIn={handleSignIn} error={authError} />;
-  }
+  if (!authUser) return <SignInScreen onSignIn={handleSignIn} error={authError}/>;
 
-  // ── Library ──
   return (
     <div>
-      <TopBar user={authUser} onSignOut={handleSignOut} />
+      <TopBar user={authUser} onSignOut={handleSignOut}/>
 
-      <div className="library-screen">
-        <div className="library-header">
-          <span className="library-title">Patterns</span>
-          <span className="library-count">{patterns.length} {patterns.length === 1 ? 'pattern' : 'patterns'}</span>
-        </div>
+      {/* Screens */}
+      {tab==='shoutouts' && (
+        <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
+          onSelect={s=>setSelShoutout(s)}/>
+      )}
+      {tab==='borders' && (
+        <BordersScreen borders={borders} onSelect={b=>setSelBorder(b)}/>
+      )}
 
-        {patterns.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-state-icon">🧵</span>
-            <h3>No patterns yet</h3>
-            <p>Tap the + button to add your first cross-stitch pattern.</p>
-          </div>
-        ) : (
-          <div className="pattern-grid">
-            {patterns.map(p => (
-              <PatternCard key={p.id} pattern={p} onClick={() => setSelected(p)} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Bottom nav */}
+      <nav className="bottom-nav">
+        <button className={'nav-tab'+(tab==='shoutouts'?' active':'')}
+          onClick={()=>setTab('shoutouts')}>
+          <Ico.Shout/>
+          <span className="nav-tab-label">Shoutouts</span>
+        </button>
+        <button className={'nav-tab'+(tab==='borders'?' active':'')}
+          onClick={()=>setTab('borders')}>
+          <Ico.Border/>
+          <span className="nav-tab-label">Borders</span>
+        </button>
+      </nav>
 
       {/* FAB */}
-      <button className="fab" onClick={() => setEditing('new')} title="New pattern">
-        <IconPlus />
+      <button className="fab" title={tab==='shoutouts'?'New shoutout':'New border'}
+        onClick={()=>tab==='shoutouts'?setEditShoutout('new'):setEditBorder('new')}>
+        <Ico.Plus/>
       </button>
 
-      {/* Detail sheet */}
-      {selected && !editing && (
-        <PatternDetail
-          pattern={selected}
-          onClose={() => setSelected(null)}
-          onEdit={() => setEditing(selected)}
-          onDelete={() => setConfirmDel(selected.id)}
-        />
+      {/* Shoutout detail */}
+      {selShoutout && !editShoutout && (
+        <ShoutoutDetail shoutout={selShoutout}
+          onClose={()=>setSelShoutout(null)}
+          onEdit={()=>setEditShoutout(selShoutout)}
+          onDelete={()=>setConfirmDel({type:'shoutout',id:selShoutout.id})}/>
       )}
 
-      {/* Form sheet (create or edit) */}
-      {editing && (
-        <PatternForm
-          initial={editing === 'new' ? null : editing}
-          onSave={handleSave}
-          onClose={() => setEditing(null)}
-          saving={saving}
-        />
+      {/* Shoutout form */}
+      {editShoutout && (
+        <ShoutoutForm
+          initial={editShoutout==='new'?null:editShoutout}
+          borders={borders}
+          onSave={saveShoutout}
+          onClose={()=>setEditShoutout(null)}
+          saving={saving}/>
       )}
 
-      {/* Delete confirm */}
+      {/* Border detail */}
+      {selBorder && !editBorder && (
+        <BorderDetail border={selBorder}
+          onClose={()=>setSelBorder(null)}
+          onEdit={()=>setEditBorder(selBorder)}
+          onDelete={()=>setConfirmDel({type:'border',id:selBorder.id})}/>
+      )}
+
+      {/* Border form */}
+      {editBorder && (
+        <BorderForm
+          initial={editBorder==='new'?null:editBorder}
+          onSave={saveBorder}
+          onClose={()=>setEditBorder(null)}
+          saving={saving}/>
+      )}
+
+      {/* Confirm delete */}
       {confirmDel && (
         <ConfirmDialog
-          title="Delete pattern"
-          message="This will permanently delete the pattern and cannot be undone."
+          title={`Delete ${confirmDel.type}`}
+          message="This cannot be undone."
           onConfirm={handleDelete}
-          onCancel={() => setConfirmDel(null)}
-        />
+          onCancel={()=>setConfirmDel(null)}/>
       )}
 
-      {/* Toast */}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
