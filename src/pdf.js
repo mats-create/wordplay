@@ -7,24 +7,14 @@ const MM = 2.8346;
 const A4W = 210 * MM;   // 595pt
 const A4H = 297 * MM;   // 841pt
 
-// Stitch colour lookup (same as canvas)
+// Stitch colour lookup — position-based, mirrors canvas stitchColor exactly
+// Thread 1 (index 0) = text, Thread 2 (index 1) = border primary, Thread 3 (index 2) = border accent
 function pdfStitchColor(kind, threads) {
-  // Find threads by role — fall back to brand defaults so colours never drop
-  const black = (threads && threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#1'); }))
-    ? threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#1'); }).hex
-    : '#1A1A1A';
-  const green = (threads && threads.find(function(t) { return t.hex && (t.hex.toLowerCase().startsWith('#4') || t.hex.toLowerCase().startsWith('#3')); }))
-    ? threads.find(function(t) { return t.hex && (t.hex.toLowerCase().startsWith('#4') || t.hex.toLowerCase().startsWith('#3')); }).hex
-    : '#4A6741';
-  const coral = (threads && threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#c'); }))
-    ? threads.find(function(t) { return t.hex && t.hex.toLowerCase().startsWith('#c'); }).hex
-    : '#CC3300';
-  const map = {
-    'T': black, 'B': black, 'A': black, 'F': black,
-    'D': green, 'G': green,
-    'E': coral, 'S': coral,
-  };
-  return map[kind] || black; // never return null — default to black
+  const t = threads || [];
+  const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
+  const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
+  const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
+  return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
 }
 
 function hexToRgb(hex) {
