@@ -4,19 +4,20 @@
   "description": "Cross-stitch patterns for football words, terms and exclamations",
   "start_url": "/wordplay/",
   "display": "standalone",
-  "background_color": "#F5F5F5",
+  "background_color": "#F0E6D3",
   "theme_color": "#1A1A1A",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192x192/1A1A1A/F0E6D3?text=W",
+      "src": "favicon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://via.placeholder.com/512x512/1A1A1A/F0E6D3?text=W",
+      "src": "favicon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
