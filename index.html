@@ -488,7 +488,102 @@ html, body, #root {
 /* ═══════════════════════════════════════════════════════════════════
    CLAUDE-KEVIN
 ═══════════════════════════════════════════════════════════════════ */
-.kevin-btn {
+/* ── App layout — two-column on desktop ── */
+.app-layout {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  transition: margin-right 0.3s ease;
+}
+.app-kevin {
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.3s ease;
+  border-left: 1px solid var(--offwht);
+  display: flex;
+  flex-direction: column;
+}
+.app-kevin.kevin-visible {
+  width: 360px;
+}
+
+/* ── Kevin panel (replaces kevin-sheet) ── */
+.kevin-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface);
+  overflow: hidden;
+}
+.kevin-hide-btn { display: flex; }
+
+/* Mobile — Kevin as third tab, full-screen panel */
+@media (max-width: 767px) {
+  .app-layout { flex-direction: column; }
+  .app-kevin {
+    position: fixed;
+    inset: 0;
+    width: 100% !important;
+    z-index: 200;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    border-left: none;
+  }
+  .app-kevin.kevin-mobile-active {
+    transform: translateY(0);
+  }
+  .kevin-hide-btn { display: none; }
+  .nav-tab-kevin { display: flex; }
+}
+@media (min-width: 768px) {
+  .nav-tab-kevin { display: none !important; }
+}
+
+/* Kevin toggle button in TopBar — desktop only */
+.kevin-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--lgrey);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--coral);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.kevin-toggle-btn:hover { background: var(--offwht); border-color: var(--coral); }
+.kevin-toggle-btn.active { background: var(--coral); color: var(--white); border-color: var(--coral); }
+@media (max-width: 767px) { .kevin-toggle-btn { display: none; } }
+
+/* Kevin badge on nav tab */
+.kevin-badge-nav {
+  position: absolute;
+  top: 6px; right: 8px;
+  width: 7px; height: 7px;
+  background: var(--coral);
+  border-radius: 50%;
+  border: 1.5px solid var(--white);
+}
+.nav-kevin-icon {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--coral);
+  line-height: 1;
+}
+.screen-hidden { display: none; }
   position: fixed; bottom: calc(var(--nav-h) + 76px); right: 20px; z-index: 90;
   width: 44px; height: 44px; border-radius: 50%;
   background: var(--coral); color: var(--white); border: none;
@@ -498,20 +593,17 @@ html, body, #root {
   font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
   user-select: none;
 }
-.kevin-btn:hover { transform: scale(1.08); background: #aa2900; }
-.kevin-btn:active { transform: scale(0.96); }
+/* kevin-btn removed — replaced by panel toggle in TopBar */
 .kevin-badge {
   position: absolute; top: -3px; right: -3px;
   width: 14px; height: 14px; border-radius: 50%;
   background: var(--green); border: 2px solid var(--offwht);
 }
 
-/* Kevin chat sheet */
+/* Kevin chat panel */
 .kevin-sheet {
-  background: var(--surface); border-radius: 20px 20px 0 0;
-  width: 100%; max-width: 640px; margin: 0 auto;
-  height: 88vh; display: flex; flex-direction: column;
-  animation: slideUp 0.2s ease;
+  background: var(--surface);
+  height: 100%; display: flex; flex-direction: column;
 }
 .kevin-header {
   display: flex; align-items: center; gap: 10px;
@@ -1447,7 +1539,7 @@ const KEVIN_SUGGESTIONS = {
   ],
 };
 
-function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
+function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages, kevinVisible, onToggle }) {
   // Use lifted messages from App — persists across open/close
   // extMessages=null means not yet initialised
   const [input,    setInput]    = useState('');
@@ -1527,8 +1619,7 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
   const hasKey = keySaved || hasKevinApiKey();
 
   return (
-    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="kevin-sheet">
+    <div className="kevin-panel">
         {/* Header */}
         <div className="kevin-header">
           <div className="kevin-avatar">CK</div>
@@ -1543,7 +1634,12 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
             onClick={newConversation} title="Start new conversation">
             New chat
           </button>
-          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+          {/* Hide button — desktop only */}
+          <button className="btn-icon kevin-hide-btn" onClick={onClose} title="Hide Kevin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
         </div>
 
         {/* Messages */}
@@ -3275,12 +3371,17 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 /* ═══════════════════════════════════════════════════════════════════
    TOP BAR + USER MENU
 ═══════════════════════════════════════════════════════════════════ */
-function TopBar({ user, onSignOut }) {
+function TopBar({ user, onSignOut, kevinVisible, onToggleKevin }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="topbar">
       <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
       <div className="topbar-app-name">Wordplay</div>
+      {/* Kevin toggle — desktop only */}
+      <button className={'kevin-toggle-btn' + (kevinVisible ? ' active' : '')}
+        onClick={onToggleKevin} title={kevinVisible ? 'Hide Kevin' : 'Show Kevin'}>
+        CK
+      </button>
       <div style={{position:'relative'}}>
         <img className="topbar-avatar"
           src={user.photoURL||'https://via.placeholder.com/32'}
@@ -3442,7 +3543,7 @@ function App() {
   const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [toast,       showToast]      = useToast();
-  const [kevinOpen,   setKevinOpen]   = useState(false);
+  const [kevinVisible, setKevinVisible] = useState(function() { return window.innerWidth >= 768; });
   const [kevinMessages, setKevinMessages] = useState(null); // null = not yet initialised
   const [tmCache,     setTmCache]     = useState({});
   const fb = window.__firebase;
@@ -3609,60 +3710,74 @@ function App() {
 
   if (!authUser) return <SignInScreen onSignIn={handleSignIn} error={authError}/>;
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   return (
-    <div>
-      <TopBar user={authUser} onSignOut={handleSignOut}/>
+    <div className="app-layout">
 
-      {/* Screens */}
-      {tab==='shoutouts' && (
-        <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
-          tmCache={tmCache}
-          onSelect={function(s) { setSelShoutout(s); }}/>
-      )}
-      {tab==='borders' && (
-        <BordersScreen borders={borders} onSelect={function(b) { setSelBorder(b); }}/>
-      )}
+      {/* ── Main column ── */}
+      <div className={'app-main' + (kevinVisible && !isMobile ? ' panel-open' : '')}>
+        <TopBar user={authUser} onSignOut={handleSignOut}
+          kevinVisible={kevinVisible}
+          onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
 
-      {/* Bottom nav */}
-      <nav className="bottom-nav">
-        <button className={'nav-tab'+(tab==='shoutouts'?' active':'')}
-          onClick={function() { setTab('shoutouts'); }}>
-          <Ico.Shout/>
-          <span className="nav-tab-label">Shoutouts</span>
-        </button>
-        <button className={'nav-tab'+(tab==='borders'?' active':'')}
-          onClick={function() { setTab('borders'); }}>
-          <Ico.Border/>
-          <span className="nav-tab-label">Borders</span>
-        </button>
-      </nav>
+        {/* Screens — hidden on mobile when Kevin tab is active */}
+        <div className={tab === 'kevin' ? 'screen-hidden' : ''}>
+          {tab==='shoutouts' && (
+            <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
+              tmCache={tmCache}
+              onSelect={function(s) { setSelShoutout(s); }}/>
+          )}
+          {tab==='borders' && (
+            <BordersScreen borders={borders} onSelect={function(b) { setSelBorder(b); }}/>
+          )}
+        </div>
 
-      {/* Claude-Kevin button */}
-      <button className="kevin-btn" onClick={function() { setKevinOpen(true); }}
-        title="Ask Claude-Kevin">
-        CK
-        {Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; }) && (
-          <div className="kevin-badge"/>
+        {/* Bottom nav */}
+        <nav className="bottom-nav">
+          <button className={'nav-tab'+(tab==='shoutouts'?' active':'')}
+            onClick={function() { setTab('shoutouts'); }}>
+            <Ico.Shout/>
+            <span className="nav-tab-label">Shoutouts</span>
+          </button>
+          <button className={'nav-tab'+(tab==='borders'?' active':'')}
+            onClick={function() { setTab('borders'); }}>
+            <Ico.Border/>
+            <span className="nav-tab-label">Borders</span>
+          </button>
+          {/* Kevin tab — mobile only */}
+          <button className={'nav-tab nav-tab-kevin'+(tab==='kevin'?' active':'')}
+            onClick={function() { setTab('kevin'); setKevinVisible(true); }}>
+            <span className="nav-kevin-icon">CK</span>
+            <span className="nav-tab-label">Kevin</span>
+            {Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; }) && (
+              <div className="kevin-badge kevin-badge-nav"/>
+            )}
+          </button>
+        </nav>
+
+        {/* FAB — hide on Kevin tab */}
+        {tab !== 'kevin' && (
+          <button className="fab" title={tab==='shoutouts'?'New shoutout':'New border'}
+            onClick={function() { tab==='shoutouts' ? setEditShoutout('new') : setEditBorder('new'); }}>
+            <Ico.Plus/>
+          </button>
         )}
-      </button>
+      </div>
 
-      {/* FAB */}
-      <button className="fab" title={tab==='shoutouts'?'New shoutout':'New border'}
-        onClick={function() { tab==='shoutouts' ? setEditShoutout('new') : setEditBorder('new'); }}>
-        <Ico.Plus/>
-      </button>
-
-      {/* Kevin chat panel */}
-      {kevinOpen && (
+      {/* ── Kevin panel column ── */}
+      <div className={'app-kevin' + (kevinVisible ? ' kevin-visible' : '') + (tab === 'kevin' ? ' kevin-mobile-active' : '')}>
         <KevinChat
           context={kevinContext}
           uid={authUser.uid}
           appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
           messages={kevinMessages}
           setMessages={setKevinMessages}
-          onClose={function() { setKevinOpen(false); }}
+          onClose={function() { setKevinVisible(false); if (tab === 'kevin') setTab('shoutouts'); }}
+          kevinVisible={kevinVisible}
+          onToggle={function() { setKevinVisible(function(v) { return !v; }); }}
         />
-      )}
+      </div>
 
       {/* Shoutout detail */}
       {selShoutout && !editShoutout && (
