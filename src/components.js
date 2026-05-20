@@ -1,0 +1,247 @@
+function DmcPickerSheet({ currentHex, onSelect, onClose }) {
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(function() {
+    if (inputRef.current) inputRef.current.focus();
+  }, []);
+
+  const filtered = useMemo(function() {
+    if (!query.trim()) return DMC_COLOURS;
+    const q = query.toLowerCase();
+    return DMC_COLOURS.filter(function(c) {
+      return c.dmc.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
+    });
+  }, [query]);
+
+  return (
+    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="dmc-sheet">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">DMC colours</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="dmc-search-row">
+          <input
+            ref={inputRef}
+            className="dmc-search"
+            placeholder="Search by name or DMC number…"
+            value={query}
+            onChange={function(e) { setQuery(e.target.value); }}
+          />
+        </div>
+        <div className="dmc-grid">
+          {filtered.length === 0 && (
+            <div className="dmc-empty">No colours found for "{query}"</div>
+          )}
+          {filtered.map(function(c, i) {
+            const isSelected = c.hex.toLowerCase() === currentHex.toLowerCase();
+            return (
+              <div
+                key={c.dmc + '-' + i}
+                className={'dmc-swatch' + (isSelected ? ' selected' : '')}
+                style={{background: c.hex, border: c.hex === '#FFFFFF' || c.hex === '#FFFFF0' || c.hex === '#FFF8B0' ? '2px solid #e0e0e0' : undefined}}
+                onClick={function() { onSelect(c); onClose(); }}
+                title={c.dmc + ' — ' + c.name}
+              >
+                <div className="dmc-swatch-tip">{c.dmc} {c.name}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THREAD ROW (form sub-component)
+═══════════════════════════════════════════════════════════════════ */
+function ThreadRow({ thread, onChange, onRemove }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  return (
+    <>
+      <div className="thread-row">
+        <button className="thread-color-btn" style={{background:thread.hex}}
+          onClick={function() { setPickerOpen(true); }}
+          title="Pick DMC colour"/>
+        <input className="form-input" placeholder="Name" value={thread.name}
+          onChange={function(e) { onChange({...thread, name:e.target.value}); }}/>
+        <input className="form-input" placeholder="DMC code" value={thread.dmc}
+          onChange={function(e) { onChange({...thread, dmc:e.target.value}); }}/>
+        <button className="thread-remove" onClick={onRemove}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      {pickerOpen && (
+        <DmcPickerSheet
+          currentHex={thread.hex}
+          onSelect={function(c) {
+            onChange({...thread, hex:c.hex, dmc:'DMC '+c.dmc, name:thread.name || c.name});
+          }}
+          onClose={function() { setPickerOpen(false); }}
+        />
+      )}
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BORDER PICKER (used inside shoutout form)
+═══════════════════════════════════════════════════════════════════ */
+function BorderPicker({ borders, selected, onSelect }) {
+  return (
+    <div className="border-picker">
+      {borders.map(b => (
+        <div key={b.id}
+          className={'border-option' + (selected===b.id?' selected':'')}
+          onClick={()=>onSelect(b.id, b.name)}>
+          <div className="border-option-thumb">
+            <CrossStitchCanvas word="ABC" cols={40} rows={40}
+              borderStyle={b.style} threads={DEFAULT_THREADS} size={88}/>
+          </div>
+          <div className="border-option-label">{b.name}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHOUTOUT FORM
+═══════════════════════════════════════════════════════════════════ */
+function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
+  const isEdit = !!initial;
+  const [name,      setName]      = useState(initial?initial.name:'');
+  const [stitchesW, setStitchesW] = useState(initial?initial.stitchesW:94);
+  const [stitchesH, setStitchesH] = useState(initial?initial.stitchesH:94);
+  const [hoopW,     setHoopW]     = useState(initial?initial.hoopW:280);
+  const [hoopH,     setHoopH]     = useState(initial?initial.hoopH:250);
+  const [notes,     setNotes]     = useState(initial?initial.notes:'');
+  const [borderId,  setBorderId]  = useState(initial?initial.borderId:'');
+  const [borderName,setBorderName]= useState(initial?initial.borderName:'');
+  const [threads,   setThreads]   = useState(
+    initial&&initial.threads&&initial.threads.length>0 ? initial.threads : DEFAULT_THREADS
+  );
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  function touch(field) { setTouched(p=>({...p,[field]:true})); }
+
+  function updateThread(i,u) { setThreads(p=>p.map((t,idx)=>idx===i?u:t)); }
+  function removeThread(i)   { setThreads(p=>p.filter((_,idx)=>idx!==i)); }
+  function addThread()       { setThreads(p=>[...p,{id:Date.now(),name:'',dmc:'',hex:'#666666',usage:''}]); }
+
+  function handleSave() {
+    const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads};
+    const errs = validateShoutout(fields);
+    setErrors(errs);
+    setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
+    if (hasErrors(errs)) return;
+    onSave(fields);
+  }
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">{isEdit?'Edit shoutout':'New shoutout'}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+
+          <div className="form-group">
+            <label className="form-label">Word or phrase</label>
+            <input className={'form-input'+(touched.name&&errors.name?' error':'')}
+              placeholder="e.g. GOAL!" value={name}
+              onChange={e=>setName(e.target.value)}
+              onBlur={()=>touch('name')} autoFocus/>
+            {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Border style</label>
+            <BorderPicker borders={borders} selected={borderId}
+              onSelect={(id,nm)=>{setBorderId(id);setBorderName(nm);touch('borderId');}}/>
+            {touched.borderId&&errors.borderId && <div className="form-error">{errors.borderId}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Stitch count</label>
+            <div className="form-row">
+              <div>
+                <input type="number" className={'form-input'+(touched.stitchesW&&errors.stitchesW?' error':'')}
+                  value={stitchesW} onChange={e=>setStitchesW(e.target.value)} onBlur={()=>touch('stitchesW')}/>
+                <div className={touched.stitchesW&&errors.stitchesW?'form-error':'form-hint'}>
+                  {touched.stitchesW&&errors.stitchesW?errors.stitchesW:'Width (stitches)'}
+                </div>
+              </div>
+              <div>
+                <input type="number" className={'form-input'+(touched.stitchesH&&errors.stitchesH?' error':'')}
+                  value={stitchesH} onChange={e=>setStitchesH(e.target.value)} onBlur={()=>touch('stitchesH')}/>
+                <div className={touched.stitchesH&&errors.stitchesH?'form-error':'form-hint'}>
+                  {touched.stitchesH&&errors.stitchesH?errors.stitchesH:'Height (stitches)'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Hoop size (mm)</label>
+            <div className="form-row">
+              <div>
+                <input type="number" className={'form-input'+(touched.hoopW&&errors.hoopW?' error':'')}
+                  value={hoopW} onChange={e=>setHoopW(e.target.value)} onBlur={()=>touch('hoopW')}/>
+                <div className={touched.hoopW&&errors.hoopW?'form-error':'form-hint'}>
+                  {touched.hoopW&&errors.hoopW?errors.hoopW:'Width (mm)'}
+                </div>
+              </div>
+              <div>
+                <input type="number" className={'form-input'+(touched.hoopH&&errors.hoopH?' error':'')}
+                  value={hoopH} onChange={e=>setHoopH(e.target.value)} onBlur={()=>touch('hoopH')}/>
+                <div className={touched.hoopH&&errors.hoopH?'form-error':'form-hint'}>
+                  {touched.hoopH&&errors.hoopH?errors.hoopH:'Height (mm)'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Threads</label>
+            <div className="thread-list">
+              {threads.map((t,i)=>(
+                <ThreadRow key={t.id||i} thread={t}
+                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}/>
+              ))}
+            </div>
+            <button className="add-thread-btn" onClick={addThread}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add thread
+            </button>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Notes</label>
+            <textarea className="form-textarea" placeholder="Any notes about this shoutout…"
+              value={notes} onChange={e=>setNotes(e.target.value)}/>
+          </div>
+
+          <div className="form-actions">
+            <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
+            <button className="btn btn-coral" onClick={handleSave} disabled={saving}>
+              {saving?'Saving…':isEdit?'Save changes':'Create shoutout'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
