@@ -667,7 +667,7 @@ Current context:
 - Screen: ${context.tab}
 - Shoutouts: ${context.shoutoutCount} (${context.shoutoutNames})
 - Borders available: ${context.borderNames}
-- Default hoop: 280 x 250mm, 14-count Aida, 110 x 110 stitches
+- Default hoop: 280 x 250mm, 14-count Aida, 94 x 94 stitches
 
 Be concise. When creating patterns, just do it — confirm after, not before. When deleting, always confirm first.`;
 }
@@ -691,8 +691,8 @@ const KEVIN_TOOLS = [
       type: 'object',
       properties: {
         name:      { type: 'string',  description: 'The word or phrase, e.g. "WORLDIE"' },
-        stitchesW: { type: 'number',  description: 'Width in stitches, default 110' },
-        stitchesH: { type: 'number',  description: 'Height in stitches, default 110' },
+        stitchesW: { type: 'number',  description: 'Width in stitches, default 94' },
+        stitchesH: { type: 'number',  description: 'Height in stitches, default 94' },
         hoopW:     { type: 'number',  description: 'Hoop width in mm, default 280' },
         hoopH:     { type: 'number',  description: 'Hoop height in mm, default 250' },
         borderId:  { type: 'string',  description: 'ID of the border to use' },
@@ -858,8 +858,8 @@ async function executeKevinTool(toolName, toolInput, appData) {
                        : (BORDER_SPECS[border && border.style] || null);
       const data = {
         name:        toolInput.name || '',
-        stitchesW:   toolInput.stitchesW || 110,
-        stitchesH:   toolInput.stitchesH || 110,
+        stitchesW:   toolInput.stitchesW || 94,
+        stitchesH:   toolInput.stitchesH || 94,
         hoopW:       toolInput.hoopW || 280,
         hoopH:       toolInput.hoopH || 250,
         borderId:    toolInput.borderId || '',
@@ -1548,8 +1548,8 @@ const BUILTIN_BORDERS = [
 function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   // scale=0 means auto; gap defaults to 1 (will be scaled internally)
   const GAP_BASE = (gap != null && gap > 0) ? gap : 1;
-  cols  = cols  || 110;
-  rows  = rows  || 110;
+  cols  = cols  || 94;
+  rows  = rows  || 94;
   const grid = [];
   for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
 
@@ -1609,34 +1609,37 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   const interiorW = cols - cornerInset * 2 - PAD * 2;
   const interiorH = rows - cornerInset * 2 - PAD * 2;
 
-  // Text width at scale 1
-  const tw1 = charList.reduce(function(s, c) { return s + c.letter[0].length + GAP_BASE; }, 0)
-              - GAP_BASE;
+  const nChars = charList.length;
 
-  // Maximum scale that physically fits
-  const maxScaleW   = Math.floor(interiorW / Math.max(tw1, 1));
-  const maxScaleH   = Math.floor(interiorH / Math.max(TEXT_H, 1));
-  const maxFits     = Math.min(maxScaleW, maxScaleH);
-
-  // Scale preference: default 2. Only go to 1 if 2 doesn't fit.
-  // Only go to 3 if word is short (≤5 chars excluding spaces) and 3 fits.
-  let autoScale;
-  if (maxFits < 1) {
-    autoScale = 1; // can't fit even at 1 — render anyway, will clip
-  } else if (maxFits < 2) {
-    autoScale = 1; // 2 doesn't fit, use 1
-  } else {
-    // 2 fits — use 2, unless word is very short in which case try 3
-    const visibleChars = charList.filter(function(c) { return c.letter !== LETTERS[' ']; }).length;
-    autoScale = (maxFits >= 3 && visibleChars <= 5) ? 3 : 2;
+  // Text width at given scale — gap is FIXED in stitches (not scaled)
+  function textWidth(s) {
+    return charList.reduce(function(sum, c) { return sum + c.letter[0].length * s; }, 0)
+           + GAP_BASE * (nChars - 1);
   }
 
-  // scale=0 or falsy → use autoScale
-  const S = (scale && scale > 0) ? scale : autoScale;
+  // Maximum scale where text fits
+  const maxScaleW = Math.floor((interiorW - GAP_BASE * (nChars - 1)) /
+                    Math.max(charList.reduce(function(s,c){return s+c.letter[0].length;},0), 1));
+  const maxScaleH = Math.floor(interiorH / Math.max(TEXT_H, 1));
+  const maxFits   = Math.min(maxScaleW, maxScaleH);
 
-  // Final dimensions
-  const tw = charList.reduce(function(s, c) { return s + (c.letter[0].length + GAP_BASE) * S; }, 0)
-             - GAP_BASE * S;
+  // Scale preference: 2 by default.
+  // Scale down to 1 only if word too long for scale 2.
+  // Scale up to 3 only for very short words (≤4 visible chars).
+  let autoScale;
+  if (maxFits < 1) {
+    autoScale = 1;
+  } else if (maxFits < 2) {
+    autoScale = 1;
+  } else {
+    const visibleChars = charList.filter(function(c) {
+      return c.letter !== LETTERS[' '] && c.letter !== LETTERS['?'];
+    }).length;
+    autoScale = (maxFits >= 3 && visibleChars <= 4) ? 3 : 2;
+  }
+
+  const S  = (scale && scale > 0) ? scale : autoScale;
+  const tw = textWidth(S);
   const th = TEXT_H * S;
 
   let x          = Math.floor((cols - tw) / 2);
@@ -1676,7 +1679,8 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
       });
     });
 
-    x += (lw + GAP_BASE) * S;
+    // Advance x by scaled letter width + fixed gap
+    x += lw * S + GAP_BASE;
   });
 
   return grid;
@@ -1987,8 +1991,8 @@ function BorderPicker({ borders, selected, onSelect }) {
 function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   const isEdit = !!initial;
   const [name,      setName]      = useState(initial?initial.name:'');
-  const [stitchesW, setStitchesW] = useState(initial?initial.stitchesW:110);
-  const [stitchesH, setStitchesH] = useState(initial?initial.stitchesH:110);
+  const [stitchesW, setStitchesW] = useState(initial?initial.stitchesW:94);
+  const [stitchesH, setStitchesH] = useState(initial?initial.stitchesH:94);
   const [hoopW,     setHoopW]     = useState(initial?initial.hoopW:280);
   const [hoopH,     setHoopH]     = useState(initial?initial.hoopH:250);
   const [notes,     setNotes]     = useState(initial?initial.notes:'');
@@ -2206,8 +2210,8 @@ function generateChartPDF(shoutout) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
 
-  const cols = shoutout.stitchesW || 110;
-  const rows = shoutout.stitchesH || 110;
+  const cols = shoutout.stitchesW || 94;
+  const rows = shoutout.stitchesH || 94;
   const threads = shoutout.threads || [];
   const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
   const grid = buildGrid(shoutout.name, cols, rows, bs, 0, 2); // 0 = auto-scale
@@ -2331,8 +2335,8 @@ function generateAidaPDF(shoutout, showBg) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
 
-  const cols    = shoutout.stitchesW || 110;
-  const rows    = shoutout.stitchesH || 110;
+  const cols    = shoutout.stitchesW || 94;
+  const rows    = shoutout.stitchesH || 94;
   const threads = shoutout.threads   || [];
   const bs      = shoutout.borderSpec || shoutout.borderStyle || 'british';
   const grid    = buildGrid(shoutout.name, cols, rows, bs, 0, 2);
@@ -2439,8 +2443,8 @@ function AidaOptionsSheet({ shoutout, onClose }) {
   const [showBg,    setShowBg]    = useState(true);
   const [generating,setGenerating]= useState(false);
 
-  const cols    = shoutout.stitchesW || 110;
-  const rows    = shoutout.stitchesH || 110;
+  const cols    = shoutout.stitchesW || 94;
+  const rows    = shoutout.stitchesH || 94;
   const gridW   = (cols * 25.4 / 14).toFixed(1);
   const gridH   = (rows * 25.4 / 14).toFixed(1);
 
