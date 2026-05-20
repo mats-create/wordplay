@@ -178,111 +178,120 @@ function App() {
 
   if (!authUser) return <SignInScreen onSignIn={handleSignIn} error={authError}/>;
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const kevinMobileActive = tab === 'kevin';
 
   return (
     <div className="app-layout">
 
-      {/* ── Main column ── */}
-      <div className={'app-main' + (kevinVisible && !isMobile ? ' panel-open' : '')}>
+      {/* ── Left column: topbar + scrollable content + bottom nav ── */}
+      <div className="app-main">
         <TopBar user={authUser} onSignOut={handleSignOut}
           kevinVisible={kevinVisible}
           onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
 
-        {/* Screens — hidden on mobile when Kevin tab is active */}
-        <div className={tab === 'kevin' ? 'screen-hidden' : 'screen-wrapper'}>
-          {tab==='shoutouts' && (
+        {/* Screen wrap — clips overflow, screens scroll inside */}
+        <div className="screen-wrap">
+          {tab === 'shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
               tmCache={tmCache}
               onSelect={function(s) { setSelShoutout(s); }}/>
           )}
-          {tab==='borders' && (
-            <BordersScreen borders={borders} onSelect={function(b) { setSelBorder(b); }}/>
+          {tab === 'borders' && (
+            <BordersScreen borders={borders}
+              onSelect={function(b) { setSelBorder(b); }}/>
           )}
         </div>
 
-        {/* Bottom nav */}
+        {/* Bottom nav — FAB lives here as last flex child */}
         <nav className="bottom-nav">
-          <button className={'nav-tab'+(tab==='shoutouts'?' active':'')}
+          <button className={'nav-tab' + (tab==='shoutouts' ? ' active' : '')}
             onClick={function() { setTab('shoutouts'); }}>
             <Ico.Shout/>
             <span className="nav-tab-label">Shoutouts</span>
           </button>
-          <button className={'nav-tab'+(tab==='borders'?' active':'')}
+          <button className={'nav-tab' + (tab==='borders' ? ' active' : '')}
             onClick={function() { setTab('borders'); }}>
             <Ico.Border/>
             <span className="nav-tab-label">Borders</span>
           </button>
-          {/* Kevin tab — mobile only */}
-          <button className={'nav-tab nav-tab-kevin'+(tab==='kevin'?' active':'')}
-            onClick={function() { setTab('kevin'); setKevinVisible(true); }}>
+          {/* Kevin tab — mobile only, shown via CSS */}
+          <button className={'nav-tab nav-tab-kevin' + (kevinMobileActive ? ' active' : '')}
+            style={{position:'relative'}}
+            onClick={function() {
+              if (kevinMobileActive) {
+                setTab('shoutouts'); setKevinVisible(false);
+              } else {
+                setTab('kevin'); setKevinVisible(true);
+              }
+            }}>
             <span className="nav-kevin-icon">CK</span>
             <span className="nav-tab-label">Kevin</span>
             {Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; }) && (
-              <div className="kevin-badge kevin-badge-nav"/>
+              <div className="kevin-badge-nav"/>
             )}
           </button>
+          {/* FAB — part of nav row, right-aligned, hidden on Kevin tab */}
+          {!kevinMobileActive && (
+            <button className="fab"
+              title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+              onClick={function() {
+                tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+              }}>
+              <Ico.Plus/>
+            </button>
+          )}
         </nav>
-
-        {/* FAB — hide on Kevin tab */}
-        {tab !== 'kevin' && (
-          <button className="fab" title={tab==='shoutouts'?'New shoutout':'New border'}
-            onClick={function() { tab==='shoutouts' ? setEditShoutout('new') : setEditBorder('new'); }}>
-            <Ico.Plus/>
-          </button>
-        )}
       </div>
 
-      {/* ── Kevin panel column ── */}
-      <div className={'app-kevin' + (kevinVisible ? ' kevin-visible' : '') + (tab === 'kevin' ? ' kevin-mobile-active' : '')}>
+      {/* ── Right column: Kevin panel ── */}
+      {/* Backdrop for mobile sheet */}
+      <div className={'kevin-backdrop' + (kevinMobileActive ? ' visible' : '')}
+        onClick={function() { setTab('shoutouts'); setKevinVisible(false); }}/>
+
+      <div className={'app-kevin'
+        + (kevinVisible ? ' kevin-visible' : '')
+        + (kevinMobileActive ? ' kevin-mobile-active' : '')}>
         <KevinChat
           context={kevinContext}
           uid={authUser.uid}
           appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
           messages={kevinMessages}
           setMessages={setKevinMessages}
-          onClose={function() { setKevinVisible(false); if (tab === 'kevin') setTab('shoutouts'); }}
-          kevinVisible={kevinVisible}
-          onToggle={function() { setKevinVisible(function(v) { return !v; }); }}
+          onClose={function() {
+            setKevinVisible(false);
+            if (kevinMobileActive) setTab('shoutouts');
+          }}
         />
       </div>
 
-      {/* Shoutout detail */}
+      {/* ── Modals (overlays, always on top) ── */}
       {selShoutout && !editShoutout && (
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
           onEdit={function() { setEditShoutout(selShoutout); }}
           onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}/>
       )}
-
-      {/* Shoutout form */}
       {editShoutout && (
         <ShoutoutForm
-          initial={editShoutout==='new'?null:editShoutout}
+          initial={editShoutout==='new' ? null : editShoutout}
           borders={borders}
           onSave={saveShoutout}
           onClose={function() { setEditShoutout(null); }}
           saving={saving}/>
       )}
-
-      {/* Border detail */}
       {selBorder && !editBorder && (
         <BorderDetail border={selBorder}
           onClose={function() { setSelBorder(null); }}
           onEdit={function() { setEditBorder(selBorder); }}
           onDelete={function() { setConfirmDel({type:'border',id:selBorder.id}); }}/>
       )}
-
-      {/* Border form */}
       {editBorder && (
         <BorderForm
-          initial={editBorder==='new'?null:editBorder}
+          initial={editBorder==='new' ? null : editBorder}
           onSave={saveBorder}
           onClose={function() { setEditBorder(null); }}
           saving={saving}/>
       )}
-
-      {/* Confirm delete */}
       {confirmDel && (
         <ConfirmDialog
           title={'Delete ' + confirmDel.type}
@@ -297,4 +306,3 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>

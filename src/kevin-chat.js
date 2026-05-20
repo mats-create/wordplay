@@ -16,7 +16,7 @@ const KEVIN_SUGGESTIONS = {
   ],
 };
 
-function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages, kevinVisible, onToggle }) {
+function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
   // Use lifted messages from App — persists across open/close
   // extMessages=null means not yet initialised
   const [input,    setInput]    = useState('');
