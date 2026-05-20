@@ -469,7 +469,8 @@ html, body, #root {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Bottom nav — sticky at bottom of app-main, contains FAB */
