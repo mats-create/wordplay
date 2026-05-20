@@ -1415,13 +1415,15 @@ const DIACRITICS = {
     dots[d1] = '1'; dots[d2] = '1';
     return ['0'.repeat(w), dots.join('')];
   },
-  // ring above (Å) — arc shape with gap below it
+  // ring above (Å) — solid 3-pixel arc, clearly distinct from umlaut
   'ring': function(w) {
     const mid = Math.floor(w / 2);
     const arc = Array(w).fill('0');
+    // Three pixels: left, centre, right — a solid small arc
     if (mid > 0) arc[mid - 1] = '1';
+    arc[mid] = '1';
     if (mid < w - 1) arc[mid + 1] = '1';
-    // empty row first (gap), then arc
+    // empty row first (gap between arc and letter top), then arc
     return ['0'.repeat(w), arc.join('')];
   },
   // acute accent (Á É Í Ó Ú) — single pixel, right-leaning
@@ -1603,29 +1605,48 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
   const TEXT_H   = LETTER_H + DIAC_H;
 
   // ── Auto-scale ──
+  // Compute true interior: must clear border layers AND side motifs
   const borderDepth = (spec && spec.layers) ? spec.layers.length : 2;
   const cornerInset = (spec && spec.cornerInset) ? spec.cornerInset : borderDepth + 2;
-  const PAD = 2;
-  const interiorW = cols - cornerInset * 2 - PAD * 2;
-  const interiorH = rows - cornerInset * 2 - PAD * 2;
+
+  // Find the deepest side motif extent from the edge
+  // left-right motifs sit at column cornerInset, width = motif pattern width
+  let sideMotifW = 0;
+  if (spec && spec.sideMotifs) {
+    spec.sideMotifs.forEach(function(m) {
+      const pos = m.position || 'all';
+      if (pos === 'left-right' || pos === 'all') {
+        const mw = m.pattern ? m.pattern[0].length : 0;
+        sideMotifW = Math.max(sideMotifW, mw);
+      }
+    });
+  }
+  // Interior must clear: cornerInset + sideMotifWidth + 1 stitch padding
+  const edgeClear = sideMotifW > 0
+    ? cornerInset + sideMotifW + 1
+    : cornerInset + 2;
+
+  const interiorW = cols - edgeClear * 2;
+  const interiorH = rows - edgeClear * 2;
 
   const nChars = charList.length;
+  const totalLetterW = charList.reduce(function(s, c) { return s + c.letter[0].length; }, 0);
 
-  // Text width at given scale — gap is FIXED in stitches (not scaled)
+  // Text width at given scale (gap is fixed, not scaled)
   function textWidth(s) {
-    return charList.reduce(function(sum, c) { return sum + c.letter[0].length * s; }, 0)
-           + GAP_BASE * (nChars - 1);
+    return totalLetterW * s + GAP_BASE * (nChars - 1);
   }
 
   // Maximum scale where text fits
-  const maxScaleW = Math.floor((interiorW - GAP_BASE * (nChars - 1)) /
-                    Math.max(charList.reduce(function(s,c){return s+c.letter[0].length;},0), 1));
+  const maxScaleW = totalLetterW > 0
+    ? Math.floor((interiorW - GAP_BASE * (nChars - 1)) / totalLetterW)
+    : 1;
   const maxScaleH = Math.floor(interiorH / Math.max(TEXT_H, 1));
   const maxFits   = Math.min(maxScaleW, maxScaleH);
 
   // Scale preference: 2 by default.
-  // Scale down to 1 only if word too long for scale 2.
-  // Scale up to 3 only for very short words (≤4 visible chars).
+  // Scale down to 1 if word too long for scale 2.
+  // Scale up to 3 only for very short words (≤3 visible chars, e.g. "OLE").
   let autoScale;
   if (maxFits < 1) {
     autoScale = 1;
@@ -1633,9 +1654,9 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
     autoScale = 1;
   } else {
     const visibleChars = charList.filter(function(c) {
-      return c.letter !== LETTERS[' '] && c.letter !== LETTERS['?'];
+      return c.letter && c.letter !== LETTERS[' '];
     }).length;
-    autoScale = (maxFits >= 3 && visibleChars <= 4) ? 3 : 2;
+    autoScale = (maxFits >= 3 && visibleChars <= 3) ? 3 : 2;
   }
 
   const S  = (scale && scale > 0) ? scale : autoScale;
@@ -2335,20 +2356,21 @@ function generateAidaPDF(shoutout, showBg) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
 
-  const cols    = shoutout.stitchesW || 94;
-  const rows    = shoutout.stitchesH || 94;
-  const threads = shoutout.threads   || [];
+  // Always print at 94×94 for consistent 1:1 sizing on A4 Aida fabric
+  // 94 stitches × 1.814mm = 170.5mm → 20mm margins each side on 210mm A4
+  const PRINT_COLS = 94;
+  const PRINT_ROWS = 94;
+
+  const threads = shoutout.threads || [];
   const bs      = shoutout.borderSpec || shoutout.borderStyle || 'british';
-  const grid    = buildGrid(shoutout.name, cols, rows, bs, 0, 2);
+  const grid    = buildGrid(shoutout.name, PRINT_COLS, PRINT_ROWS, bs, 0, 2);
 
-  // Exact 1:1 physical size — 14-count Aida = 25.4/14mm per stitch
-  const CELL = (25.4 / 14) * MM;   // ~5.15pt per stitch = 1.814mm
-  const GRID_W = cols * CELL;       // ~566pt = 199.5mm
-  const GRID_H = rows * CELL;
+  // Exact 1:1 physical size
+  const CELL   = (25.4 / 14) * MM;        // 1.814mm per stitch in points
+  const GRID_W = PRINT_COLS * CELL;        // 170.5mm
+  const GRID_H = PRINT_ROWS * CELL;
 
-  // Centre on portrait A4 (210×297mm)
-  // Side margins: (210 - 199.5) / 2 = 5.25mm
-  // Top/bottom margins: (297 - 199.5) / 2 = 48.75mm
+  // Centre on portrait A4 — gives exactly 20mm side margins, 63mm top/bottom
   const OX = (A4W - GRID_W) / 2;
   const OY = (A4H - GRID_H) / 2;
 
@@ -2357,81 +2379,46 @@ function generateAidaPDF(shoutout, showBg) {
   doc.rect(0, 0, A4W, A4H, 'F');
 
   // Draw grid at exact 1:1 size
-  drawGridOnPDF(doc, grid, cols, rows, OX, OY, CELL, threads, showBg);
+  drawGridOnPDF(doc, grid, PRINT_COLS, PRINT_ROWS, OX, OY, CELL, threads, showBg);
 
   // ── Brand strip — just below the design ──────────────────────────────────
-  const BRAND_Y = OY + GRID_H + 8 * MM; // 8mm gap below grid
+  const BRAND_Y = OY + GRID_H + 8 * MM;
 
-  // Wordmark: Nutmeg & Needle
   const WM_SIZE = 9;
   doc.setFontSize(WM_SIZE);
   doc.setFont('helvetica', 'bold');
-
   const wNutmeg = doc.getTextWidth('Nutmeg');
   const wAmp    = doc.getTextWidth('&');
   const wNeedle = doc.getTextWidth('Needle');
   const wWM     = wNutmeg + wAmp + wNeedle;
-
-  // URL and tagline
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   const wUrl = doc.getTextWidth('nutmegneedle.com');
-
-  // Separator dot
-  doc.setFontSize(7.5);
   const wDot = doc.getTextWidth('  \u00b7  ');
-
-  // Tagline
   const wTag = doc.getTextWidth('Handcrafted football moves');
-
-  // Total width of brand line
   const wTotal = wWM + wDot + wUrl + wDot + wTag;
   let bx = A4W / 2 - wTotal / 2;
 
-  // Draw wordmark parts
   doc.setFontSize(WM_SIZE);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(26, 26, 26);
-  doc.text('Nutmeg', bx, BRAND_Y);
-  bx += wNutmeg;
+  doc.setTextColor(26, 26, 26);   doc.text('Nutmeg', bx, BRAND_Y); bx += wNutmeg;
+  doc.setTextColor(204, 51, 0);   doc.text('&', bx, BRAND_Y);      bx += wAmp;
+  doc.setTextColor(26, 26, 26);   doc.text('Needle', bx, BRAND_Y); bx += wNeedle;
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180, 180, 180); doc.text('  \u00b7  ', bx, BRAND_Y); bx += wDot;
+  doc.setTextColor(100, 100, 100); doc.text('nutmegneedle.com', bx, BRAND_Y); bx += wUrl;
+  doc.setTextColor(180, 180, 180); doc.text('  \u00b7  ', bx, BRAND_Y); bx += wDot;
+  doc.setTextColor(74, 103, 65);   doc.text('Handcrafted football moves', bx, BRAND_Y);
 
-  doc.setTextColor(204, 51, 0); // coral
-  doc.text('&', bx, BRAND_Y);
-  bx += wAmp;
-
-  doc.setTextColor(26, 26, 26);
-  doc.text('Needle', bx, BRAND_Y);
-  bx += wNeedle;
-
-  // Separator
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(180, 180, 180);
-  doc.text('  \u00b7  ', bx, BRAND_Y);
-  bx += wDot;
-
-  // URL
-  doc.setTextColor(100, 100, 100);
-  doc.text('nutmegneedle.com', bx, BRAND_Y);
-  bx += wUrl;
-
-  // Separator
-  doc.setTextColor(180, 180, 180);
-  doc.text('  \u00b7  ', bx, BRAND_Y);
-  bx += wDot;
-
-  // Tagline in green
-  doc.setTextColor(74, 103, 65); // pitch green
-  doc.text('Handcrafted football moves', bx, BRAND_Y);
-
-  // Tiny print spec below brand line
-  doc.setFontSize(5.5);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
   doc.setTextColor(200, 200, 200);
-  const wmm = (cols * 25.4 / 14).toFixed(1);
-  const hmm = (rows * 25.4 / 14).toFixed(1);
-  const spec = shoutout.name + '  \u00b7  14-count  \u00b7  ' + wmm + '\u00d7' + hmm + 'mm  \u00b7  print at 100%';
-  doc.text(spec, A4W / 2 - doc.getTextWidth(spec) / 2, BRAND_Y + 5 * MM);
+  const spec2 = shoutout.name + '  \u00b7  14-count Aida  \u00b7  ' +
+    (PRINT_COLS * 25.4 / 14).toFixed(1) + '\u00d7' +
+    (PRINT_ROWS * 25.4 / 14).toFixed(1) + 'mm  \u00b7  print at 100%';
+  doc.text(spec2, A4W / 2 - doc.getTextWidth(spec2) / 2, BRAND_Y + 5 * MM);
+
+  doc.save((shoutout.name || 'shoutout').toLowerCase().replace(/[^a-z0-9]/g, '-') + '-aida-print.pdf');
+}
 
   doc.save((shoutout.name || 'shoutout').toLowerCase().replace(/[^a-z0-9]/g, '-') + '-aida-print.pdf');
 }
@@ -2443,10 +2430,9 @@ function AidaOptionsSheet({ shoutout, onClose }) {
   const [showBg,    setShowBg]    = useState(true);
   const [generating,setGenerating]= useState(false);
 
-  const cols    = shoutout.stitchesW || 94;
-  const rows    = shoutout.stitchesH || 94;
-  const gridW   = (cols * 25.4 / 14).toFixed(1);
-  const gridH   = (rows * 25.4 / 14).toFixed(1);
+  // Always prints at 94×94 — fixed production format
+  const gridW = (94 * 25.4 / 14).toFixed(1); // 170.5mm
+  const gridH = (94 * 25.4 / 14).toFixed(1);
 
   function handleGenerate() {
     setGenerating(true);
