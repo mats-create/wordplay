@@ -209,7 +209,6 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
             </button>
           </div>
         )}
-      </div>
     </div>
   );
 }
