@@ -215,7 +215,7 @@ html, body, #root {
    FAB
 ═══════════════════════════════════════════════════════════════════ */
 .fab {
-  position: absolute; bottom: calc(var(--nav-h) + 16px); right: 20px; z-index: 90;
+  position: fixed; bottom: calc(var(--nav-h) + 16px); right: var(--fab-right, 20px); z-index: 90;
   width: 52px; height: 52px; border-radius: 14px;
   background: var(--coral); color: var(--white); border: none;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -509,17 +509,17 @@ html, body, #root {
 }
 .app-main {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  overflow: visible;
+  overflow: hidden;
   position: relative;
-  transition: margin-right 0.3s ease;
 }
-/* Scrollable content area inside app-main handled by .screen rule */
 .app-kevin {
   width: 0;
   flex-shrink: 0;
+  min-height: 0;
   overflow: hidden;
   transition: width 0.3s ease;
   border-left: 1px solid var(--offwht);
@@ -528,6 +528,12 @@ html, body, #root {
 }
 .app-kevin.kevin-visible {
   width: 360px;
+}
+/* Shift FAB left when Kevin panel is open on desktop */
+@media (min-width: 768px) {
+  .app-layout:has(.app-kevin.kevin-visible) {
+    --fab-right: calc(360px + 20px);
+  }
 }
 
 /* ── Kevin panel (replaces kevin-sheet) ── */
@@ -600,6 +606,13 @@ html, body, #root {
   font-weight: 700;
   color: var(--coral);
   line-height: 1;
+}
+.screen-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .screen-hidden { display: none; }
   position: fixed; bottom: calc(var(--nav-h) + 76px); right: 20px; z-index: 90;
