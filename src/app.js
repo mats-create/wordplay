@@ -183,13 +183,17 @@ function App() {
   return (
     <div className="app-layout">
 
-      {/* ── Left column: topbar + scrollable content + bottom nav ── */}
+      {/* ── Left column ── */}
       <div className="app-main">
-        <TopBar user={authUser} onSignOut={handleSignOut}
-          kevinVisible={kevinVisible}
-          onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
 
-        {/* Screen wrap — clips overflow, screens scroll inside */}
+        {/* TopBar — contains nav on desktop */}
+        <TopBar user={authUser} onSignOut={handleSignOut}
+          tab={tab} onTabChange={setTab}
+          kevinVisible={kevinVisible}
+          onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}
+          tmCache={tmCache}/>
+
+        {/* Scrollable content */}
         <div className="screen-wrap">
           {tab === 'shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
@@ -202,7 +206,7 @@ function App() {
           )}
         </div>
 
-        {/* Bottom nav — FAB lives here as last flex child */}
+        {/* Bottom nav — mobile only */}
         <nav className="bottom-nav">
           <button className={'nav-tab' + (tab==='shoutouts' ? ' active' : '')}
             onClick={function() { setTab('shoutouts'); }}>
@@ -214,15 +218,11 @@ function App() {
             <Ico.Border/>
             <span className="nav-tab-label">Borders</span>
           </button>
-          {/* Kevin tab — mobile only, shown via CSS */}
           <button className={'nav-tab nav-tab-kevin' + (kevinMobileActive ? ' active' : '')}
             style={{position:'relative'}}
             onClick={function() {
-              if (kevinMobileActive) {
-                setTab('shoutouts'); setKevinVisible(false);
-              } else {
-                setTab('kevin'); setKevinVisible(true);
-              }
+              if (kevinMobileActive) { setTab('shoutouts'); setKevinVisible(false); }
+              else { setTab('kevin'); setKevinVisible(true); }
             }}>
             <span className="nav-kevin-icon">CK</span>
             <span className="nav-tab-label">Kevin</span>
@@ -230,9 +230,8 @@ function App() {
               <div className="kevin-badge-nav"/>
             )}
           </button>
-          {/* FAB — part of nav row, right-aligned, hidden on Kevin tab */}
           {!kevinMobileActive && (
-            <button className="fab"
+            <button className="fab-mobile"
               title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
               onClick={function() {
                 tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
@@ -241,10 +240,20 @@ function App() {
             </button>
           )}
         </nav>
+
+        {/* FAB — desktop only, fixed bottom-right of content area */}
+        {!kevinMobileActive && (
+          <button className="fab"
+            title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+            onClick={function() {
+              tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+            }}>
+            <Ico.Plus/>
+          </button>
+        )}
       </div>
 
       {/* ── Right column: Kevin panel ── */}
-      {/* Backdrop for mobile sheet */}
       <div className={'kevin-backdrop' + (kevinMobileActive ? ' visible' : '')}
         onClick={function() { setTab('shoutouts'); setKevinVisible(false); }}/>
 
@@ -264,7 +273,7 @@ function App() {
         />
       </div>
 
-      {/* ── Modals (overlays, always on top) ── */}
+      {/* ── Modals ── */}
       {selShoutout && !editShoutout && (
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}

@@ -334,21 +334,38 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 /* ═══════════════════════════════════════════════════════════════════
    TOP BAR + USER MENU
 ═══════════════════════════════════════════════════════════════════ */
-function TopBar({ user, onSignOut, kevinVisible, onToggleKevin }) {
+function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin, tmCache }) {
   const [open, setOpen] = useState(false);
+  const hasTmWarning = tmCache && Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; });
   return (
     <div className="topbar">
       <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
       <div className="topbar-app-name">Wordplay</div>
+
+      {/* Nav tabs — desktop only */}
+      <div className="topbar-nav">
+        <button className={'topbar-tab' + (tab==='shoutouts' ? ' active' : '')}
+          onClick={function() { onTabChange('shoutouts'); }}>
+          <Ico.Shout/> Shoutouts
+        </button>
+        <button className={'topbar-tab' + (tab==='borders' ? ' active' : '')}
+          onClick={function() { onTabChange('borders'); }}>
+          <Ico.Border/> Borders
+        </button>
+      </div>
+
       {/* Kevin toggle — desktop only */}
       <button className={'kevin-toggle-btn' + (kevinVisible ? ' active' : '')}
-        onClick={onToggleKevin} title={kevinVisible ? 'Hide Kevin' : 'Show Kevin'}>
+        onClick={onToggleKevin} style={{position:'relative'}}>
         CK
+        {hasTmWarning && <span className="kevin-badge"/>}
       </button>
+
+      {/* Avatar + sign out */}
       <div style={{position:'relative'}}>
         <img className="topbar-avatar"
           src={user.photoURL||'https://via.placeholder.com/32'}
-          alt={user.displayName} onClick={()=>setOpen(o=>!o)}/>
+          alt={user.displayName} onClick={function() { setOpen(function(o) { return !o; }); }}/>
         {open && (
           <div style={{position:'absolute',top:40,right:0,background:'var(--surface)',
             border:'1px solid var(--lgrey)',borderRadius:10,padding:'4px 0',minWidth:180,
@@ -360,7 +377,7 @@ function TopBar({ user, onSignOut, kevinVisible, onToggleKevin }) {
             <button className="btn btn-ghost"
               style={{width:'100%',justifyContent:'flex-start',gap:7,padding:'7px 13px',
                 borderRadius:0,fontSize:12}}
-              onClick={()=>{setOpen(false);onSignOut();}}>
+              onClick={function() { setOpen(false); onSignOut(); }}>
               <Ico.SignOut/> Sign out
             </button>
           </div>
