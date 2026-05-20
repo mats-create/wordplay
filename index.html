@@ -719,6 +719,17 @@ const LETTERS = {
   '\u00CD':'I', // Í → I + acute
   '\u00D3':'O', // Ó → O + acute
   '\u00DA':'U', // Ú → U + acute
+  // Digits
+  '0':["01110","10001","10011","10101","11001","10001","01110"],
+  '1':["00100","01100","00100","00100","00100","00100","01110"],
+  '2':["01110","10001","00001","00110","01000","10000","11111"],
+  '3':["11110","00001","00001","01110","00001","00001","11110"],
+  '4':["00010","00110","01010","10010","11111","00010","00010"],
+  '5':["11111","10000","10000","11110","00001","00001","11110"],
+  '6':["01110","10000","10000","11110","10001","10001","01110"],
+  '7':["11111","00001","00010","00100","01000","01000","01000"],
+  '8':["01110","10001","10001","01110","10001","10001","01110"],
+  '9':["01110","10001","10001","01111","00001","00001","01110"],
   // Punctuation
   '!':["1","1","1","1","0","0","1"],
   '?':["01110","10001","00001","00110","00100","00000","00100"],
@@ -931,6 +942,7 @@ Tools:
 - Always listBorders before createShoutout. Confirm before any delete. When creating, just do it — confirm after.
 - Use getBorderSpec to read a border's full spec before adapting it into a new design.
 - Default threads: Pitch black DMC 310 #1A1A1A, Pitch green DMC 3362 #4A6741, Coral DMC 350 #CC3300.
+- Thread roles are position-based — order matters: Thread 1 = text colour, Thread 2 = border primary, Thread 3 = border accent. The canvas renders exactly these colours in those roles. Any DMC colour can be used in any slot. When explaining this to the user, say: thread 1 colours the word, thread 2 colours the main border lines, thread 3 colours the border accents and motifs.
 - Border spec: layers [{line, type, color}], cornerMotif {color, pattern[]}, sideMotifs [{position, color, pattern}], cornerInset. primary=black, secondary=green, accent=coral.
 
 Corner motif sizes — two options, always use one or the other:
@@ -1423,7 +1435,7 @@ async function checkTrademark(word, context) {
 const KEVIN_SUGGESTIONS = {
   shoutouts: [
     "Suggest new shoutouts",
-    "What makes a good border for football words?",
+    "How do thread colours work in the designs?",
     "Any trademark risks I should know about?",
     "What's a Worldie?",
   ],
@@ -1431,7 +1443,7 @@ const KEVIN_SUGGESTIONS = {
     "Tell me about Scandinavian embroidery",
     "What is Hardanger?",
     "Describe a Nordic border I could add",
-    "What's Blackwork embroidery?",
+    "How do thread colours work in the designs?",
   ],
 };
 
@@ -1941,12 +1953,14 @@ const BORDER_SPECS = {
 
 function stitchColor(kind, threads) {
   const t = threads || [];
-  const black = t.find(function(x){ return x.hex&&x.hex.toLowerCase().startsWith('#1'); });
-  const green = t.find(function(x){ return x.hex&&(x.hex.toLowerCase().startsWith('#4')||x.hex.toLowerCase().startsWith('#3')); });
-  const coral = t.find(function(x){ return x.hex&&x.hex.toLowerCase().startsWith('#c'); });
-  const bk = black ? black.hex : '#1A1A1A';
-  const gn = green ? green.hex : '#4A6741';
-  const cr = coral ? coral.hex : '#CC3300';
+  // Thread roles by position:
+  // Thread 1 (index 0) = text colour   → kinds T, B, A, F
+  // Thread 2 (index 1) = border primary → kinds D, G
+  // Thread 3 (index 2) = border accent  → kinds E, S
+  // Falls back to brand defaults if a slot is empty
+  const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
+  const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
+  const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
   return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
 }
 
