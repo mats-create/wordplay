@@ -672,6 +672,13 @@ Tools:
 - Default threads: Pitch black DMC 310 #1A1A1A, Pitch green DMC 3362 #4A6741, Coral DMC 350 #CC3300.
 - Border spec: layers [{line, type, color}], cornerMotif {color, pattern[]}, sideMotifs [{position, color, pattern}], cornerInset. primary=black, secondary=green, accent=coral.
 
+Corner motif sizes — two options, always use one or the other:
+- Standard: 9x9 pattern, cornerInset 7. For clean/minimal borders or when the motif is simple.
+- Enlarged: 11x11 pattern, cornerInset 8. For detailed/traditional borders with complex motifs.
+When updating a border to change motif size, redraw the full pattern at the new dimensions — don't just pad or trim the existing one. listBorders returns cornerMotifSizeLabel (standard/enlarged/none) so you can see the current state before editing.
+Example standard 9x9 (diamond lattice): ["011101110","101010101","110101011","001111100","011101110","001111100","110101011","101010101","011101110"]
+Example enlarged 11x11 (expanded lattice): ["00000000000","00111010110","01010101010","01101010101","00011111100","00111010110","00011111100","01101010101","01010101010","00111010110","00000000000"]
+
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
 Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.`;
@@ -847,10 +854,19 @@ async function executeKevinTool(toolName, toolInput, appData) {
     const borders = appData.borders || [];
     if (borders.length === 0) return 'No borders in library yet.';
     return JSON.stringify(borders.map(function(b) {
+      const motif = b.spec && b.spec.cornerMotif;
+      const motifSize = motif && motif.pattern
+        ? motif.pattern.length + 'x' + motif.pattern[0].length
+        : 'none';
+      const inset = b.spec && b.spec.cornerInset ? b.spec.cornerInset : null;
+      const sizeLabel = motif
+        ? (inset >= 8 ? 'enlarged' : 'standard')
+        : 'none';
       return {
         id: b.id, name: b.name, style: b.style,
         description: b.description, traits: b.traits || [],
         builtIn: b.builtIn || false, hasSpec: !!b.spec,
+        cornerMotifSize: motifSize, cornerMotifSizeLabel: sizeLabel,
       };
     }), null, 2);
   }
@@ -1786,21 +1802,12 @@ const BORDER_SPECS = {
       { line:3, type:'check',  colorA:'accent',    colorB:'secondary' },
       { line:4, type:'solid',  color:'primary' },
     ],
-    cornerInset: 8,
+    cornerInset: 7,
     cornerMotif: {
       color: 'primary',
       pattern: [
-        "00000000000",
-        "00111010110",
-        "01010101010",
-        "01101010101",
-        "00011111100",
-        "00111010110",
-        "00011111100",
-        "01101010101",
-        "01010101010",
-        "00111010110",
-        "00000000000",
+        "011101110","101010101","110101011","001111100",
+        "011101110","001111100","110101011","101010101","011101110",
       ]
     },
     sideMotifs: [
