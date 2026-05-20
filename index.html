@@ -9,6 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Wordplay — Nutmeg&amp;Needle</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" sizes="192x192" href="favicon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
@@ -17,6 +21,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script>
+  // Configure marked — no GitHub-flavoured extras we don't need
+  if (typeof marked !== 'undefined') {
+    marked.setOptions({ breaks: true, gfm: true });
+  }
+</script>
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -584,6 +595,20 @@ html, body, #root {
   border-radius: var(--radius-sm); font-size: 11px; color: var(--black); line-height: 1.4;
 }
 .trademark-notice-icon { color: var(--coral); flex-shrink: 0; font-size: 13px; }
+
+/* Markdown rendering inside Kevin bubbles */
+.msg-bubble-kevin p { margin: 0 0 6px; }
+.msg-bubble-kevin p:last-child { margin-bottom: 0; }
+.msg-bubble-kevin strong { font-weight: 700; }
+.msg-bubble-kevin em { font-style: italic; }
+.msg-bubble-kevin ul, .msg-bubble-kevin ol {
+  margin: 4px 0 6px; padding-left: 16px;
+}
+.msg-bubble-kevin li { margin-bottom: 2px; }
+.msg-bubble-kevin code {
+  font-family: monospace; font-size: 12px;
+  background: rgba(0,0,0,0.06); border-radius: 3px; padding: 1px 4px;
+}
 </style>
 </head>
 <body>
@@ -636,40 +661,20 @@ async function saveKevinKeyToFirestore(uid, key) {
 }
 
 function kevinSystemPrompt(context) {
-  return `You are Claude-Kevin — the in-house embroidery specialist and football expert for Nutmeg&Needle, a Malmö-based brand making cross-stitch kits from football words, terms and exclamations. The tagline is "Handcrafted football moves."
+  return `You are Claude-Kevin — in-house embroidery specialist and football expert for Nutmeg&Needle, a Malmö brand making cross-stitch kits from football words and exclamations. Tagline: "Handcrafted football moves."
 
-Brand voice: knowing, dry wit, craft-proud, inclusive, concise. Never say "bespoke", "artisan", or "curated". No exclamation marks. Sentence case always.
+Voice: knowing, dry wit, craft-proud, inclusive. Never say "bespoke", "artisan", or "curated". No exclamation marks. Sentence case. Keep responses short — one or two paragraphs at most unless detail is genuinely needed.
 
-You have tools to read and write both shoutouts and borders. These are two separate things:
-- SHOUTOUT = a complete embroidery design (word + border + threads). Use createShoutout/updateShoutout/deleteShoutout.
-- BORDER = a reusable perimeter decoration pattern. Use createBorder/updateBorder/deleteBorder.
+Tools:
+- SHOUTOUT = embroidery design (word + border + threads). Use createShoutout/updateShoutout/deleteShoutout.
+- BORDER = reusable perimeter pattern. Use createBorder/updateBorder/deleteBorder.
+- Always listBorders before createShoutout. Confirm before any delete. When creating, just do it — confirm after.
+- Default threads: Pitch black DMC 310 #1A1A1A, Pitch green DMC 3362 #4A6741, Coral DMC 350 #CC3300.
+- Border spec: layers [{line, type, color}], cornerMotif {color, pattern[]}, sideMotifs [{position, color, pattern}], cornerInset. primary=black, secondary=green, accent=coral.
 
-When asked to "create a new border" or "design a border" — use createBorder, not createShoutout.
-When asked to "create a new shoutout" or "create an embroidery" — use createShoutout.
-Always use listBorders before createShoutout to pick a valid borderId.
-Confirm with the user before deleting anything.
-When creating shoutouts, use default threads unless asked otherwise: Pitch black (DMC 310, #1A1A1A), Pitch green (DMC 3362, #4A6741), Coral (DMC 350, #CC3300).
+Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-For createBorder, generate a full spec. The spec format:
-- layers: array of {line, type, color} — line 0 is outermost. type=solid uses color (primary/secondary/accent). type=check uses colorA+colorB. type=empty skips.
-- cornerMotif: {color, pattern} — pattern is array of equal-length binary strings ("0"/"1"). Placed at all 4 corners.
-- sideMotifs: [{position, color, pattern}] — position is top-bottom, left-right, or all.
-- cornerInset: how many stitches from edge to place motifs (default = layers.length + 2).
-Primary=black, secondary=green, accent=coral.
-
-Your expertise:
-1. EMBROIDERY — cross-stitch pattern design, border traditions (British, Scandinavian, Hardanger, Blackwork, Assisi, folk styles), DMC thread selection, stitch density, difficulty, hoop sizing, Aida count
-2. FOOTBALL — words, terms, exclamations from all football cultures and languages. "Siuuu", "Worldie", "Howler", "Gol", "But", "Tor", "Saet den ind" and hundreds more
-3. TRADEMARK & COPYRIGHT — flag risks proactively. Club names, competition names, trademarked phrases are risks for commercial products. Generic football vocabulary is fine. Inform, not block.
-4. PATTERN CREATION — create shoutouts directly in the library, suggest words, recommend thread palettes
-
-Current context:
-- Screen: ${context.tab}
-- Shoutouts: ${context.shoutoutCount} (${context.shoutoutNames})
-- Borders available: ${context.borderNames}
-- Default hoop: 280 x 250mm, 14-count Aida, 94 x 94 stitches
-
-Be concise. When creating patterns, just do it — confirm after, not before. When deleting, always confirm first.`;
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.`;
 }
 
 // ── Kevin tool definitions ────────────────────────────────────────────────────
@@ -1233,7 +1238,10 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
                   {isKevin ? 'CK' : 'M'}
                 </div>
                 <div className={'msg-bubble ' + (isKevin ? 'msg-bubble-kevin' : 'msg-bubble-user')}>
-                  {m.text}
+                  {isKevin
+                    ? <div dangerouslySetInnerHTML={{__html: (typeof marked !== 'undefined' ? marked.parse(m.text) : m.text)}}/>
+                    : m.text
+                  }
                 </div>
               </div>
             );
