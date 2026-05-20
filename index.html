@@ -133,9 +133,6 @@ html, body, #root {
    SCREEN LAYOUT
 ═══════════════════════════════════════════════════════════════════ */
 .screen {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
   padding: 16px 16px 32px;
   max-width: 640px; margin: 0 auto; width: 100%;
   box-sizing: border-box;
@@ -207,15 +204,28 @@ html, body, #root {
    FAB
 ═══════════════════════════════════════════════════════════════════ */
 .fab {
-  width: 44px; height: 44px; border-radius: 12px;
+  position: fixed; bottom: 24px; right: 24px; z-index: 90;
+  width: 52px; height: 52px; border-radius: 14px;
   background: var(--coral); color: var(--white); border: none;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(204,51,0,0.35); transition: all 0.2s;
-  flex-shrink: 0; margin-left: auto; margin-right: 4px; align-self: center;
+  box-shadow: 0 4px 12px rgba(204,51,0,0.35); transition: all 0.2s;
 }
 .fab:hover { background: #aa2900; transform: scale(1.05); }
 .fab:active { transform: scale(0.97); }
-.fab svg { width: 20px; height: 20px; }
+.fab svg { width: 22px; height: 22px; }
+/* Mobile FAB lives in bottom nav */
+@media (max-width: 767px) { .fab { display: none; } }
+
+/* FAB inside mobile nav */
+.fab-mobile {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--coral); color: var(--white); border: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(204,51,0,0.3); margin-left: auto; margin-right: 4px;
+  flex-shrink: 0; align-self: center;
+}
+.fab-mobile svg { width: 20px; height: 20px; }
+@media (min-width: 768px) { .fab-mobile { display: none; } }
 
 /* ═══════════════════════════════════════════════════════════════════
    OVERLAY / SHEET
@@ -490,13 +500,13 @@ html, body, #root {
 .aida-size-note strong { color: var(--black); }
 
 
+
 /* ═══════════════════════════════════════════════════════════════════
-   APP LAYOUT — TWO-COLUMN RESPONSIVE
-   Desktop: [app-main | app-kevin]  both full height, self-scrolling
+   APP LAYOUT
+   Desktop: [app-main (flex col)] | [app-kevin (flex col)]
    Mobile:  app-main full width, Kevin as bottom sheet
 ═══════════════════════════════════════════════════════════════════ */
 
-/* Root layout */
 .app-layout {
   display: flex;
   flex-direction: row;
@@ -504,36 +514,33 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* ── Left column — main content ── */
+/* ── Left column ── */
 .app-main {
   flex: 1;
   min-width: 0;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  height: 100dvh;
 }
 
-/* TopBar — sticky at top of app-main */
+/* Topbar — flex child, no positioning */
 .topbar {
   flex-shrink: 0;
   height: var(--top-h);
   background: var(--linen);
   border-bottom: 1px solid rgba(26,26,26,0.12);
   display: flex; align-items: center; padding: 0 16px; gap: 12px;
-  z-index: 10;
 }
 
-/* Screen wrapper — takes remaining height, clips overflow */
+/* Scrollable area — fills remaining height, scrolls itself */
 .screen-wrap {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
 }
 
-/* Bottom nav — sticky at bottom of app-main, contains FAB */
+/* Bottom nav — mobile only */
 .bottom-nav {
   flex-shrink: 0;
   height: var(--nav-h);
@@ -542,62 +549,51 @@ html, body, #root {
   display: flex;
   align-items: center;
   padding: 0 4px;
-  z-index: 10;
 }
+@media (min-width: 768px) { .bottom-nav { display: none; } }
 
-/* ── Right column — Kevin panel ── */
+/* ── Right column — Kevin ── */
 .app-kevin {
   flex-shrink: 0;
   width: 0;
+  height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   border-left: 1px solid rgba(26,26,26,0.1);
-  transition: width 0.25s ease;
   background: var(--surface);
+  transition: width 0.25s ease;
 }
-.app-kevin.kevin-visible {
-  width: 360px;
-}
+.app-kevin.kevin-visible { width: 360px; }
 
-/* Kevin panel fills its column exactly */
+/* Kevin panel fills column */
 .kevin-panel {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--surface);
 }
 
-/* ── Kevin header — fixed at top of panel ── */
-.kevin-header {
-  flex-shrink: 0;
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid var(--offwht);
-  background: var(--surface);
+/* ── TopBar desktop nav tabs ── */
+.topbar-nav {
+  display: flex;
+  gap: 2px;
+  margin-left: 8px;
 }
-
-/* ── Kevin messages — scrollable middle ── */
-.kevin-messages {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex; flex-direction: column; gap: 12px;
+.topbar-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  border: none; background: transparent;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
 }
-.kevin-messages::-webkit-scrollbar { width: 3px; }
+.topbar-tab svg { width: 16px; height: 16px; }
+.topbar-tab:hover { background: rgba(26,26,26,0.06); color: var(--black); }
+.topbar-tab.active { background: rgba(26,26,26,0.08); color: var(--black); }
+@media (max-width: 767px) { .topbar-nav { display: none; } }
 
-/* ── Kevin input — pinned at bottom ── */
-.kevin-input-row {
-  flex-shrink: 0;
-  display: flex; gap: 8px; padding: 12px 16px;
-  border-top: 1px solid var(--offwht);
-  background: var(--surface);
-}
-
-/* Kevin toggle button — in TopBar, desktop only */
+/* ── Kevin toggle in topbar ── */
 .kevin-toggle-btn {
   flex-shrink: 0;
   padding: 5px 10px;
@@ -605,46 +601,40 @@ html, body, #root {
   border: 1.5px solid var(--lgrey);
   background: transparent;
   font-family: inherit; font-size: 12px; font-weight: 700;
-  color: var(--coral); cursor: pointer;
-  transition: all 0.15s;
+  color: var(--coral); cursor: pointer; transition: all 0.15s;
+  position: relative;
 }
 .kevin-toggle-btn:hover { background: var(--offwht); border-color: var(--coral); }
 .kevin-toggle-btn.active { background: var(--coral); color: var(--white); border-color: var(--coral); }
+@media (max-width: 767px) { .kevin-toggle-btn { display: none; } }
 
-/* Hide chevron close button — only relevant on desktop */
-.kevin-hide-btn { display: flex; }
-
-/* Kevin badge */
+/* ── Kevin badge ── */
 .kevin-badge {
   position: absolute; top: -3px; right: -3px;
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--green); border: 2px solid var(--linen);
 }
 .kevin-badge-nav {
-  position: absolute; top: 6px; right: 8px;
+  position: absolute; top: 4px; right: 6px;
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--coral); border: 1.5px solid var(--white);
 }
 
-/* Kevin nav tab icon */
-.nav-kevin-icon {
-  font-size: 10px; font-weight: 700; color: var(--coral); line-height: 1;
-}
-.nav-tab-kevin { display: none; } /* hidden on desktop, shown on mobile */
+/* ── Mobile nav items ── */
+.nav-tab { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px; background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 10px; font-weight: 500;
+  color: var(--grey); letter-spacing: 0.3px; text-transform: uppercase;
+  transition: color 0.15s; padding: 6px 0; }
+.nav-tab.active { color: var(--coral); }
+.nav-tab svg { width: 22px; height: 22px; }
+.nav-tab-label { font-size: 10px; }
+.nav-tab-kevin { display: none; }
+@media (max-width: 767px) { .nav-tab-kevin { display: flex; } }
+.nav-kevin-icon { font-size: 10px; font-weight: 700; color: var(--coral); line-height: 1; }
 
-/* Screen visibility */
-.screen-hidden { display: none; }
-
-/* ── Mobile — Kevin as bottom sheet ── */
+/* ── Mobile Kevin bottom sheet ── */
 @media (max-width: 767px) {
-  /* Hide desktop Kevin toggle */
-  .kevin-toggle-btn { display: none; }
-  .kevin-hide-btn { display: none; }
-
-  /* Show Kevin tab in nav */
-  .nav-tab-kevin { display: flex; }
-
-  /* Kevin column becomes a fixed bottom sheet */
   .app-kevin {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -656,45 +646,40 @@ html, body, #root {
     box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
     transition: height 0.3s ease;
     z-index: 200;
-    overflow: hidden;
   }
-  .app-kevin.kevin-mobile-active {
-    height: 75dvh;
-  }
-
-  /* Drag handle at top of mobile sheet */
+  .app-kevin.kevin-mobile-active { height: 75dvh; }
   .kevin-panel::before {
     content: '';
     display: block;
     width: 36px; height: 4px;
-    background: var(--lgrey);
-    border-radius: 2px;
-    margin: 10px auto 0;
+    background: var(--lgrey); border-radius: 2px;
+    margin: 10px auto 2px;
     flex-shrink: 0;
   }
-
-  /* Backdrop when Kevin sheet is open */
-  .kevin-backdrop {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(26,26,26,0.4);
-    z-index: 199;
-    animation: fadeIn 0.2s ease;
-  }
-  .kevin-backdrop.visible { display: block; }
 }
 
-@media (min-width: 768px) {
-  .nav-tab-kevin { display: none !important; }
+/* Backdrop */
+.kevin-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(26,26,26,0.4);
+  z-index: 199;
+  animation: fadeIn 0.2s ease;
 }
+.kevin-backdrop.visible { display: block; }
 
-/* ── Kevin avatar & header ── */
+/* Kevin header */
+.kevin-header {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--offwht);
+}
 .kevin-avatar {
   width: 34px; height: 34px; border-radius: 50%;
   background: var(--coral); color: var(--white);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
-  flex-shrink: 0;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
 }
 .kevin-header-info { flex: 1; }
 .kevin-header-name { font-size: 14px; font-weight: 700; }
@@ -703,6 +688,15 @@ html, body, #root {
   display: inline-block; width: 7px; height: 7px; border-radius: 50%;
   background: var(--green); margin-right: 4px; vertical-align: middle;
 }
+.kevin-hide-btn { display: flex; }
+@media (max-width: 767px) { .kevin-hide-btn { display: none; } }
+
+/* Kevin messages */
+.kevin-messages {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.kevin-messages::-webkit-scrollbar { width: 3px; }
 
 /* Message bubbles */
 .msg { display: flex; gap: 8px; align-items: flex-start; }
@@ -719,29 +713,14 @@ html, body, #root {
   max-width: 80%; padding: 10px 13px; border-radius: 16px;
   font-size: 13px; line-height: 1.55;
 }
-.msg-bubble-kevin {
-  background: var(--offwht); color: var(--black);
-  border-radius: 4px 16px 16px 16px;
-}
-.msg-bubble-user {
-  background: var(--black); color: var(--white);
-  border-radius: 16px 4px 16px 16px;
-}
+.msg-bubble-kevin { background: var(--offwht); color: var(--black); border-radius: 4px 16px 16px 16px; }
+.msg-bubble-user  { background: var(--black); color: var(--white); border-radius: 16px 4px 16px 16px; }
 .msg-bubble-kevin a { color: var(--coral); text-decoration: none; }
-.msg-bubble-warning {
-  background: #FFF5F2; border: 1px solid rgba(204,51,0,0.2);
-  color: var(--black); border-radius: 4px 16px 16px 16px;
-}
-.msg-warning-title {
-  font-size: 11px; font-weight: 700; color: var(--coral);
-  letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 4px;
-}
 
 /* Typing indicator */
 .kevin-typing {
   display: flex; gap: 4px; align-items: center; padding: 10px 13px;
-  background: var(--offwht); border-radius: 4px 16px 16px 16px;
-  width: fit-content;
+  background: var(--offwht); border-radius: 4px 16px 16px 16px; width: fit-content;
 }
 .kevin-typing span {
   width: 6px; height: 6px; border-radius: 50%; background: var(--lgrey);
@@ -755,10 +734,7 @@ html, body, #root {
 }
 
 /* Suggestion chips */
-.kevin-suggestions {
-  display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 12px;
-  flex-shrink: 0;
-}
+.kevin-suggestions { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 12px; flex-shrink: 0; }
 .kevin-chip {
   padding: 6px 12px; border-radius: 20px;
   border: 1px solid var(--lgrey); background: var(--white);
@@ -767,12 +743,16 @@ html, body, #root {
 }
 .kevin-chip:hover { border-color: var(--coral); color: var(--coral); background: #fff5f2; }
 
-/* Kevin input field */
+/* Kevin input row */
+.kevin-input-row {
+  flex-shrink: 0; display: flex; gap: 8px; padding: 12px 16px;
+  border-top: 1px solid var(--offwht); background: var(--surface);
+}
 .kevin-input {
   flex: 1; padding: 9px 13px; border-radius: 20px;
   border: 1.5px solid var(--lgrey); font-family: inherit; font-size: 13px;
-  outline: none; transition: border-color 0.15s; resize: none;
-  max-height: 100px; line-height: 1.4; background: var(--offwht);
+  outline: none; resize: none; max-height: 100px; line-height: 1.4;
+  background: var(--offwht); transition: border-color 0.15s;
 }
 .kevin-input:focus { border-color: var(--black); background: var(--white); }
 .kevin-send {
@@ -785,7 +765,7 @@ html, body, #root {
 .kevin-send:disabled { background: var(--lgrey); cursor: not-allowed; }
 .kevin-send svg { width: 16px; height: 16px; }
 
-/* Trademark inline notice */
+/* Trademark notice */
 .trademark-notice {
   display: flex; align-items: flex-start; gap: 6px;
   padding: 8px 10px; margin-top: 8px;
@@ -794,7 +774,7 @@ html, body, #root {
 }
 .trademark-notice-icon { color: var(--coral); flex-shrink: 0; font-size: 13px; }
 
-/* Markdown rendering inside Kevin bubbles */
+/* Markdown in Kevin bubbles */
 .msg-bubble-kevin p { margin: 0 0 6px; }
 .msg-bubble-kevin p:last-child { margin-bottom: 0; }
 .msg-bubble-kevin strong { font-weight: 700; }
@@ -805,6 +785,9 @@ html, body, #root {
   font-family: monospace; font-size: 12px;
   background: rgba(0,0,0,0.06); border-radius: 3px; padding: 1px 4px;
 }
+
+/* Misc */
+.screen-hidden { display: none; }
 </style>
 </head>
 <body>
@@ -3431,21 +3414,38 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 /* ═══════════════════════════════════════════════════════════════════
    TOP BAR + USER MENU
 ═══════════════════════════════════════════════════════════════════ */
-function TopBar({ user, onSignOut, kevinVisible, onToggleKevin }) {
+function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin, tmCache }) {
   const [open, setOpen] = useState(false);
+  const hasTmWarning = tmCache && Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; });
   return (
     <div className="topbar">
       <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
       <div className="topbar-app-name">Wordplay</div>
+
+      {/* Nav tabs — desktop only */}
+      <div className="topbar-nav">
+        <button className={'topbar-tab' + (tab==='shoutouts' ? ' active' : '')}
+          onClick={function() { onTabChange('shoutouts'); }}>
+          <Ico.Shout/> Shoutouts
+        </button>
+        <button className={'topbar-tab' + (tab==='borders' ? ' active' : '')}
+          onClick={function() { onTabChange('borders'); }}>
+          <Ico.Border/> Borders
+        </button>
+      </div>
+
       {/* Kevin toggle — desktop only */}
       <button className={'kevin-toggle-btn' + (kevinVisible ? ' active' : '')}
-        onClick={onToggleKevin} title={kevinVisible ? 'Hide Kevin' : 'Show Kevin'}>
+        onClick={onToggleKevin} style={{position:'relative'}}>
         CK
+        {hasTmWarning && <span className="kevin-badge"/>}
       </button>
+
+      {/* Avatar + sign out */}
       <div style={{position:'relative'}}>
         <img className="topbar-avatar"
           src={user.photoURL||'https://via.placeholder.com/32'}
-          alt={user.displayName} onClick={()=>setOpen(o=>!o)}/>
+          alt={user.displayName} onClick={function() { setOpen(function(o) { return !o; }); }}/>
         {open && (
           <div style={{position:'absolute',top:40,right:0,background:'var(--surface)',
             border:'1px solid var(--lgrey)',borderRadius:10,padding:'4px 0',minWidth:180,
@@ -3457,7 +3457,7 @@ function TopBar({ user, onSignOut, kevinVisible, onToggleKevin }) {
             <button className="btn btn-ghost"
               style={{width:'100%',justifyContent:'flex-start',gap:7,padding:'7px 13px',
                 borderRadius:0,fontSize:12}}
-              onClick={()=>{setOpen(false);onSignOut();}}>
+              onClick={function() { setOpen(false); onSignOut(); }}>
               <Ico.SignOut/> Sign out
             </button>
           </div>
@@ -3775,13 +3775,17 @@ function App() {
   return (
     <div className="app-layout">
 
-      {/* ── Left column: topbar + scrollable content + bottom nav ── */}
+      {/* ── Left column ── */}
       <div className="app-main">
-        <TopBar user={authUser} onSignOut={handleSignOut}
-          kevinVisible={kevinVisible}
-          onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
 
-        {/* Screen wrap — clips overflow, screens scroll inside */}
+        {/* TopBar — contains nav on desktop */}
+        <TopBar user={authUser} onSignOut={handleSignOut}
+          tab={tab} onTabChange={setTab}
+          kevinVisible={kevinVisible}
+          onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}
+          tmCache={tmCache}/>
+
+        {/* Scrollable content */}
         <div className="screen-wrap">
           {tab === 'shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
@@ -3794,7 +3798,7 @@ function App() {
           )}
         </div>
 
-        {/* Bottom nav — FAB lives here as last flex child */}
+        {/* Bottom nav — mobile only */}
         <nav className="bottom-nav">
           <button className={'nav-tab' + (tab==='shoutouts' ? ' active' : '')}
             onClick={function() { setTab('shoutouts'); }}>
@@ -3806,15 +3810,11 @@ function App() {
             <Ico.Border/>
             <span className="nav-tab-label">Borders</span>
           </button>
-          {/* Kevin tab — mobile only, shown via CSS */}
           <button className={'nav-tab nav-tab-kevin' + (kevinMobileActive ? ' active' : '')}
             style={{position:'relative'}}
             onClick={function() {
-              if (kevinMobileActive) {
-                setTab('shoutouts'); setKevinVisible(false);
-              } else {
-                setTab('kevin'); setKevinVisible(true);
-              }
+              if (kevinMobileActive) { setTab('shoutouts'); setKevinVisible(false); }
+              else { setTab('kevin'); setKevinVisible(true); }
             }}>
             <span className="nav-kevin-icon">CK</span>
             <span className="nav-tab-label">Kevin</span>
@@ -3822,9 +3822,8 @@ function App() {
               <div className="kevin-badge-nav"/>
             )}
           </button>
-          {/* FAB — part of nav row, right-aligned, hidden on Kevin tab */}
           {!kevinMobileActive && (
-            <button className="fab"
+            <button className="fab-mobile"
               title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
               onClick={function() {
                 tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
@@ -3833,10 +3832,20 @@ function App() {
             </button>
           )}
         </nav>
+
+        {/* FAB — desktop only, fixed bottom-right of content area */}
+        {!kevinMobileActive && (
+          <button className="fab"
+            title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+            onClick={function() {
+              tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+            }}>
+            <Ico.Plus/>
+          </button>
+        )}
       </div>
 
       {/* ── Right column: Kevin panel ── */}
-      {/* Backdrop for mobile sheet */}
       <div className={'kevin-backdrop' + (kevinMobileActive ? ' visible' : '')}
         onClick={function() { setTab('shoutouts'); setKevinVisible(false); }}/>
 
@@ -3856,7 +3865,7 @@ function App() {
         />
       </div>
 
-      {/* ── Modals (overlays, always on top) ── */}
+      {/* ── Modals ── */}
       {selShoutout && !editShoutout && (
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
