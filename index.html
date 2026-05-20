@@ -2329,94 +2329,107 @@ function generateChartPDF(shoutout) {
 // ── Aida Print PDF (physically accurate, centred, no branding) ───────────────
 function generateAidaPDF(shoutout, showBg) {
   const { jsPDF } = window.jspdf;
-  // Use landscape — gives 297mm width vs 210mm portrait
-  // For a 280mm wide hoop this is the only orientation that works with real margins
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
 
-  const PAGE_W = 297 * MM; // landscape: wider dimension
-  const PAGE_H = 210 * MM;
+  const cols    = shoutout.stitchesW || 110;
+  const rows    = shoutout.stitchesH || 110;
+  const threads = shoutout.threads   || [];
+  const bs      = shoutout.borderSpec || shoutout.borderStyle || 'british';
+  const grid    = buildGrid(shoutout.name, cols, rows, bs, 0, 2);
 
-  const cols = shoutout.stitchesW || 110;
-  const rows = shoutout.stitchesH || 110;
-  const threads = shoutout.threads || [];
-  const bs = shoutout.borderSpec || shoutout.borderStyle || 'british';
-  const grid = buildGrid(shoutout.name, cols, rows, bs, 0, 2); // auto-scale
+  // Exact 1:1 physical size — 14-count Aida = 25.4/14mm per stitch
+  const CELL = (25.4 / 14) * MM;   // ~5.15pt per stitch = 1.814mm
+  const GRID_W = cols * CELL;       // ~566pt = 199.5mm
+  const GRID_H = rows * CELL;
 
-  // Physical size at 14-count: 1 stitch = 25.4/14mm
-  const STITCH_MM  = 25.4 / 14;
-  const NATURAL_W  = cols * STITCH_MM; // ~199.5mm for 110 stitches
-  const NATURAL_H  = rows * STITCH_MM;
+  // Centre on portrait A4 (210×297mm)
+  // Side margins: (210 - 199.5) / 2 = 5.25mm
+  // Top/bottom margins: (297 - 199.5) / 2 = 48.75mm
+  const OX = (A4W - GRID_W) / 2;
+  const OY = (A4H - GRID_H) / 2;
 
-  // Hoop dimensions + mounting margin
-  const HOOP_W  = shoutout.hoopW || 280;
-  const HOOP_H  = shoutout.hoopH || 250;
-  const MOUNT   = 25; // 25mm mounting margin each side — enough to grip in hoop
-
-  // Usable page area with 12mm page margins
-  const PG_MARGIN = 12;
-  const USE_W = 297 - PG_MARGIN * 2; // 273mm
-  const USE_H = 210 - PG_MARGIN * 2; // 186mm
-
-  // Maximum design area = usable page minus mounting margins
-  // The stitched design itself must fit inside the hoop
-  // So maximum grid = min(hoop size, usable page minus 2×mount)
-  const MAX_W = Math.min(HOOP_W, USE_W - MOUNT * 2); // min(280, 273-50) = min(280,223) = 223mm
-  const MAX_H = Math.min(HOOP_H, USE_H - MOUNT * 2); // min(250, 186-50) = min(250,136) = 136mm
-
-  // Scale factor so design never exceeds max area
-  const sf = Math.min(1, MAX_W / NATURAL_W, MAX_H / NATURAL_H);
-
-  const GRID_W = NATURAL_W * sf;
-  const GRID_H = NATURAL_H * sf;
-  const GRID_W_PT = GRID_W * MM;
-  const GRID_H_PT = GRID_H * MM;
-
-  // Centre on landscape page
-  const OX = (PAGE_W - GRID_W_PT) / 2;
-  const OY = (PAGE_H - GRID_H_PT) / 2;
-  const CELL = GRID_W_PT / cols;
-
-  // White background
+  // White page
   doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+  doc.rect(0, 0, A4W, A4H, 'F');
 
-  // Draw stitches
+  // Draw grid at exact 1:1 size
   drawGridOnPDF(doc, grid, cols, rows, OX, OY, CELL, threads, showBg);
 
-  // Dashed hoop boundary guide
-  const HW = HOOP_W * MM;
-  const HH = HOOP_H * MM;
-  doc.setDrawColor(180, 180, 180);
-  doc.setLineWidth(0.4);
-  doc.setLineDashPattern([3, 3], 0);
-  doc.rect((PAGE_W - HW) / 2, (PAGE_H - HH) / 2, HW, HH, 'S');
-  doc.setLineDashPattern([], 0);
+  // ── Brand strip — just below the design ──────────────────────────────────
+  const BRAND_Y = OY + GRID_H + 8 * MM; // 8mm gap below grid
 
-  // Corner registration marks (small L-shapes at mounting margin boundary)
-  const MX = (PAGE_W - (HOOP_W + MOUNT*2) * MM) / 2;
-  const MY = (PAGE_H - (HOOP_H + MOUNT*2) * MM) / 2;
-  const MW = (HOOP_W + MOUNT*2) * MM;
-  const MHH = (HOOP_H + MOUNT*2) * MM;
-  const tick = 4 * MM;
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  [[MX, MY], [MX+MW, MY], [MX, MY+MHH], [MX+MW, MY+MHH]].forEach(function(p, i) {
-    const dx = i % 2 === 0 ? 1 : -1;
-    const dy = i < 2 ? 1 : -1;
-    doc.line(p[0], p[1], p[0] + dx*tick, p[1]);
-    doc.line(p[0], p[1], p[0], p[1] + dy*tick);
-  });
+  // Wordmark: Nutmeg & Needle
+  const WM_SIZE = 9;
+  doc.setFontSize(WM_SIZE);
+  doc.setFont('helvetica', 'bold');
 
-  // Note
-  doc.setFontSize(6);
-  doc.setFont('helvetica','normal');
-  doc.setTextColor(160, 160, 160);
-  const note = 'Aida print  \u00b7  14-count  \u00b7  ' +
-    GRID_W.toFixed(1) + '\u00d7' + GRID_H.toFixed(1) + 'mm  \u00b7  ' +
-    'hoop ' + HOOP_W + '\u00d7' + HOOP_H + 'mm  \u00b7  print at 100%  \u00b7  ' + shoutout.name;
-  doc.text(note, PAGE_W/2 - doc.getTextWidth(note)/2, PAGE_H - 5*MM);
+  const wNutmeg = doc.getTextWidth('Nutmeg');
+  const wAmp    = doc.getTextWidth('&');
+  const wNeedle = doc.getTextWidth('Needle');
+  const wWM     = wNutmeg + wAmp + wNeedle;
 
-  doc.save((shoutout.name||'shoutout').toLowerCase().replace(/[^a-z0-9]/g,'-') + '-aida-print.pdf');
+  // URL and tagline
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  const wUrl = doc.getTextWidth('nutmegneedle.com');
+
+  // Separator dot
+  doc.setFontSize(7.5);
+  const wDot = doc.getTextWidth('  \u00b7  ');
+
+  // Tagline
+  const wTag = doc.getTextWidth('Handcrafted football moves');
+
+  // Total width of brand line
+  const wTotal = wWM + wDot + wUrl + wDot + wTag;
+  let bx = A4W / 2 - wTotal / 2;
+
+  // Draw wordmark parts
+  doc.setFontSize(WM_SIZE);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(26, 26, 26);
+  doc.text('Nutmeg', bx, BRAND_Y);
+  bx += wNutmeg;
+
+  doc.setTextColor(204, 51, 0); // coral
+  doc.text('&', bx, BRAND_Y);
+  bx += wAmp;
+
+  doc.setTextColor(26, 26, 26);
+  doc.text('Needle', bx, BRAND_Y);
+  bx += wNeedle;
+
+  // Separator
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180, 180, 180);
+  doc.text('  \u00b7  ', bx, BRAND_Y);
+  bx += wDot;
+
+  // URL
+  doc.setTextColor(100, 100, 100);
+  doc.text('nutmegneedle.com', bx, BRAND_Y);
+  bx += wUrl;
+
+  // Separator
+  doc.setTextColor(180, 180, 180);
+  doc.text('  \u00b7  ', bx, BRAND_Y);
+  bx += wDot;
+
+  // Tagline in green
+  doc.setTextColor(74, 103, 65); // pitch green
+  doc.text('Handcrafted football moves', bx, BRAND_Y);
+
+  // Tiny print spec below brand line
+  doc.setFontSize(5.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(200, 200, 200);
+  const wmm = (cols * 25.4 / 14).toFixed(1);
+  const hmm = (rows * 25.4 / 14).toFixed(1);
+  const spec = shoutout.name + '  \u00b7  14-count  \u00b7  ' + wmm + '\u00d7' + hmm + 'mm  \u00b7  print at 100%';
+  doc.text(spec, A4W / 2 - doc.getTextWidth(spec) / 2, BRAND_Y + 5 * MM);
+
+  doc.save((shoutout.name || 'shoutout').toLowerCase().replace(/[^a-z0-9]/g, '-') + '-aida-print.pdf');
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2426,22 +2439,10 @@ function AidaOptionsSheet({ shoutout, onClose }) {
   const [showBg,    setShowBg]    = useState(true);
   const [generating,setGenerating]= useState(false);
 
-  const cols = shoutout.stitchesW || 110;
-  const rows = shoutout.stitchesH || 110;
-  const stitchMM = 25.4 / 14;
-  const hoopW    = shoutout.hoopW || 280;
-  const hoopH    = shoutout.hoopH || 250;
-  const mount    = 25;
-  const pgMargin = 12;
-  const naturalW = cols * stitchMM;
-  const naturalH = rows * stitchMM;
-  const useW     = 297 - pgMargin * 2;
-  const useH     = 210 - pgMargin * 2;
-  const maxW     = Math.min(hoopW, useW - mount * 2);
-  const maxH     = Math.min(hoopH, useH - mount * 2);
-  const sf       = Math.min(1, maxW / naturalW, maxH / naturalH);
-  const gridWmm  = (naturalW * sf).toFixed(1);
-  const gridHmm  = (naturalH * sf).toFixed(1);
+  const cols    = shoutout.stitchesW || 110;
+  const rows    = shoutout.stitchesH || 110;
+  const gridW   = (cols * 25.4 / 14).toFixed(1);
+  const gridH   = (rows * 25.4 / 14).toFixed(1);
 
   function handleGenerate() {
     setGenerating(true);
@@ -2464,10 +2465,9 @@ function AidaOptionsSheet({ shoutout, onClose }) {
         <div className="sheet-body">
 
           <div className="aida-size-note">
-            <strong>Print size:</strong> {gridWmm} × {gridHmm}mm<br/>
-            14-count Aida · {cols} × {rows} stitches · hoop {hoopW} × {hoopH}mm<br/>
-            Landscape A4 · dashed line shows hoop boundary · corner marks show mounting area<br/>
-            Print at 100% — do not scale to fit.
+            <strong>Print size:</strong> {gridW} × {gridH}mm at 1:1 scale<br/>
+            14-count Aida · {cols} × {rows} stitches · portrait A4<br/>
+            Load A4 Aida sheet in printer and print at 100% — do not scale to fit.
           </div>
 
           <div className="aida-option-row">
