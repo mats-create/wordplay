@@ -669,6 +669,7 @@ Tools:
 - SHOUTOUT = embroidery design (word + border + threads). Use createShoutout/updateShoutout/deleteShoutout.
 - BORDER = reusable perimeter pattern. Use createBorder/updateBorder/deleteBorder.
 - Always listBorders before createShoutout. Confirm before any delete. When creating, just do it — confirm after.
+- Use getBorderSpec to read a border's full spec before adapting it into a new design.
 - Default threads: Pitch black DMC 310 #1A1A1A, Pitch green DMC 3362 #4A6741, Coral DMC 350 #CC3300.
 - Border spec: layers [{line, type, color}], cornerMotif {color, pattern[]}, sideMotifs [{position, color, pattern}], cornerInset. primary=black, secondary=green, accent=coral.
 
@@ -807,6 +808,17 @@ const KEVIN_TOOLS = [
         description: { type: 'string' },
         traits:      { type: 'array', items: { type: 'string' } },
         spec:        { type: 'object' },
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'getBorderSpec',
+    description: 'Get the full spec (layers, cornerMotif, sideMotifs) for a specific border by its id. Use this before creating a new border based on an existing one.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Border id from listBorders' },
       },
       required: ['id']
     }
@@ -977,6 +989,22 @@ async function executeKevinTool(toolName, toolInput, appData) {
     } catch(e) { return 'Undo failed: ' + e.message; }
   }
 
+  if (toolName === 'getBorderSpec') {
+    const id = toolInput.id;
+    if (!id) return 'Error: id is required.';
+    const border = (appData.borders || []).find(function(b) { return b.id === id; });
+    if (!border) return 'Border not found with id: ' + id;
+    const spec = border.spec || BORDER_SPECS[border.style] || null;
+    if (!spec) return 'Border "' + border.name + '" has no spec stored.';
+    return JSON.stringify({
+      id: border.id,
+      name: border.name,
+      style: border.style,
+      description: border.description,
+      spec: spec,
+    }, null, 2);
+  }
+
   if (toolName === 'createBorder') {
     try {
       const style = toolInput.style || toolInput.name.toLowerCase().replace(/\s+/g,'-');
@@ -1059,7 +1087,7 @@ async function askKevin(messages, context, appData) {
       headers: kevinHeaders(),
       body: JSON.stringify({
         model:      'claude-sonnet-4-6',
-        max_tokens: 1024,
+        max_tokens: 4096,
         system:     kevinSystemPrompt(context),
         tools:      KEVIN_TOOLS,
         messages:   apiMessages,
