@@ -190,7 +190,7 @@ function App() {
           onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
 
         {/* Screens — hidden on mobile when Kevin tab is active */}
-        <div className={tab === 'kevin' ? 'screen-hidden' : ''}>
+        <div className={tab === 'kevin' ? 'screen-hidden' : 'screen-wrapper'}>
           {tab==='shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
               tmCache={tmCache}
