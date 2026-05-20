@@ -16,7 +16,7 @@ const KEVIN_SUGGESTIONS = {
   ],
 };
 
-function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
+function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages, kevinVisible, onToggle }) {
   // Use lifted messages from App — persists across open/close
   // extMessages=null means not yet initialised
   const [input,    setInput]    = useState('');
@@ -96,8 +96,7 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
   const hasKey = keySaved || hasKevinApiKey();
 
   return (
-    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="kevin-sheet">
+    <div className="kevin-panel">
         {/* Header */}
         <div className="kevin-header">
           <div className="kevin-avatar">CK</div>
@@ -112,7 +111,12 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
             onClick={newConversation} title="Start new conversation">
             New chat
           </button>
-          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+          {/* Hide button — desktop only */}
+          <button className="btn-icon kevin-hide-btn" onClick={onClose} title="Hide Kevin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
         </div>
 
         {/* Messages */}

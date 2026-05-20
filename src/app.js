@@ -11,7 +11,7 @@ function App() {
   const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [toast,       showToast]      = useToast();
-  const [kevinOpen,   setKevinOpen]   = useState(false);
+  const [kevinVisible, setKevinVisible] = useState(function() { return window.innerWidth >= 768; });
   const [kevinMessages, setKevinMessages] = useState(null); // null = not yet initialised
   const [tmCache,     setTmCache]     = useState({});
   const fb = window.__firebase;
@@ -178,60 +178,74 @@ function App() {
 
   if (!authUser) return <SignInScreen onSignIn={handleSignIn} error={authError}/>;
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   return (
-    <div>
-      <TopBar user={authUser} onSignOut={handleSignOut}/>
+    <div className="app-layout">
 
-      {/* Screens */}
-      {tab==='shoutouts' && (
-        <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
-          tmCache={tmCache}
-          onSelect={function(s) { setSelShoutout(s); }}/>
-      )}
-      {tab==='borders' && (
-        <BordersScreen borders={borders} onSelect={function(b) { setSelBorder(b); }}/>
-      )}
+      {/* ── Main column ── */}
+      <div className={'app-main' + (kevinVisible && !isMobile ? ' panel-open' : '')}>
+        <TopBar user={authUser} onSignOut={handleSignOut}
+          kevinVisible={kevinVisible}
+          onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
 
-      {/* Bottom nav */}
-      <nav className="bottom-nav">
-        <button className={'nav-tab'+(tab==='shoutouts'?' active':'')}
-          onClick={function() { setTab('shoutouts'); }}>
-          <Ico.Shout/>
-          <span className="nav-tab-label">Shoutouts</span>
-        </button>
-        <button className={'nav-tab'+(tab==='borders'?' active':'')}
-          onClick={function() { setTab('borders'); }}>
-          <Ico.Border/>
-          <span className="nav-tab-label">Borders</span>
-        </button>
-      </nav>
+        {/* Screens — hidden on mobile when Kevin tab is active */}
+        <div className={tab === 'kevin' ? 'screen-hidden' : ''}>
+          {tab==='shoutouts' && (
+            <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
+              tmCache={tmCache}
+              onSelect={function(s) { setSelShoutout(s); }}/>
+          )}
+          {tab==='borders' && (
+            <BordersScreen borders={borders} onSelect={function(b) { setSelBorder(b); }}/>
+          )}
+        </div>
 
-      {/* Claude-Kevin button */}
-      <button className="kevin-btn" onClick={function() { setKevinOpen(true); }}
-        title="Ask Claude-Kevin">
-        CK
-        {Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; }) && (
-          <div className="kevin-badge"/>
+        {/* Bottom nav */}
+        <nav className="bottom-nav">
+          <button className={'nav-tab'+(tab==='shoutouts'?' active':'')}
+            onClick={function() { setTab('shoutouts'); }}>
+            <Ico.Shout/>
+            <span className="nav-tab-label">Shoutouts</span>
+          </button>
+          <button className={'nav-tab'+(tab==='borders'?' active':'')}
+            onClick={function() { setTab('borders'); }}>
+            <Ico.Border/>
+            <span className="nav-tab-label">Borders</span>
+          </button>
+          {/* Kevin tab — mobile only */}
+          <button className={'nav-tab nav-tab-kevin'+(tab==='kevin'?' active':'')}
+            onClick={function() { setTab('kevin'); setKevinVisible(true); }}>
+            <span className="nav-kevin-icon">CK</span>
+            <span className="nav-tab-label">Kevin</span>
+            {Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; }) && (
+              <div className="kevin-badge kevin-badge-nav"/>
+            )}
+          </button>
+        </nav>
+
+        {/* FAB — hide on Kevin tab */}
+        {tab !== 'kevin' && (
+          <button className="fab" title={tab==='shoutouts'?'New shoutout':'New border'}
+            onClick={function() { tab==='shoutouts' ? setEditShoutout('new') : setEditBorder('new'); }}>
+            <Ico.Plus/>
+          </button>
         )}
-      </button>
+      </div>
 
-      {/* FAB */}
-      <button className="fab" title={tab==='shoutouts'?'New shoutout':'New border'}
-        onClick={function() { tab==='shoutouts' ? setEditShoutout('new') : setEditBorder('new'); }}>
-        <Ico.Plus/>
-      </button>
-
-      {/* Kevin chat panel */}
-      {kevinOpen && (
+      {/* ── Kevin panel column ── */}
+      <div className={'app-kevin' + (kevinVisible ? ' kevin-visible' : '') + (tab === 'kevin' ? ' kevin-mobile-active' : '')}>
         <KevinChat
           context={kevinContext}
           uid={authUser.uid}
           appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
           messages={kevinMessages}
           setMessages={setKevinMessages}
-          onClose={function() { setKevinOpen(false); }}
+          onClose={function() { setKevinVisible(false); if (tab === 'kevin') setTab('shoutouts'); }}
+          kevinVisible={kevinVisible}
+          onToggle={function() { setKevinVisible(function(v) { return !v; }); }}
         />
-      )}
+      </div>
 
       {/* Shoutout detail */}
       {selShoutout && !editShoutout && (

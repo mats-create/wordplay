@@ -334,12 +334,17 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 /* ═══════════════════════════════════════════════════════════════════
    TOP BAR + USER MENU
 ═══════════════════════════════════════════════════════════════════ */
-function TopBar({ user, onSignOut }) {
+function TopBar({ user, onSignOut, kevinVisible, onToggleKevin }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="topbar">
       <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
       <div className="topbar-app-name">Wordplay</div>
+      {/* Kevin toggle — desktop only */}
+      <button className={'kevin-toggle-btn' + (kevinVisible ? ' active' : '')}
+        onClick={onToggleKevin} title={kevinVisible ? 'Hide Kevin' : 'Show Kevin'}>
+        CK
+      </button>
       <div style={{position:'relative'}}>
         <img className="topbar-avatar"
           src={user.photoURL||'https://via.placeholder.com/32'}
