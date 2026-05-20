@@ -289,12 +289,14 @@ const BORDER_SPECS = {
 
 function stitchColor(kind, threads) {
   const t = threads || [];
-  const black = t.find(function(x){ return x.hex&&x.hex.toLowerCase().startsWith('#1'); });
-  const green = t.find(function(x){ return x.hex&&(x.hex.toLowerCase().startsWith('#4')||x.hex.toLowerCase().startsWith('#3')); });
-  const coral = t.find(function(x){ return x.hex&&x.hex.toLowerCase().startsWith('#c'); });
-  const bk = black ? black.hex : '#1A1A1A';
-  const gn = green ? green.hex : '#4A6741';
-  const cr = coral ? coral.hex : '#CC3300';
+  // Thread roles by position:
+  // Thread 1 (index 0) = text colour   → kinds T, B, A, F
+  // Thread 2 (index 1) = border primary → kinds D, G
+  // Thread 3 (index 2) = border accent  → kinds E, S
+  // Falls back to brand defaults if a slot is empty
+  const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
+  const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
+  const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
   return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
 }
 

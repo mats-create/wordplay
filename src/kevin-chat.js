@@ -4,7 +4,7 @@
 const KEVIN_SUGGESTIONS = {
   shoutouts: [
     "Suggest new shoutouts",
-    "What makes a good border for football words?",
+    "How do thread colours work in the designs?",
     "Any trademark risks I should know about?",
     "What's a Worldie?",
   ],
@@ -12,7 +12,7 @@ const KEVIN_SUGGESTIONS = {
     "Tell me about Scandinavian embroidery",
     "What is Hardanger?",
     "Describe a Nordic border I could add",
-    "What's Blackwork embroidery?",
+    "How do thread colours work in the designs?",
   ],
 };
 
