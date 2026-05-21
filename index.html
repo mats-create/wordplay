@@ -296,7 +296,7 @@ html, body, #root {
 
 /* ── Thread editor ── */
 .thread-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
-.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr auto;
+.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr 64px auto;
   gap: 6px; align-items: center; }
 .thread-color-btn { width: 32px; height: 32px; border-radius: 6px;
   border: 1.5px solid var(--lgrey); cursor: pointer; padding: 0;
@@ -878,6 +878,22 @@ html, body, #root {
   cursor: pointer; outline: none;
 }
 .folder-select:focus { border-color: var(--black); }
+
+/* ── Thread length ── */
+.thread-length {
+  font-size: 11px; font-weight: 500; color: var(--grey);
+  text-align: right; white-space: nowrap;
+}
+.detail-thread-length {
+  font-size: 12px; font-weight: 500; color: var(--grey);
+  white-space: nowrap; flex-shrink: 0;
+}
+.form-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.form-label-row .form-label { margin-bottom: 0; }
+.btn-sm { font-size: 11px; padding: 4px 10px; }
 </style>
 </head>
 <body>
@@ -2184,15 +2200,32 @@ const BORDER_SPECS = {
 
 function stitchColor(kind, threads) {
   const t = threads || [];
-  // Thread roles by position:
-  // Thread 1 (index 0) = text colour   → kinds T, B, A, F
-  // Thread 2 (index 1) = border primary → kinds D, G
-  // Thread 3 (index 2) = border accent  → kinds E, S
-  // Falls back to brand defaults if a slot is empty
   const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
   const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
   const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
   return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
+}
+
+// ── Thread length calculator ──────────────────────────────────────────────────
+// Builds the grid and counts stitches per thread slot.
+// Formula: stitch_count × 2.5cm per stitch × 1.15 waste factor, rounded to 5cm.
+function calculateThreadLengths(word, cols, rows, borderStyle, threads) {
+  const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, 0, 2);
+  // Map cell kinds to thread slot index (0-based)
+  const kindToSlot = { 'T':0,'B':0,'A':0,'F':0, 'D':1,'G':1, 'E':2,'S':2 };
+  const counts = [0, 0, 0];
+  grid.forEach(function(row) {
+    row.forEach(function(kind) {
+      if (kind in kindToSlot) counts[kindToSlot[kind]]++;
+    });
+  });
+  const t = threads || [];
+  return t.map(function(thread, i) {
+    const cm = counts[i] !== undefined
+      ? Math.round((counts[i] * 2.5 * 1.15) / 5) * 5
+      : 0;
+    return { dmc: thread.dmc, name: thread.name, hex: thread.hex, cm: cm };
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2710,7 +2743,7 @@ function DmcPickerSheet({ currentHex, onSelect, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    THREAD ROW (form sub-component)
 ═══════════════════════════════════════════════════════════════════ */
-function ThreadRow({ thread, onChange, onRemove }) {
+function ThreadRow({ thread, onChange, onRemove, lengthCm }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   return (
     <>
@@ -2722,6 +2755,9 @@ function ThreadRow({ thread, onChange, onRemove }) {
           onChange={function(e) { onChange({...thread, name:e.target.value}); }}/>
         <input className="form-input" placeholder="DMC code" value={thread.dmc}
           onChange={function(e) { onChange({...thread, dmc:e.target.value}); }}/>
+        <div className="thread-length" title="Estimated thread length">
+          {lengthCm != null ? '~' + lengthCm + ' cm' : '—'}
+        </div>
         <button className="thread-remove" onClick={onRemove}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -2778,6 +2814,8 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   const [threads,   setThreads]   = useState(
     initial&&initial.threads&&initial.threads.length>0 ? initial.threads : DEFAULT_THREADS
   );
+  const [threadLengths, setThreadLengths] = useState(initial&&initial.threadLengths ? initial.threadLengths : []);
+  const [calculating,   setCalculating]   = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
@@ -2787,6 +2825,23 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   function removeThread(i)   { setThreads(p=>p.filter((_,idx)=>idx!==i)); }
   function addThread()       { setThreads(p=>[...p,{id:Date.now(),name:'',dmc:'',hex:'#666666',usage:''}]); }
 
+  function handleRecalculate() {
+    if (!name.trim() || !borderId) return;
+    setCalculating(true);
+    const border = borders.find(function(b) { return b.id === borderId; });
+    const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
+    setTimeout(function() {
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+      setThreadLengths(lengths);
+      setCalculating(false);
+    }, 0);
+  }
+
+  function getLengthCm(i) {
+    const entry = threadLengths[i];
+    return entry ? entry.cm : null;
+  }
+
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
       hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads};
@@ -2794,7 +2849,12 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
     if (hasErrors(errs)) return;
-    onSave(fields);
+    // Calculate fresh lengths before saving
+    const border = borders.find(function(b) { return b.id === borderId; });
+    const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+    setThreadLengths(lengths);
+    onSave({...fields, threadLengths: lengths});
   }
 
   return (
@@ -2864,11 +2924,19 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Threads</label>
+            <div className="form-label-row">
+              <label className="form-label">Threads</label>
+              <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
+                disabled={calculating || !name.trim() || !borderId}
+                title="Recalculate thread lengths">
+                {calculating ? 'Calculating…' : 'Recalculate lengths'}
+              </button>
+            </div>
             <div className="thread-list">
               {threads.map((t,i)=>(
                 <ThreadRow key={t.id||i} thread={t}
-                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}/>
+                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}
+                  lengthCm={getLengthCm(i)}/>
               ))}
             </div>
             <button className="add-thread-btn" onClick={addThread}>
@@ -3272,15 +3340,22 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         {shoutout.threads&&shoutout.threads.length>0 && (
           <div className="detail-section">
             <div className="detail-section-label">Threads</div>
-            {shoutout.threads.map((t,i)=>(
-              <div className="detail-thread-row" key={i}>
-                <div className="detail-swatch" style={{background:t.hex}}/>
-                <div>
-                  <div className="detail-thread-name">{t.name}</div>
-                  <div className="detail-thread-dmc">{t.dmc}{t.usage?'  ·  '+t.usage:''}</div>
+            {shoutout.threads.map(function(t,i) {
+              const lengthEntry = shoutout.threadLengths && shoutout.threadLengths[i];
+              const cm = lengthEntry ? lengthEntry.cm : null;
+              return (
+                <div className="detail-thread-row" key={i}>
+                  <div className="detail-swatch" style={{background:t.hex}}/>
+                  <div style={{flex:1}}>
+                    <div className="detail-thread-name">{t.name}</div>
+                    <div className="detail-thread-dmc">{t.dmc}{t.usage?'  ·  '+t.usage:''}</div>
+                  </div>
+                  <div className="detail-thread-length">
+                    {cm != null ? '~' + cm + ' cm' : '—'}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
