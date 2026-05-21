@@ -894,6 +894,22 @@ html, body, #root {
 }
 .form-label-row .form-label { margin-bottom: 0; }
 .btn-sm { font-size: 11px; padding: 4px 10px; }
+
+/* ── Text size toggle ── */
+.size-toggle {
+  display: flex; gap: 0;
+  border: 1.5px solid var(--lgrey); border-radius: var(--radius-sm);
+  overflow: hidden; width: fit-content;
+}
+.size-btn {
+  padding: 7px 16px; border: none; background: var(--white);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
+  border-right: 1px solid var(--lgrey);
+}
+.size-btn:last-child { border-right: none; }
+.size-btn:hover { background: var(--offwht); color: var(--black); }
+.size-btn.active { background: var(--black); color: var(--white); }
 </style>
 </head>
 <body>
@@ -2209,8 +2225,8 @@ function stitchColor(kind, threads) {
 // ── Thread length calculator ──────────────────────────────────────────────────
 // Builds the grid and counts stitches per thread slot.
 // Formula: stitch_count × 2.5cm per stitch × 1.15 waste factor, rounded to 5cm.
-function calculateThreadLengths(word, cols, rows, borderStyle, threads) {
-  const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, 0, 2);
+function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScale) {
+  const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, textScale || 0, 2);
   // Map cell kinds to thread slot index (0-based)
   const kindToSlot = { 'T':0,'B':0,'A':0,'F':0, 'D':1,'G':1, 'E':2,'S':2 };
   const counts = [0, 0, 0];
@@ -2231,7 +2247,7 @@ function calculateThreadLengths(word, cols, rows, borderStyle, threads) {
 /* ═══════════════════════════════════════════════════════════════════
    CANVAS COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className }) {
+function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale }) {
   const canvasRef = useRef(null);
   cols = cols||110; rows = rows||110;
 
@@ -2246,7 +2262,7 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.fillStyle = '#F0E6D3';
     ctx.fillRect(0,0,px,px);
 
-    const grid = buildGrid(word, cols, rows, borderStyle, 0, 2); // 0 = auto-scale
+    const grid = buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
     const pad = cell*0.1;
     const lw  = Math.max(cell*0.24, 0.5);
 
@@ -2816,6 +2832,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   );
   const [threadLengths, setThreadLengths] = useState(initial&&initial.threadLengths ? initial.threadLengths : []);
   const [calculating,   setCalculating]   = useState(false);
+  const [textScale,     setTextScale]     = useState(initial&&initial.textScale ? initial.textScale : 0);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
@@ -2831,7 +2848,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
     const border = borders.find(function(b) { return b.id === borderId; });
     const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
     setTimeout(function() {
-      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale);
       setThreadLengths(lengths);
       setCalculating(false);
     }, 0);
@@ -2844,15 +2861,14 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
 
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
-      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads};
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,textScale};
     const errs = validateShoutout(fields);
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
     if (hasErrors(errs)) return;
-    // Calculate fresh lengths before saving
     const border = borders.find(function(b) { return b.id === borderId; });
     const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
-    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale);
     setThreadLengths(lengths);
     onSave({...fields, threadLengths: lengths});
   }
@@ -2874,6 +2890,26 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
               onChange={e=>setName(e.target.value)}
               onBlur={()=>touch('name')} autoFocus/>
             {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Text size</label>
+            <div className="size-toggle">
+              {[{label:'Small', value:1},{label:'Normal', value:0},{label:'Large', value:3}].map(function(opt) {
+                return (
+                  <button key={opt.label}
+                    className={'size-btn' + (textScale === opt.value ? ' active' : '')}
+                    onClick={function() { setTextScale(opt.value); }}>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="form-hint">
+              {textScale === 0 ? 'Auto — best fit for the word' :
+               textScale === 1 ? 'Small — fits longer words' :
+               'Large — bold impact for short words'}
+            </div>
           </div>
 
           <div className="form-group">
@@ -3326,6 +3362,8 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           {shoutout.stitchesW} × {shoutout.stitchesH} stitches
           &nbsp;·&nbsp; {shoutout.hoopW} × {shoutout.hoopH}mm hoop
           &nbsp;·&nbsp; 14-count Aida
+          {shoutout.textScale === 1 && <span>&nbsp;·&nbsp; Small text</span>}
+          {shoutout.textScale === 3 && <span>&nbsp;·&nbsp; Large text</span>}
           {shoutout.borderName && <span>&nbsp;·&nbsp; {shoutout.borderName} border</span>}
           {shoutout.createdAt && <span>&nbsp;·&nbsp; {formatDate(shoutout.createdAt)}</span>}
         </div>
@@ -3334,7 +3372,8 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <div className="detail-section-label">Pattern</div>
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
-            borderStyle={bs} threads={shoutout.threads} size={550}/>
+            borderStyle={bs} threads={shoutout.threads}
+            textScale={shoutout.textScale||0} size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (
@@ -3787,6 +3826,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activ
                   cols={s.stitchesW} rows={s.stitchesH}
                   borderStyle={s.borderSpec||s.borderStyle||'british'}
                   threads={s.threads} size={220}
+                  textScale={s.textScale||0}
                   className="canvas-thumb"/>
                 <div className="card-title">{s.name}</div>
                 <div className="card-sub">
