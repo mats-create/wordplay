@@ -22,7 +22,38 @@ Remove leftover Cloud Function infrastructure from a failed earlier attempt.
 
 ---
 
-### 2. Bold / normal font toggle
+### 2. Thread length calculation
+
+**User story:** As a producing user, I want to see the estimated length of thread required per colour to complete a shoutout embroidery (border and words), so I can efficiently assemble kits and monitor stock.
+
+**Calculation method:**
+- Count stitches per thread slot from the rendered grid (same grid as canvas)
+- Formula per thread: `stitch_count × 2.5cm × 1.15` (2.5cm per stitch, 15% waste factor for tying off)
+- Result rounded to nearest 5cm
+- Calculation is grid-agnostic — works correctly for any design regardless of bold/normal, single/multi-row, or border style
+
+**Triggers:**
+- Runs automatically on shoutout save (create or update)
+- Stored as `threadLengths: [{dmc, cm}]` on the Firestore document
+- Manual "Recalculate" button in the edit form triggers against current unsaved state
+- Recalculate button shows brief "Calculating…" state
+
+**Display — detail view:**
+- Read-only length shown per thread row: e.g. `~145 cm`
+- Shows `—` if no calculation has been run yet
+
+**Display — edit form:**
+- Same read-only field per thread row, from last saved calculation
+- Updates after manual recalculate, not live while editing
+
+**Out of scope:** total combined length, low-stock warnings, per-section breakdown (border vs words)
+
+**Files:** `grid.js`, `components.js`, `sheets.js`, `app.js`  
+**Complexity:** Medium
+
+---
+
+### 3. Bold / normal font toggle
 Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle stored on the shoutout, passed into `buildGrid`, which selects the right map.
 
 **Scope:**
@@ -36,7 +67,7 @@ Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle s
 
 ---
 
-### 3. Thread roles 4–6
+### 4. Thread roles 4–6
 Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras.
 
 **Scope:**
@@ -51,7 +82,7 @@ Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras
 
 ---
 
-### 4. Multi-row shoutouts
+### 5. Multi-row shoutouts
 User enters text with explicit line breaks. Each line independently scaled to fill available width.
 
 **Scope:**
@@ -65,7 +96,7 @@ User enters text with explicit line breaks. Each line independently scaled to fi
 
 ---
 
-### 5. Aida print orientation selector *(low priority)*
+### 6. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
