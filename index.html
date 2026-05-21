@@ -137,10 +137,7 @@ html, body, #root {
   max-width: 640px; margin: 0 auto; width: 100%;
   box-sizing: border-box;
 }
-.screen-header {
-  padding: 12px 0 14px;
-  display: flex; align-items: baseline; gap: 8px;
-}
+.screen-header { /* see search section below */ }
 .screen-title { font-size: 22px; font-weight: 700; }
 .screen-count { font-size: 13px; color: var(--grey); }
 
@@ -788,6 +785,99 @@ html, body, #root {
 
 /* Misc */
 .screen-hidden { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   SEARCH
+═══════════════════════════════════════════════════════════════════ */
+.screen-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px; flex-wrap: wrap;
+}
+.search-wrap {
+  display: flex; align-items: center; gap: 0;
+  background: var(--offwht); border: 1.5px solid var(--lgrey);
+  border-radius: 20px; padding: 0 10px;
+  transition: border-color 0.15s; margin-left: auto;
+}
+.search-wrap:focus-within { border-color: var(--black); background: var(--white); }
+.search-icon { width: 15px; height: 15px; color: var(--grey); flex-shrink: 0; }
+.search-input {
+  border: none; background: transparent; outline: none;
+  font-family: inherit; font-size: 13px; padding: 7px 6px;
+  width: 140px; color: var(--black);
+}
+.search-input::placeholder { color: var(--grey); }
+.search-clear {
+  width: 20px; height: 20px; border: none; background: none;
+  cursor: pointer; color: var(--grey); display: flex;
+  align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
+}
+.search-clear:hover { color: var(--black); }
+.search-clear svg { width: 12px; height: 12px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FOLDERS
+═══════════════════════════════════════════════════════════════════ */
+.folder-bar {
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; padding-bottom: 12px;
+}
+.folder-pill {
+  padding: 4px 12px; border-radius: 20px;
+  border: 1.5px solid var(--lgrey); background: var(--white);
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
+}
+.folder-pill:hover { border-color: var(--black); color: var(--black); }
+.folder-pill.active {
+  background: var(--black); border-color: var(--black); color: var(--white);
+}
+.folder-pill-wrap { position: relative; display: flex; align-items: center; gap: 2px; }
+.folder-pill-menu {
+  width: 22px; height: 22px; border: none; background: none;
+  cursor: pointer; color: var(--grey); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; transition: all 0.15s; padding: 0;
+}
+.folder-pill-menu:hover { background: var(--offwht); color: var(--black); }
+.folder-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  background: var(--surface); border: 1px solid var(--lgrey);
+  border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100; min-width: 120px; overflow: hidden;
+}
+.folder-dropdown button {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 14px; border: none; background: none;
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  color: var(--black); transition: background 0.1s;
+}
+.folder-dropdown button:hover { background: var(--offwht); }
+.folder-dropdown button.danger { color: var(--coral); }
+.folder-add {
+  padding: 4px 10px; border-radius: 20px;
+  border: 1.5px dashed var(--lgrey); background: transparent;
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
+}
+.folder-add:hover { border-color: var(--coral); color: var(--coral); }
+
+/* Folder tag on card */
+.card-folder-tag {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--black); color: var(--white);
+  font-size: 10px; font-weight: 500; padding: 2px 7px;
+  border-radius: 10px; opacity: 0.7;
+}
+
+/* Folder select in detail panel */
+.folder-select {
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--lgrey); background: var(--white);
+  font-family: inherit; font-size: 12px; color: var(--black);
+  cursor: pointer; outline: none;
+}
+.folder-select:focus { border-color: var(--black); }
 </style>
 </head>
 <body>
@@ -1090,7 +1180,9 @@ Example enlarged 11x11 (expanded lattice): ["00000000000","00111010110","0101010
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.`;
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+
+Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
 }
 
 // ── Kevin tool definitions ────────────────────────────────────────────────────
@@ -3141,7 +3233,7 @@ function AidaOptionsSheet({ shoutout, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUT DETAIL
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
+function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
   const [showAidaOptions, setShowAidaOptions] = useState(false);
   const [chartGenerating, setChartGenerating] = useState(false);
 
@@ -3201,6 +3293,14 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
 
         <div className="detail-actions">
           <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
+          {folders && folders.length > 0 && (
+            <select className="folder-select"
+              value={shoutout.folder || ''}
+              onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+              <option value="">No folder</option>
+              {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+            </select>
+          )}
           <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}>
             <Ico.Edit/> Edit
           </button>
@@ -3336,7 +3436,7 @@ function BorderForm({ initial, onSave, onClose, saving }) {
 /* ═══════════════════════════════════════════════════════════════════
    BORDER DETAIL
 ═══════════════════════════════════════════════════════════════════ */
-function BorderDetail({ border, onEdit, onDelete, onClose }) {
+function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="sheet">
@@ -3383,6 +3483,14 @@ function BorderDetail({ border, onEdit, onDelete, onClose }) {
         <div className="detail-actions">
           {!border.builtIn && (
             <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
+          )}
+          {folders && folders.length > 0 && (
+            <select className="folder-select"
+              value={border.folder || ''}
+              onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+              <option value="">No folder</option>
+              {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+            </select>
           )}
           <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}
             disabled={border.builtIn}>
@@ -3493,26 +3601,113 @@ function SignInScreen({ onSignIn, error }) {
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ---- src/screens.js ---- */
-function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect }) {
+/* ═══════════════════════════════════════════════════════════════════
+   SHOUTOUTS SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+  const [query, setQuery] = useState('');
+  const [folderMenu, setFolderMenu] = useState(null); // folder name with open menu
+
+  const filtered = useMemo(function() {
+    let list = shoutouts;
+    if (activeFolder) {
+      list = list.filter(function(s) { return s.folder === activeFolder; });
+    }
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(function(s) { return s.name && s.name.toLowerCase().includes(q); });
+    }
+    return list;
+  }, [shoutouts, activeFolder, query]);
+
+  const total = activeFolder ? shoutouts.filter(function(s) { return s.folder === activeFolder; }).length : shoutouts.length;
+  const showCount = query.trim() && filtered.length !== total
+    ? filtered.length + ' of ' + total
+    : total;
+  const noun = total === 1 ? 'shoutout' : 'shoutouts';
+
   return (
     <div className="screen">
+      {/* Header row */}
       <div className="screen-header">
         <span className="screen-title">Football shoutouts</span>
-        <span className="screen-count">{shoutouts.length} {shoutouts.length===1?'shoutout':'shoutouts'}</span>
+        <span className="screen-count">{showCount} {noun}</span>
+        <div className="search-wrap">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input className="search-input" placeholder="Search…" value={query}
+            onChange={function(e) { setQuery(e.target.value); }}/>
+          {query && (
+            <button className="search-clear" onClick={function() { setQuery(''); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
-      {shoutouts.length===0 ? (
+
+      {/* Folder pills */}
+      <div className="folder-bar">
+        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
+          onClick={function() { onFolderChange(null); }}>All</button>
+        {folders.map(function(f) {
+          return (
+            <div key={f} className="folder-pill-wrap">
+              <button className={'folder-pill' + (activeFolder === f ? ' active' : '')}
+                onClick={function() { onFolderChange(f); }}>{f}</button>
+              <button className="folder-pill-menu" onClick={function(e) {
+                e.stopPropagation();
+                setFolderMenu(folderMenu === f ? null : f);
+              }}>⋯</button>
+              {folderMenu === f && (
+                <div className="folder-dropdown">
+                  <button onClick={function() {
+                    const name = window.prompt('Rename folder:', f);
+                    if (name && name.trim() && name.trim() !== f) {
+                      onFolderRename('shoutouts', f, name.trim());
+                    }
+                    setFolderMenu(null);
+                  }}>Rename</button>
+                  <button className="danger" onClick={function() {
+                    if (window.confirm('Delete folder "' + f + '"? Shoutouts will become unfiled.')) {
+                      onFolderDelete('shoutouts', f);
+                    }
+                    setFolderMenu(null);
+                  }}>Delete</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <button className="folder-add" onClick={function() {
+          const name = window.prompt('New folder name:');
+          if (name && name.trim()) onFolderCreate('shoutouts', name.trim());
+        }}>+ Folder</button>
+      </div>
+
+      {/* Cards */}
+      {shoutouts.length === 0 ? (
         <div className="empty">
           <span className="empty-icon">🧵</span>
           <h3>No shoutouts yet</h3>
           <p>Tap + to create your first football shoutout, or ask Claude-Kevin for ideas.</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon">🔍</span>
+          <h3>No results</h3>
+          <p>{query ? 'No shoutouts match "' + query + '".' : 'No shoutouts in this folder.'}</p>
+        </div>
       ) : (
         <div className="card-grid">
-          {shoutouts.map(function(s) {
+          {filtered.map(function(s) {
             const tm = tmCache && tmCache[s.name];
             return (
               <div key={s.id} className="card" onClick={function() { onSelect(s); }}>
                 <div className="card-badge">{s.borderName||'No border'}</div>
+                {s.folder && <div className="card-folder-tag">{s.folder}</div>}
                 <CrossStitchCanvas word={s.name}
                   cols={s.stitchesW} rows={s.stitchesH}
                   borderStyle={s.borderSpec||s.borderStyle||'british'}
@@ -3547,38 +3742,126 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect }) {
 /* ═══════════════════════════════════════════════════════════════════
    BORDERS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function BordersScreen({ borders, onSelect }) {
+function BordersScreen({ borders, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+  const [query, setQuery] = useState('');
+  const [folderMenu, setFolderMenu] = useState(null);
+
+  const filtered = useMemo(function() {
+    let list = borders;
+    if (activeFolder) {
+      list = list.filter(function(b) { return b.folder === activeFolder; });
+    }
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(function(b) {
+        return (b.name && b.name.toLowerCase().includes(q))
+          || (b.style && b.style.toLowerCase().includes(q))
+          || (b.traits && b.traits.some(function(t) { return t.toLowerCase().includes(q); }));
+      });
+    }
+    return list;
+  }, [borders, activeFolder, query]);
+
+  const total = activeFolder ? borders.filter(function(b) { return b.folder === activeFolder; }).length : borders.length;
+  const showCount = query.trim() && filtered.length !== total
+    ? filtered.length + ' of ' + total
+    : total;
+  const noun = total === 1 ? 'border' : 'borders';
+
   return (
     <div className="screen">
       <div className="screen-header">
         <span className="screen-title">Border library</span>
-        <span className="screen-count">{borders.length} {borders.length===1?'border':'borders'}</span>
+        <span className="screen-count">{showCount} {noun}</span>
+        <div className="search-wrap">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input className="search-input" placeholder="Search…" value={query}
+            onChange={function(e) { setQuery(e.target.value); }}/>
+          {query && (
+            <button className="search-clear" onClick={function() { setQuery(''); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
-      {borders.length===0 ? (
+
+      {/* Folder pills */}
+      <div className="folder-bar">
+        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
+          onClick={function() { onFolderChange(null); }}>All</button>
+        {folders.map(function(f) {
+          return (
+            <div key={f} className="folder-pill-wrap">
+              <button className={'folder-pill' + (activeFolder === f ? ' active' : '')}
+                onClick={function() { onFolderChange(f); }}>{f}</button>
+              <button className="folder-pill-menu" onClick={function(e) {
+                e.stopPropagation();
+                setFolderMenu(folderMenu === f ? null : f);
+              }}>⋯</button>
+              {folderMenu === f && (
+                <div className="folder-dropdown">
+                  <button onClick={function() {
+                    const name = window.prompt('Rename folder:', f);
+                    if (name && name.trim() && name.trim() !== f) {
+                      onFolderRename('borders', f, name.trim());
+                    }
+                    setFolderMenu(null);
+                  }}>Rename</button>
+                  <button className="danger" onClick={function() {
+                    if (window.confirm('Delete folder "' + f + '"? Borders will become unfiled.')) {
+                      onFolderDelete('borders', f);
+                    }
+                    setFolderMenu(null);
+                  }}>Delete</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <button className="folder-add" onClick={function() {
+          const name = window.prompt('New folder name:');
+          if (name && name.trim()) onFolderCreate('borders', name.trim());
+        }}>+ Folder</button>
+      </div>
+
+      {borders.length === 0 ? (
         <div className="empty">
           <span className="empty-icon">🪡</span>
           <h3>No borders yet</h3>
           <p>Tap + to add a custom border style.</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon">🔍</span>
+          <h3>No results</h3>
+          <p>{query ? 'No borders match "' + query + '".' : 'No borders in this folder.'}</p>
+        </div>
       ) : (
         <div className="card-grid">
-          {borders.map(b=>(
-            <div key={b.id} className="card" onClick={()=>onSelect(b)}>
-              {b.builtIn && <div className="card-badge">Built-in</div>}
-              <CrossStitchCanvas word="ABC" cols={60} rows={60}
-                borderStyle={b.style} threads={DEFAULT_THREADS} size={220}
-                className="canvas-thumb"/>
-              <div className="card-title">{b.name}</div>
-              {b.description && (
-                <div className="card-desc">{b.description.slice(0,90)}{b.description.length>90?'…':''}</div>
-              )}
-              {b.traits&&b.traits.length>0 && (
-                <div className="card-traits">
-                  {b.traits.slice(0,4).map(t=><span key={t} className="trait-chip">{t}</span>)}
-                </div>
-              )}
-            </div>
-          ))}
+          {filtered.map(function(b) {
+            return (
+              <div key={b.id} className="card" onClick={function() { onSelect(b); }}>
+                {b.builtIn && <div className="card-badge">Built-in</div>}
+                {b.folder && <div className="card-folder-tag">{b.folder}</div>}
+                <CrossStitchCanvas word="ABC" cols={60} rows={60}
+                  borderStyle={b.spec || b.style} threads={DEFAULT_THREADS} size={220}
+                  className="canvas-thumb"/>
+                <div className="card-title">{b.name}</div>
+                {b.description && (
+                  <div className="card-desc">{b.description.slice(0,90)}{b.description.length>90?'…':''}</div>
+                )}
+                {b.traits&&b.traits.length>0 && (
+                  <div className="card-traits">
+                    {b.traits.slice(0,4).map(function(t) { return <span key={t} className="trait-chip">{t}</span>; })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -3604,8 +3887,12 @@ function App() {
   const [saving,      setSaving]      = useState(false);
   const [toast,       showToast]      = useToast();
   const [kevinVisible, setKevinVisible] = useState(function() { return window.innerWidth >= 768; });
-  const [kevinMessages, setKevinMessages] = useState(null); // null = not yet initialised
+  const [kevinMessages, setKevinMessages] = useState(null);
   const [tmCache,     setTmCache]     = useState({});
+  const [shoutoutFolders, setShoutoutFolders] = useState([]);
+  const [borderFolders,   setBorderFolders]   = useState([]);
+  const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
+  const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -3615,18 +3902,115 @@ function App() {
       shoutoutCount: shoutouts.length,
       shoutoutNames: shoutouts.map(function(s) { return s.name; }).join(', ') || 'none',
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
+      shoutoutFolders: shoutoutFolders.join(', ') || 'none',
+      borderFolders: borderFolders.join(', ') || 'none',
     };
-  }, [tab, shoutouts, borders]);
+  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders]);
 
   // ── Auth ──
   useEffect(function(){
     const unsub = fb.onAuthStateChanged(fb.auth, function(u) {
       setAuthUser(u||null);
-      if (u) loadKevinKeyFromFirestore(u.uid);
-      else setKevinApiKey('');
+      if (u) {
+        loadKevinKeyFromFirestore(u.uid);
+        loadFolders(u.uid);
+      } else {
+        setKevinApiKey('');
+        setShoutoutFolders([]); setBorderFolders([]);
+      }
     });
     return function(){ unsub(); };
   },[]);
+
+  // ── Folders — load/save ──
+  async function loadFolders(uid) {
+    try {
+      const snap = await fb.getDoc(fb.doc(fb.db,'users',uid,'settings','folders'));
+      if (snap.exists()) {
+        const d = snap.data();
+        setShoutoutFolders(d.shoutoutFolders || []);
+        setBorderFolders(d.borderFolders || []);
+      }
+    } catch(e) { console.warn('Folder load failed:', e); }
+  }
+
+  async function saveFolders(uid, sf, bf) {
+    try {
+      await fb.setDoc(fb.doc(fb.db,'users',uid,'settings','folders'),
+        { shoutoutFolders: sf, borderFolders: bf });
+    } catch(e) { console.warn('Folder save failed:', e); }
+  }
+
+  function handleFolderCreate(type, name) {
+    if (type === 'shoutouts') {
+      if (shoutoutFolders.includes(name)) return;
+      const next = [...shoutoutFolders, name];
+      setShoutoutFolders(next);
+      saveFolders(authUser.uid, next, borderFolders);
+    } else {
+      if (borderFolders.includes(name)) return;
+      const next = [...borderFolders, name];
+      setBorderFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, next);
+    }
+  }
+
+  async function handleFolderRename(type, oldName, newName) {
+    if (type === 'shoutouts') {
+      const next = shoutoutFolders.map(function(f) { return f === oldName ? newName : f; });
+      setShoutoutFolders(next);
+      saveFolders(authUser.uid, next, borderFolders);
+      if (activeShoutoutFolder === oldName) setActiveShoutoutFolder(newName);
+      // Update all shoutouts in that folder
+      const batch = shoutouts.filter(function(s) { return s.folder === oldName; });
+      for (const s of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: newName });
+      }
+    } else {
+      const next = borderFolders.map(function(f) { return f === oldName ? newName : f; });
+      setBorderFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, next);
+      if (activeBorderFolder === oldName) setActiveBorderFolder(newName);
+      const batch = borders.filter(function(b) { return b.folder === oldName; });
+      for (const b of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { folder: newName });
+      }
+    }
+  }
+
+  async function handleFolderDelete(type, name) {
+    if (type === 'shoutouts') {
+      const next = shoutoutFolders.filter(function(f) { return f !== name; });
+      setShoutoutFolders(next);
+      saveFolders(authUser.uid, next, borderFolders);
+      if (activeShoutoutFolder === name) setActiveShoutoutFolder(null);
+      // Unfile all shoutouts in that folder
+      const batch = shoutouts.filter(function(s) { return s.folder === name; });
+      for (const s of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: null });
+      }
+    } else {
+      const next = borderFolders.filter(function(f) { return f !== name; });
+      setBorderFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, next);
+      if (activeBorderFolder === name) setActiveBorderFolder(null);
+      const batch = borders.filter(function(b) { return b.folder === name; });
+      for (const b of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { folder: null });
+      }
+    }
+  }
+
+  async function handleMoveToFolder(type, itemId, folder) {
+    try {
+      if (type === 'shoutout') {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId), { folder: folder || null });
+      } else {
+        await fb.updateDoc(fb.doc(fb.db,'borders',itemId), { folder: folder || null });
+      }
+      showToast(folder ? 'Moved to ' + folder : 'Removed from folder');
+    } catch(e) { showToast('Move failed — try again'); }
+  }
 
   // ── Seed built-in borders once ──
   async function seedBorders() {
@@ -3790,11 +4174,23 @@ function App() {
           {tab === 'shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
               tmCache={tmCache}
-              onSelect={function(s) { setSelShoutout(s); }}/>
+              onSelect={function(s) { setSelShoutout(s); }}
+              folders={shoutoutFolders}
+              activeFolder={activeShoutoutFolder}
+              onFolderChange={setActiveShoutoutFolder}
+              onFolderCreate={handleFolderCreate}
+              onFolderRename={handleFolderRename}
+              onFolderDelete={handleFolderDelete}/>
           )}
           {tab === 'borders' && (
             <BordersScreen borders={borders}
-              onSelect={function(b) { setSelBorder(b); }}/>
+              onSelect={function(b) { setSelBorder(b); }}
+              folders={borderFolders}
+              activeFolder={activeBorderFolder}
+              onFolderChange={setActiveBorderFolder}
+              onFolderCreate={handleFolderCreate}
+              onFolderRename={handleFolderRename}
+              onFolderDelete={handleFolderDelete}/>
           )}
         </div>
 
@@ -3870,7 +4266,9 @@ function App() {
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
           onEdit={function() { setEditShoutout(selShoutout); }}
-          onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}/>
+          onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
+          folders={shoutoutFolders}
+          onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
       )}
       {editShoutout && (
         <ShoutoutForm
@@ -3884,7 +4282,9 @@ function App() {
         <BorderDetail border={selBorder}
           onClose={function() { setSelBorder(null); }}
           onEdit={function() { setEditBorder(selBorder); }}
-          onDelete={function() { setConfirmDel({type:'border',id:selBorder.id}); }}/>
+          onDelete={function() { setConfirmDel({type:'border',id:selBorder.id}); }}
+          folders={borderFolders}
+          onMoveToFolder={function(folder) { handleMoveToFolder('border', selBorder.id, folder); }}/>
       )}
       {editBorder && (
         <BorderForm
