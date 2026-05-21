@@ -38,21 +38,7 @@
 
 ---
 
-### 1. Bold / normal font toggle
-Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle stored on the shoutout, passed into `buildGrid`, which selects the right map.
-
-**Scope:**
-- Design 26+ bold bitmaps (7 rows tall, consistent with existing style)
-- Add `bold` boolean field to shoutout form (toggle: Normal / Bold)
-- `buildGrid` accepts `bold` param, selects `LETTERS` or `LETTERS_BOLD`
-- Canvas and all export paths (SVG, PDF) pick it up automatically
-
-**Files:** `constants.js`, `grid.js`, `components.js`  
-**Complexity:** Low–medium (code is simple; bitmap design takes care)
-
----
-
-### 2. Thread roles 4–6
+### 1. Thread roles 4–6
 Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras.
 
 **Scope:**
@@ -67,7 +53,7 @@ Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras
 
 ---
 
-### 3. Multi-row shoutouts
+### 2. Multi-row shoutouts
 User enters text with explicit line breaks. Each line independently scaled to fill available width.
 
 **Scope:**
@@ -81,7 +67,7 @@ User enters text with explicit line breaks. Each line independently scaled to fi
 
 ---
 
-### 4. Aida print orientation selector *(low priority)*
+### 3. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
@@ -93,6 +79,7 @@ Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. L
 
 | Feature | Notes |
 |---------|-------|
+| Text size toggle | Small/Normal/Large segmented control, Normal=auto-scale default |
 | Thread length calculation | Per-thread cm estimate in detail view and edit form, auto-calc on save |
 | Infrastructure cleanup | Cloud Function deleted, Firebase downgraded to Spark, repo cleaned |
 | Search / filter | Live search bar in both screens, filters by name/style/traits |
