@@ -8,38 +8,7 @@
 
 ## Active priorities (in order)
 
-### 1. Search / filter
-Client-side search for shoutouts and borders. No backend needed — filter the in-memory arrays.
-
-**Scope:**
-- Search bar in ShoutoutsScreen and BordersScreen
-- Filter by name/word for shoutouts, by name/style/trait for borders
-- Live filtering as user types (no submit)
-- Clear button when query is active
-- Works alongside folder filter (when folders are added)
-
-**Files:** `screens.js`, `style.css`  
-**Complexity:** Low
-
----
-
-### 2. Folder structure (tag-based)
-Add a `folder` string field to shoutouts and borders in Firestore. Folders are a filter/grouping on the list view — no Firestore restructuring needed.
-
-**Scope:**
-- Add `folder` field to shoutout and border documents
-- Folder management UI: create, rename, delete folders (stored as a user settings document in Firestore)
-- Move shoutout/border to folder from detail view
-- Filter list view by folder (sidebar or dropdown)
-- Kevin aware: can assign a folder when creating/updating shoutouts and borders
-- Default: no folder = shown in "All"
-
-**Files:** `app.js`, `screens.js`, `sheets.js`, `style.css`, `kevin.js`  
-**Complexity:** Medium
-
----
-
-### 3. Infrastructure cleanup
+### 1. Infrastructure cleanup
 Remove leftover Cloud Function infrastructure from a failed earlier attempt.
 
 **Steps:**
@@ -53,7 +22,7 @@ Remove leftover Cloud Function infrastructure from a failed earlier attempt.
 
 ---
 
-### 4. Bold / normal font toggle
+### 2. Bold / normal font toggle
 Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle stored on the shoutout, passed into `buildGrid`, which selects the right map.
 
 **Scope:**
@@ -67,7 +36,7 @@ Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle s
 
 ---
 
-### 5. Thread roles 4–6
+### 3. Thread roles 4–6
 Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras.
 
 **Scope:**
@@ -82,7 +51,7 @@ Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras
 
 ---
 
-### 6. Multi-row shoutouts
+### 4. Multi-row shoutouts
 User enters text with explicit line breaks. Each line independently scaled to fill available width.
 
 **Scope:**
@@ -96,7 +65,7 @@ User enters text with explicit line breaks. Each line independently scaled to fi
 
 ---
 
-### 7. Aida print orientation selector *(low priority)*
+### 5. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
@@ -108,6 +77,8 @@ Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. L
 
 | Feature | Notes |
 |---------|-------|
+| Search / filter | Live search bar in both screens, filters by name/style/traits |
+| Folder structure | Tag-based, Firestore-backed, folder pills + move-to-folder in detail |
 | Kevin markdown rendering | marked.js CDN, system prompt tightened |
 | Favicon | Cross-stitch X + coral L-bracket corners, all sizes |
 | DMC colour picker | 324 colours, replaces native color input on thread rows |
