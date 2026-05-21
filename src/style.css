@@ -835,3 +835,19 @@ html, body, #root {
 }
 .form-label-row .form-label { margin-bottom: 0; }
 .btn-sm { font-size: 11px; padding: 4px 10px; }
+
+/* ── Text size toggle ── */
+.size-toggle {
+  display: flex; gap: 0;
+  border: 1.5px solid var(--lgrey); border-radius: var(--radius-sm);
+  overflow: hidden; width: fit-content;
+}
+.size-btn {
+  padding: 7px 16px; border: none; background: var(--white);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
+  border-right: 1px solid var(--lgrey);
+}
+.size-btn:last-child { border-right: none; }
+.size-btn:hover { background: var(--offwht); color: var(--black); }
+.size-btn.active { background: var(--black); color: var(--white); }

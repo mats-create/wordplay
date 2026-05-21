@@ -86,6 +86,8 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           {shoutout.stitchesW} × {shoutout.stitchesH} stitches
           &nbsp;·&nbsp; {shoutout.hoopW} × {shoutout.hoopH}mm hoop
           &nbsp;·&nbsp; 14-count Aida
+          {shoutout.textScale === 1 && <span>&nbsp;·&nbsp; Small text</span>}
+          {shoutout.textScale === 3 && <span>&nbsp;·&nbsp; Large text</span>}
           {shoutout.borderName && <span>&nbsp;·&nbsp; {shoutout.borderName} border</span>}
           {shoutout.createdAt && <span>&nbsp;·&nbsp; {formatDate(shoutout.createdAt)}</span>}
         </div>
@@ -94,7 +96,8 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <div className="detail-section-label">Pattern</div>
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
-            borderStyle={bs} threads={shoutout.threads} size={550}/>
+            borderStyle={bs} threads={shoutout.threads}
+            textScale={shoutout.textScale||0} size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (

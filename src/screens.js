@@ -109,6 +109,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activ
                   cols={s.stitchesW} rows={s.stitchesH}
                   borderStyle={s.borderSpec||s.borderStyle||'british'}
                   threads={s.threads} size={220}
+                  textScale={s.textScale||0}
                   className="canvas-thumb"/>
                 <div className="card-title">{s.name}</div>
                 <div className="card-sub">

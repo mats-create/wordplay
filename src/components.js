@@ -131,6 +131,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   );
   const [threadLengths, setThreadLengths] = useState(initial&&initial.threadLengths ? initial.threadLengths : []);
   const [calculating,   setCalculating]   = useState(false);
+  const [textScale,     setTextScale]     = useState(initial&&initial.textScale ? initial.textScale : 0);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
@@ -146,7 +147,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
     const border = borders.find(function(b) { return b.id === borderId; });
     const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
     setTimeout(function() {
-      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale);
       setThreadLengths(lengths);
       setCalculating(false);
     }, 0);
@@ -159,15 +160,14 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
 
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
-      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads};
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,textScale};
     const errs = validateShoutout(fields);
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
     if (hasErrors(errs)) return;
-    // Calculate fresh lengths before saving
     const border = borders.find(function(b) { return b.id === borderId; });
     const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
-    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale);
     setThreadLengths(lengths);
     onSave({...fields, threadLengths: lengths});
   }
@@ -189,6 +189,26 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
               onChange={e=>setName(e.target.value)}
               onBlur={()=>touch('name')} autoFocus/>
             {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Text size</label>
+            <div className="size-toggle">
+              {[{label:'Small', value:1},{label:'Normal', value:0},{label:'Large', value:3}].map(function(opt) {
+                return (
+                  <button key={opt.label}
+                    className={'size-btn' + (textScale === opt.value ? ' active' : '')}
+                    onClick={function() { setTextScale(opt.value); }}>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="form-hint">
+              {textScale === 0 ? 'Auto — best fit for the word' :
+               textScale === 1 ? 'Small — fits longer words' :
+               'Large — bold impact for short words'}
+            </div>
           </div>
 
           <div className="form-group">

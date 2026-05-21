@@ -298,8 +298,8 @@ function stitchColor(kind, threads) {
 // ── Thread length calculator ──────────────────────────────────────────────────
 // Builds the grid and counts stitches per thread slot.
 // Formula: stitch_count × 2.5cm per stitch × 1.15 waste factor, rounded to 5cm.
-function calculateThreadLengths(word, cols, rows, borderStyle, threads) {
-  const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, 0, 2);
+function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScale) {
+  const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, textScale || 0, 2);
   // Map cell kinds to thread slot index (0-based)
   const kindToSlot = { 'T':0,'B':0,'A':0,'F':0, 'D':1,'G':1, 'E':2,'S':2 };
   const counts = [0, 0, 0];
@@ -320,7 +320,7 @@ function calculateThreadLengths(word, cols, rows, borderStyle, threads) {
 /* ═══════════════════════════════════════════════════════════════════
    CANVAS COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className }) {
+function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale }) {
   const canvasRef = useRef(null);
   cols = cols||110; rows = rows||110;
 
@@ -335,7 +335,7 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.fillStyle = '#F0E6D3';
     ctx.fillRect(0,0,px,px);
 
-    const grid = buildGrid(word, cols, rows, borderStyle, 0, 2); // 0 = auto-scale
+    const grid = buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
     const pad = cell*0.1;
     const lw  = Math.max(cell*0.24, 0.5);
 
