@@ -78,10 +78,7 @@ html, body, #root {
   max-width: 640px; margin: 0 auto; width: 100%;
   box-sizing: border-box;
 }
-.screen-header {
-  padding: 12px 0 14px;
-  display: flex; align-items: baseline; gap: 8px;
-}
+.screen-header { /* see search section below */ }
 .screen-title { font-size: 22px; font-weight: 700; }
 .screen-count { font-size: 13px; color: var(--grey); }
 
@@ -729,3 +726,96 @@ html, body, #root {
 
 /* Misc */
 .screen-hidden { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   SEARCH
+═══════════════════════════════════════════════════════════════════ */
+.screen-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 0 8px; flex-wrap: wrap;
+}
+.search-wrap {
+  display: flex; align-items: center; gap: 0;
+  background: var(--offwht); border: 1.5px solid var(--lgrey);
+  border-radius: 20px; padding: 0 10px;
+  transition: border-color 0.15s; margin-left: auto;
+}
+.search-wrap:focus-within { border-color: var(--black); background: var(--white); }
+.search-icon { width: 15px; height: 15px; color: var(--grey); flex-shrink: 0; }
+.search-input {
+  border: none; background: transparent; outline: none;
+  font-family: inherit; font-size: 13px; padding: 7px 6px;
+  width: 140px; color: var(--black);
+}
+.search-input::placeholder { color: var(--grey); }
+.search-clear {
+  width: 20px; height: 20px; border: none; background: none;
+  cursor: pointer; color: var(--grey); display: flex;
+  align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
+}
+.search-clear:hover { color: var(--black); }
+.search-clear svg { width: 12px; height: 12px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FOLDERS
+═══════════════════════════════════════════════════════════════════ */
+.folder-bar {
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; padding-bottom: 12px;
+}
+.folder-pill {
+  padding: 4px 12px; border-radius: 20px;
+  border: 1.5px solid var(--lgrey); background: var(--white);
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
+}
+.folder-pill:hover { border-color: var(--black); color: var(--black); }
+.folder-pill.active {
+  background: var(--black); border-color: var(--black); color: var(--white);
+}
+.folder-pill-wrap { position: relative; display: flex; align-items: center; gap: 2px; }
+.folder-pill-menu {
+  width: 22px; height: 22px; border: none; background: none;
+  cursor: pointer; color: var(--grey); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; transition: all 0.15s; padding: 0;
+}
+.folder-pill-menu:hover { background: var(--offwht); color: var(--black); }
+.folder-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  background: var(--surface); border: 1px solid var(--lgrey);
+  border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100; min-width: 120px; overflow: hidden;
+}
+.folder-dropdown button {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 14px; border: none; background: none;
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  color: var(--black); transition: background 0.1s;
+}
+.folder-dropdown button:hover { background: var(--offwht); }
+.folder-dropdown button.danger { color: var(--coral); }
+.folder-add {
+  padding: 4px 10px; border-radius: 20px;
+  border: 1.5px dashed var(--lgrey); background: transparent;
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  color: var(--grey); cursor: pointer; transition: all 0.15s;
+}
+.folder-add:hover { border-color: var(--coral); color: var(--coral); }
+
+/* Folder tag on card */
+.card-folder-tag {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--black); color: var(--white);
+  font-size: 10px; font-weight: 500; padding: 2px 7px;
+  border-radius: 10px; opacity: 0.7;
+}
+
+/* Folder select in detail panel */
+.folder-select {
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--lgrey); background: var(--white);
+  font-family: inherit; font-size: 12px; color: var(--black);
+  cursor: pointer; outline: none;
+}
+.folder-select:focus { border-color: var(--black); }

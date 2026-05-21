@@ -12,8 +12,12 @@ function App() {
   const [saving,      setSaving]      = useState(false);
   const [toast,       showToast]      = useToast();
   const [kevinVisible, setKevinVisible] = useState(function() { return window.innerWidth >= 768; });
-  const [kevinMessages, setKevinMessages] = useState(null); // null = not yet initialised
+  const [kevinMessages, setKevinMessages] = useState(null);
   const [tmCache,     setTmCache]     = useState({});
+  const [shoutoutFolders, setShoutoutFolders] = useState([]);
+  const [borderFolders,   setBorderFolders]   = useState([]);
+  const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
+  const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -23,18 +27,115 @@ function App() {
       shoutoutCount: shoutouts.length,
       shoutoutNames: shoutouts.map(function(s) { return s.name; }).join(', ') || 'none',
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
+      shoutoutFolders: shoutoutFolders.join(', ') || 'none',
+      borderFolders: borderFolders.join(', ') || 'none',
     };
-  }, [tab, shoutouts, borders]);
+  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders]);
 
   // ── Auth ──
   useEffect(function(){
     const unsub = fb.onAuthStateChanged(fb.auth, function(u) {
       setAuthUser(u||null);
-      if (u) loadKevinKeyFromFirestore(u.uid);
-      else setKevinApiKey('');
+      if (u) {
+        loadKevinKeyFromFirestore(u.uid);
+        loadFolders(u.uid);
+      } else {
+        setKevinApiKey('');
+        setShoutoutFolders([]); setBorderFolders([]);
+      }
     });
     return function(){ unsub(); };
   },[]);
+
+  // ── Folders — load/save ──
+  async function loadFolders(uid) {
+    try {
+      const snap = await fb.getDoc(fb.doc(fb.db,'users',uid,'settings','folders'));
+      if (snap.exists()) {
+        const d = snap.data();
+        setShoutoutFolders(d.shoutoutFolders || []);
+        setBorderFolders(d.borderFolders || []);
+      }
+    } catch(e) { console.warn('Folder load failed:', e); }
+  }
+
+  async function saveFolders(uid, sf, bf) {
+    try {
+      await fb.setDoc(fb.doc(fb.db,'users',uid,'settings','folders'),
+        { shoutoutFolders: sf, borderFolders: bf });
+    } catch(e) { console.warn('Folder save failed:', e); }
+  }
+
+  function handleFolderCreate(type, name) {
+    if (type === 'shoutouts') {
+      if (shoutoutFolders.includes(name)) return;
+      const next = [...shoutoutFolders, name];
+      setShoutoutFolders(next);
+      saveFolders(authUser.uid, next, borderFolders);
+    } else {
+      if (borderFolders.includes(name)) return;
+      const next = [...borderFolders, name];
+      setBorderFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, next);
+    }
+  }
+
+  async function handleFolderRename(type, oldName, newName) {
+    if (type === 'shoutouts') {
+      const next = shoutoutFolders.map(function(f) { return f === oldName ? newName : f; });
+      setShoutoutFolders(next);
+      saveFolders(authUser.uid, next, borderFolders);
+      if (activeShoutoutFolder === oldName) setActiveShoutoutFolder(newName);
+      // Update all shoutouts in that folder
+      const batch = shoutouts.filter(function(s) { return s.folder === oldName; });
+      for (const s of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: newName });
+      }
+    } else {
+      const next = borderFolders.map(function(f) { return f === oldName ? newName : f; });
+      setBorderFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, next);
+      if (activeBorderFolder === oldName) setActiveBorderFolder(newName);
+      const batch = borders.filter(function(b) { return b.folder === oldName; });
+      for (const b of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { folder: newName });
+      }
+    }
+  }
+
+  async function handleFolderDelete(type, name) {
+    if (type === 'shoutouts') {
+      const next = shoutoutFolders.filter(function(f) { return f !== name; });
+      setShoutoutFolders(next);
+      saveFolders(authUser.uid, next, borderFolders);
+      if (activeShoutoutFolder === name) setActiveShoutoutFolder(null);
+      // Unfile all shoutouts in that folder
+      const batch = shoutouts.filter(function(s) { return s.folder === name; });
+      for (const s of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: null });
+      }
+    } else {
+      const next = borderFolders.filter(function(f) { return f !== name; });
+      setBorderFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, next);
+      if (activeBorderFolder === name) setActiveBorderFolder(null);
+      const batch = borders.filter(function(b) { return b.folder === name; });
+      for (const b of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { folder: null });
+      }
+    }
+  }
+
+  async function handleMoveToFolder(type, itemId, folder) {
+    try {
+      if (type === 'shoutout') {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId), { folder: folder || null });
+      } else {
+        await fb.updateDoc(fb.doc(fb.db,'borders',itemId), { folder: folder || null });
+      }
+      showToast(folder ? 'Moved to ' + folder : 'Removed from folder');
+    } catch(e) { showToast('Move failed — try again'); }
+  }
 
   // ── Seed built-in borders once ──
   async function seedBorders() {
@@ -198,11 +299,23 @@ function App() {
           {tab === 'shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
               tmCache={tmCache}
-              onSelect={function(s) { setSelShoutout(s); }}/>
+              onSelect={function(s) { setSelShoutout(s); }}
+              folders={shoutoutFolders}
+              activeFolder={activeShoutoutFolder}
+              onFolderChange={setActiveShoutoutFolder}
+              onFolderCreate={handleFolderCreate}
+              onFolderRename={handleFolderRename}
+              onFolderDelete={handleFolderDelete}/>
           )}
           {tab === 'borders' && (
             <BordersScreen borders={borders}
-              onSelect={function(b) { setSelBorder(b); }}/>
+              onSelect={function(b) { setSelBorder(b); }}
+              folders={borderFolders}
+              activeFolder={activeBorderFolder}
+              onFolderChange={setActiveBorderFolder}
+              onFolderCreate={handleFolderCreate}
+              onFolderRename={handleFolderRename}
+              onFolderDelete={handleFolderDelete}/>
           )}
         </div>
 
@@ -278,7 +391,9 @@ function App() {
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
           onEdit={function() { setEditShoutout(selShoutout); }}
-          onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}/>
+          onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
+          folders={shoutoutFolders}
+          onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
       )}
       {editShoutout && (
         <ShoutoutForm
@@ -292,7 +407,9 @@ function App() {
         <BorderDetail border={selBorder}
           onClose={function() { setSelBorder(null); }}
           onEdit={function() { setEditBorder(selBorder); }}
-          onDelete={function() { setConfirmDel({type:'border',id:selBorder.id}); }}/>
+          onDelete={function() { setConfirmDel({type:'border',id:selBorder.id}); }}
+          folders={borderFolders}
+          onMoveToFolder={function(folder) { handleMoveToFolder('border', selBorder.id, folder); }}/>
       )}
       {editBorder && (
         <BorderForm

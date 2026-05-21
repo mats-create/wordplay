@@ -61,7 +61,7 @@ function AidaOptionsSheet({ shoutout, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUT DETAIL
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
+function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
   const [showAidaOptions, setShowAidaOptions] = useState(false);
   const [chartGenerating, setChartGenerating] = useState(false);
 
@@ -121,6 +121,14 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose }) {
 
         <div className="detail-actions">
           <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
+          {folders && folders.length > 0 && (
+            <select className="folder-select"
+              value={shoutout.folder || ''}
+              onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+              <option value="">No folder</option>
+              {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+            </select>
+          )}
           <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}>
             <Ico.Edit/> Edit
           </button>
@@ -256,7 +264,7 @@ function BorderForm({ initial, onSave, onClose, saving }) {
 /* ═══════════════════════════════════════════════════════════════════
    BORDER DETAIL
 ═══════════════════════════════════════════════════════════════════ */
-function BorderDetail({ border, onEdit, onDelete, onClose }) {
+function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="sheet">
@@ -303,6 +311,14 @@ function BorderDetail({ border, onEdit, onDelete, onClose }) {
         <div className="detail-actions">
           {!border.builtIn && (
             <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
+          )}
+          {folders && folders.length > 0 && (
+            <select className="folder-select"
+              value={border.folder || ''}
+              onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+              <option value="">No folder</option>
+              {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+            </select>
           )}
           <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}
             disabled={border.builtIn}>
