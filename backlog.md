@@ -8,21 +8,7 @@
 
 ## Active priorities (in order)
 
-### 1. Infrastructure cleanup
-Remove leftover Cloud Function infrastructure from a failed earlier attempt.
-
-**Steps:**
-1. Delete `askKevin` Cloud Function in Firebase Console
-2. Downgrade Firebase project from Blaze to Spark plan
-3. Delete `functions/` folder from repo
-4. Delete `firebase.json` from repo
-5. Confirm `deploy.yml` workflow is already deleted
-
-**Complexity:** Low (manual steps in Firebase Console + repo)
-
----
-
-### 2. Thread length calculation
+### 1. Thread length calculation
 
 **User story:** As a producing user, I want to see the estimated length of thread required per colour to complete a shoutout embroidery (border and words), so I can efficiently assemble kits and monitor stock.
 
@@ -53,7 +39,7 @@ Remove leftover Cloud Function infrastructure from a failed earlier attempt.
 
 ---
 
-### 3. Bold / normal font toggle
+### 2. Bold / normal font toggle
 Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle stored on the shoutout, passed into `buildGrid`, which selects the right map.
 
 **Scope:**
@@ -67,7 +53,7 @@ Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle s
 
 ---
 
-### 4. Thread roles 4–6
+### 3. Thread roles 4–6
 Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras.
 
 **Scope:**
@@ -82,7 +68,7 @@ Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras
 
 ---
 
-### 5. Multi-row shoutouts
+### 4. Multi-row shoutouts
 User enters text with explicit line breaks. Each line independently scaled to fill available width.
 
 **Scope:**
@@ -96,7 +82,7 @@ User enters text with explicit line breaks. Each line independently scaled to fi
 
 ---
 
-### 6. Aida print orientation selector *(low priority)*
+### 5. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
@@ -108,6 +94,7 @@ Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. L
 
 | Feature | Notes |
 |---------|-------|
+| Infrastructure cleanup | Cloud Function deleted, Firebase downgraded to Spark, repo cleaned |
 | Search / filter | Live search bar in both screens, filters by name/style/traits |
 | Folder structure | Tag-based, Firestore-backed, folder pills + move-to-folder in detail |
 | Kevin markdown rendering | marked.js CDN, system prompt tightened |
