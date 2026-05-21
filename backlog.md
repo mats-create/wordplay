@@ -8,7 +8,6 @@
 
 ## Active priorities (in order)
 
-### 1. Thread length calculation
 
 **User story:** As a producing user, I want to see the estimated length of thread required per colour to complete a shoutout embroidery (border and words), so I can efficiently assemble kits and monitor stock.
 
@@ -39,7 +38,7 @@
 
 ---
 
-### 2. Bold / normal font toggle
+### 1. Bold / normal font toggle
 Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle stored on the shoutout, passed into `buildGrid`, which selects the right map.
 
 **Scope:**
@@ -53,7 +52,7 @@ Add a second letter bitmap map (`LETTERS_BOLD`) with thickened strokes. Toggle s
 
 ---
 
-### 3. Thread roles 4–6
+### 2. Thread roles 4–6
 Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras.
 
 **Scope:**
@@ -68,7 +67,7 @@ Extend the thread system from 3 to 6 slots. Threads 4–6 are border-only extras
 
 ---
 
-### 4. Multi-row shoutouts
+### 3. Multi-row shoutouts
 User enters text with explicit line breaks. Each line independently scaled to fill available width.
 
 **Scope:**
@@ -82,7 +81,7 @@ User enters text with explicit line breaks. Each line independently scaled to fi
 
 ---
 
-### 5. Aida print orientation selector *(low priority)*
+### 4. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
@@ -94,6 +93,7 @@ Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. L
 
 | Feature | Notes |
 |---------|-------|
+| Thread length calculation | Per-thread cm estimate in detail view and edit form, auto-calc on save |
 | Infrastructure cleanup | Cloud Function deleted, Firebase downgraded to Spark, repo cleaned |
 | Search / filter | Live search bar in both screens, filters by name/style/traits |
 | Folder structure | Tag-based, Firestore-backed, folder pills + move-to-folder in detail |
