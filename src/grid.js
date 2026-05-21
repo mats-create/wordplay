@@ -289,15 +289,32 @@ const BORDER_SPECS = {
 
 function stitchColor(kind, threads) {
   const t = threads || [];
-  // Thread roles by position:
-  // Thread 1 (index 0) = text colour   → kinds T, B, A, F
-  // Thread 2 (index 1) = border primary → kinds D, G
-  // Thread 3 (index 2) = border accent  → kinds E, S
-  // Falls back to brand defaults if a slot is empty
   const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
   const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
   const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
   return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
+}
+
+// ── Thread length calculator ──────────────────────────────────────────────────
+// Builds the grid and counts stitches per thread slot.
+// Formula: stitch_count × 2.5cm per stitch × 1.15 waste factor, rounded to 5cm.
+function calculateThreadLengths(word, cols, rows, borderStyle, threads) {
+  const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, 0, 2);
+  // Map cell kinds to thread slot index (0-based)
+  const kindToSlot = { 'T':0,'B':0,'A':0,'F':0, 'D':1,'G':1, 'E':2,'S':2 };
+  const counts = [0, 0, 0];
+  grid.forEach(function(row) {
+    row.forEach(function(kind) {
+      if (kind in kindToSlot) counts[kindToSlot[kind]]++;
+    });
+  });
+  const t = threads || [];
+  return t.map(function(thread, i) {
+    const cm = counts[i] !== undefined
+      ? Math.round((counts[i] * 2.5 * 1.15) / 5) * 5
+      : 0;
+    return { dmc: thread.dmc, name: thread.name, hex: thread.hex, cm: cm };
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════

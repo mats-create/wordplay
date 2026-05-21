@@ -100,15 +100,22 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         {shoutout.threads&&shoutout.threads.length>0 && (
           <div className="detail-section">
             <div className="detail-section-label">Threads</div>
-            {shoutout.threads.map((t,i)=>(
-              <div className="detail-thread-row" key={i}>
-                <div className="detail-swatch" style={{background:t.hex}}/>
-                <div>
-                  <div className="detail-thread-name">{t.name}</div>
-                  <div className="detail-thread-dmc">{t.dmc}{t.usage?'  ·  '+t.usage:''}</div>
+            {shoutout.threads.map(function(t,i) {
+              const lengthEntry = shoutout.threadLengths && shoutout.threadLengths[i];
+              const cm = lengthEntry ? lengthEntry.cm : null;
+              return (
+                <div className="detail-thread-row" key={i}>
+                  <div className="detail-swatch" style={{background:t.hex}}/>
+                  <div style={{flex:1}}>
+                    <div className="detail-thread-name">{t.name}</div>
+                    <div className="detail-thread-dmc">{t.dmc}{t.usage?'  ·  '+t.usage:''}</div>
+                  </div>
+                  <div className="detail-thread-length">
+                    {cm != null ? '~' + cm + ' cm' : '—'}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

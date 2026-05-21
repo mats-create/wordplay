@@ -237,7 +237,7 @@ html, body, #root {
 
 /* ── Thread editor ── */
 .thread-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
-.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr auto;
+.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr 64px auto;
   gap: 6px; align-items: center; }
 .thread-color-btn { width: 32px; height: 32px; border-radius: 6px;
   border: 1.5px solid var(--lgrey); cursor: pointer; padding: 0;
@@ -819,3 +819,19 @@ html, body, #root {
   cursor: pointer; outline: none;
 }
 .folder-select:focus { border-color: var(--black); }
+
+/* ── Thread length ── */
+.thread-length {
+  font-size: 11px; font-weight: 500; color: var(--grey);
+  text-align: right; white-space: nowrap;
+}
+.detail-thread-length {
+  font-size: 12px; font-weight: 500; color: var(--grey);
+  white-space: nowrap; flex-shrink: 0;
+}
+.form-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.form-label-row .form-label { margin-bottom: 0; }
+.btn-sm { font-size: 11px; padding: 4px 10px; }

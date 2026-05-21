@@ -58,7 +58,7 @@ function DmcPickerSheet({ currentHex, onSelect, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    THREAD ROW (form sub-component)
 ═══════════════════════════════════════════════════════════════════ */
-function ThreadRow({ thread, onChange, onRemove }) {
+function ThreadRow({ thread, onChange, onRemove, lengthCm }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   return (
     <>
@@ -70,6 +70,9 @@ function ThreadRow({ thread, onChange, onRemove }) {
           onChange={function(e) { onChange({...thread, name:e.target.value}); }}/>
         <input className="form-input" placeholder="DMC code" value={thread.dmc}
           onChange={function(e) { onChange({...thread, dmc:e.target.value}); }}/>
+        <div className="thread-length" title="Estimated thread length">
+          {lengthCm != null ? '~' + lengthCm + ' cm' : '—'}
+        </div>
         <button className="thread-remove" onClick={onRemove}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -126,6 +129,8 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   const [threads,   setThreads]   = useState(
     initial&&initial.threads&&initial.threads.length>0 ? initial.threads : DEFAULT_THREADS
   );
+  const [threadLengths, setThreadLengths] = useState(initial&&initial.threadLengths ? initial.threadLengths : []);
+  const [calculating,   setCalculating]   = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
@@ -135,6 +140,23 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   function removeThread(i)   { setThreads(p=>p.filter((_,idx)=>idx!==i)); }
   function addThread()       { setThreads(p=>[...p,{id:Date.now(),name:'',dmc:'',hex:'#666666',usage:''}]); }
 
+  function handleRecalculate() {
+    if (!name.trim() || !borderId) return;
+    setCalculating(true);
+    const border = borders.find(function(b) { return b.id === borderId; });
+    const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
+    setTimeout(function() {
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+      setThreadLengths(lengths);
+      setCalculating(false);
+    }, 0);
+  }
+
+  function getLengthCm(i) {
+    const entry = threadLengths[i];
+    return entry ? entry.cm : null;
+  }
+
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
       hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads};
@@ -142,7 +164,12 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
     if (hasErrors(errs)) return;
-    onSave(fields);
+    // Calculate fresh lengths before saving
+    const border = borders.find(function(b) { return b.id === borderId; });
+    const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads);
+    setThreadLengths(lengths);
+    onSave({...fields, threadLengths: lengths});
   }
 
   return (
@@ -212,11 +239,19 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Threads</label>
+            <div className="form-label-row">
+              <label className="form-label">Threads</label>
+              <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
+                disabled={calculating || !name.trim() || !borderId}
+                title="Recalculate thread lengths">
+                {calculating ? 'Calculating…' : 'Recalculate lengths'}
+              </button>
+            </div>
             <div className="thread-list">
               {threads.map((t,i)=>(
                 <ThreadRow key={t.id||i} thread={t}
-                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}/>
+                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}
+                  lengthCm={getLengthCm(i)}/>
               ))}
             </div>
             <button className="add-thread-btn" onClick={addThread}>
