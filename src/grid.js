@@ -390,13 +390,13 @@ function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScal
 /* ═══════════════════════════════════════════════════════════════════
    CANVAS COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale }) {
+function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale, lines }) {
   const canvasRef = useRef(null);
   cols = cols||110; rows = rows||110;
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !word) return;
+    if (!canvas || (!word && !lines)) return;
     const px = size||440;
     const cell = px/cols;
     canvas.width = px; canvas.height = px;
@@ -405,7 +405,10 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.fillStyle = '#F0E6D3';
     ctx.fillRect(0,0,px,px);
 
-    const grid = buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
+    // Use multi-row builder if lines provided, otherwise single-word builder
+    const grid = lines && lines.length > 0
+      ? buildGridMulti(lines, cols, rows, borderStyle, 2)
+      : buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
     const pad = cell*0.1;
     const lw  = Math.max(cell*0.24, 0.5);
 
@@ -433,7 +436,7 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.strokeStyle='#1A1A1A'; ctx.lineWidth=1.5;
     ctx.strokeRect(0,0,px,px);
 
-  }, [word, cols, rows, borderStyle, size, JSON.stringify(threads)]);
+  }, [word, cols, rows, borderStyle, size, JSON.stringify(threads), textScale, JSON.stringify(lines)]);
 
   return (
     <div className={className||'canvas-full'}>
@@ -442,3 +445,151 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
   );
 }
 
+
+// ── Multi-row grid builder ────────────────────────────────────────────────────
+// lines: array of {text, scale} — max 4
+// Each line independently scaled and centred horizontally.
+// Lines distributed evenly in available vertical space.
+function buildGridMulti(lines, cols, rows, borderStyle, gap) {
+  const GAP_BASE = (gap != null && gap > 0) ? gap : 1;
+  const LINE_GAP = 3; // fixed vertical gap between lines in stitches
+  cols = cols || 94;
+  rows = rows || 94;
+
+  const grid = [];
+  for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
+
+  function setCell(r, c, kind) {
+    if (r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c] === ' ')
+      grid[r][c] = kind;
+  }
+
+  const N = cols;
+  const spec = (typeof borderStyle === 'object' && borderStyle !== null)
+    ? borderStyle
+    : (BORDER_SPECS[borderStyle] || BORDER_SPECS['minimal']);
+
+  renderBorderSpec(spec, N, setCell);
+
+  // Clamp to 4 lines
+  const activeLines = (lines || []).slice(0, 4).filter(function(l) {
+    return l.text && l.text.trim();
+  });
+  if (activeLines.length === 0) return grid;
+
+  // Compute interior bounds
+  const borderDepth = (spec && spec.layers) ? spec.layers.length : 2;
+  const cornerInset = (spec && spec.cornerInset) ? spec.cornerInset : borderDepth + 2;
+  let sideMotifW = 0;
+  if (spec && spec.sideMotifs) {
+    spec.sideMotifs.forEach(function(m) {
+      const pos = m.position || 'all';
+      if (pos === 'left-right' || pos === 'all') {
+        const mw = m.pattern ? m.pattern[0].length : 0;
+        sideMotifW = Math.max(sideMotifW, mw);
+      }
+    });
+  }
+  const edgeClear = sideMotifW > 0 ? cornerInset + sideMotifW + 1 : cornerInset + 2;
+  const interiorW = cols - edgeClear * 2;
+  const interiorH = rows - edgeClear * 2;
+
+  // For each line, build char list and compute best scale
+  const LETTER_H = 7;
+  const lineData = activeLines.map(function(line) {
+    const normText = (line.text.normalize ? line.text.normalize('NFC') : line.text).toUpperCase();
+    const charList = normText.split('').map(function(ch) {
+      if (ch in DIACRITIC_MAP) {
+        const dm = DIACRITIC_MAP[ch];
+        const bitmap = LETTERS[dm.base];
+        if (Array.isArray(bitmap)) return { letter: bitmap, hasDiac: true, mark: dm.mark };
+      }
+      const direct = LETTERS[ch];
+      if (Array.isArray(direct)) return { letter: direct, hasDiac: false };
+      const norm = normaliseChar(ch);
+      const normed = LETTERS[norm];
+      if (Array.isArray(normed)) return { letter: normed, hasDiac: false };
+      return { letter: LETTERS['?'], hasDiac: false };
+    });
+    const hasDiac = charList.some(function(c) { return c.hasDiac; });
+    const diacH   = hasDiac ? 2 : 0;
+    const textH   = LETTER_H + diacH;
+    const totalW  = charList.reduce(function(s, c) { return s + c.letter[0].length; }, 0);
+    const nChars  = charList.length;
+
+    // Per-line available height = interiorH split across lines with gaps
+    const totalLineH = activeLines.length * textH + (activeLines.length - 1) * LINE_GAP;
+    const maxScaleW = totalW > 0 ? Math.floor((interiorW - GAP_BASE * (nChars - 1)) / totalW) : 1;
+    // Max scale fitting vertically — each line gets equal share
+    const shareH    = Math.floor((interiorH - (activeLines.length - 1) * LINE_GAP) / activeLines.length);
+    const maxScaleH = Math.floor(shareH / Math.max(textH, 1));
+    const maxFits   = Math.min(maxScaleW, maxScaleH);
+
+    // Resolve scale: user setting (1=S, 0=auto, 3=L) or auto
+    let S = line.scale && line.scale > 0 ? line.scale : 0;
+    if (S === 0) {
+      // Auto: prefer 2, drop to 1, rise to 3 for short words
+      if (maxFits < 1) S = 1;
+      else if (maxFits < 2) S = 1;
+      else {
+        const vis = charList.filter(function(c) { return c.letter !== LETTERS[' ']; }).length;
+        S = (maxFits >= 3 && vis <= 3) ? 3 : 2;
+      }
+    }
+    // Cap at what fits
+    S = Math.min(S, Math.max(maxFits, 1));
+
+    return { charList, hasDiac, diacH, textH, totalW, nChars, S };
+  });
+
+  // Total height of all rendered lines + gaps
+  const totalRenderedH = lineData.reduce(function(s, d) {
+    return s + d.textH * d.S;
+  }, 0) + (lineData.length - 1) * LINE_GAP;
+
+  // Start row: centre the block vertically
+  let currentRow = edgeClear + Math.floor((interiorH - totalRenderedH) / 2);
+
+  // Draw each line
+  lineData.forEach(function(d) {
+    const tw = d.totalW * d.S + GAP_BASE * (d.nChars - 1);
+    let x = Math.floor((cols - tw) / 2);
+    const letterRow = currentRow + d.diacH * d.S;
+
+    d.charList.forEach(function(charEntry) {
+      const letter = charEntry.letter;
+      const lw = letter[0].length;
+
+      // Diacritic
+      if (charEntry.hasDiac && d.hasDiac) {
+        const markRows = DIACRITICS[charEntry.mark](lw);
+        markRows.forEach(function(rs, dr) {
+          rs.split('').forEach(function(ch, dc) {
+            if (ch === '1') {
+              for (let sy = 0; sy < d.S; sy++)
+                for (let sx = 0; sx < d.S; sx++)
+                  setCell(currentRow + dr * d.S + sy, x + dc * d.S + sx, 'T');
+            }
+          });
+        });
+      }
+
+      // Letter body
+      letter.forEach(function(rs, r) {
+        rs.split('').forEach(function(ch, c) {
+          if (ch === '1') {
+            for (let dr = 0; dr < d.S; dr++)
+              for (let dc = 0; dc < d.S; dc++)
+                setCell(letterRow + r * d.S + dr, x + c * d.S + dc, 'T');
+          }
+        });
+      });
+
+      x += lw * d.S + GAP_BASE;
+    });
+
+    currentRow += d.textH * d.S + LINE_GAP;
+  });
+
+  return grid;
+}

@@ -874,3 +874,28 @@ html, body, #root {
   vertical-align: middle; margin: 0 2px;
   flex-shrink: 0;
 }
+
+/* ── Multi-row shoutout controls ── */
+.form-textarea-word {
+  resize: none;
+  min-height: 40px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+.multirow-count {
+  font-size: 11px; color: var(--grey); font-weight: 500;
+}
+.multirow-scales {
+  margin-top: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.multirow-scale-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 0;
+}
+.multirow-line-label {
+  font-size: 12px; color: var(--grey);
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-style: italic;
+}

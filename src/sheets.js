@@ -97,7 +97,9 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
             borderStyle={bs} threads={shoutout.threads}
-            textScale={shoutout.textScale||0} size={550}/>
+            textScale={shoutout.textScale||0}
+            lines={shoutout.lines||null}
+            size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (
