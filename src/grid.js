@@ -165,14 +165,14 @@ function renderBorderSpec(spec, N, setCell) {
   layers.forEach(function(layer) {
     const ln = layer.line;
     if (layer.type === 'solid') {
-      const k = layer.color === 'secondary' ? 'D' : layer.color === 'accent' ? 'E' : 'B';
+      const k = layer.color === 'secondary' ? 'D' : layer.color === 'accent' ? 'E' : layer.color === 'border3' ? 'H' : layer.color === 'accent1' ? 'J' : layer.color === 'accent2' ? 'L' : 'B';
       for (let i=ln; i<N-ln; i++) {
         setCell(ln, i, k); setCell(N-1-ln, i, k);
         setCell(i, ln, k); setCell(i, N-1-ln, k);
       }
     } else if (layer.type === 'check') {
-      const kA = layer.colorA === 'secondary' ? 'D' : layer.colorA === 'accent' ? 'E' : 'A';
-      const kB = layer.colorB === 'secondary' ? 'D' : layer.colorB === 'accent' ? 'E' : 'A';
+      const kA = layer.colorA === 'secondary' ? 'D' : layer.colorA === 'accent' ? 'E' : layer.colorA === 'border3' ? 'H' : layer.colorA === 'accent1' ? 'J' : layer.colorA === 'accent2' ? 'L' : 'A';
+      const kB = layer.colorB === 'secondary' ? 'D' : layer.colorB === 'accent' ? 'E' : layer.colorB === 'border3' ? 'I' : layer.colorB === 'accent1' ? 'K' : layer.colorB === 'accent2' ? 'M' : 'A';
       for (let i=ln; i<N-ln; i++) {
         setCell(ln,     i, i%2===0?kA:kB); setCell(N-1-ln, i, i%2===1?kA:kB);
         setCell(i,     ln, i%2===0?kA:kB); setCell(i, N-1-ln, i%2===1?kA:kB);
@@ -185,7 +185,7 @@ function renderBorderSpec(spec, N, setCell) {
     const m = spec.cornerMotif;
     const w = m.pattern[0].length;
     const h = m.pattern.length;
-    const k = m.color === 'secondary' ? 'D' : m.color === 'accent' ? 'E' : 'F';
+    const k = m.color === 'secondary' ? 'D' : m.color === 'accent' ? 'E' : m.color === 'border3' ? 'H' : m.color === 'accent1' ? 'J' : m.color === 'accent2' ? 'L' : 'F';
     const inset = spec.cornerInset || layers.length + 2;
     [[inset,inset],[inset,N-inset-w],[N-inset-h,inset],[N-inset-h,N-inset-w]]
       .forEach(function(pos) {
@@ -201,7 +201,7 @@ function renderBorderSpec(spec, N, setCell) {
     spec.sideMotifs.forEach(function(motif) {
       const mw = motif.pattern[0].length;
       const mh = motif.pattern.length;
-      const k  = motif.color === 'secondary' ? 'D' : motif.color === 'accent' ? 'E' : 'G';
+      const k  = motif.color === 'secondary' ? 'D' : motif.color === 'accent' ? 'E' : motif.color === 'border3' ? 'H' : motif.color === 'accent1' ? 'J' : motif.color === 'accent2' ? 'L' : 'G';
       const inset = spec.cornerInset || layers.length + 2;
       const pos   = motif.position || 'all';
       const midR  = Math.floor((N-mh)/2);
@@ -289,20 +289,47 @@ const BORDER_SPECS = {
 
 function stitchColor(kind, threads) {
   const t = threads || [];
-  const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
-  const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
-  const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
-  return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
+  // Named thread slots:
+  // Slot 1 — Shoutout:  T, B, A, F
+  // Slot 2 — Border 1:  D, G
+  // Slot 3 — Border 2:  E, S
+  // Slot 4 — Border 3:  H, I
+  // Slot 5 — Accent 1:  J, K
+  // Slot 6 — Accent 2:  L, M
+  const s1 = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
+  const s2 = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
+  const s3 = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
+  const s4 = (t[3] && t[3].hex) ? t[3].hex : '#4A6741';
+  const s5 = (t[4] && t[4].hex) ? t[4].hex : '#CC3300';
+  const s6 = (t[5] && t[5].hex) ? t[5].hex : '#1A1A1A';
+  return {
+    'T':s1,'B':s1,'A':s1,'F':s1,
+    'D':s2,'G':s2,
+    'E':s3,'S':s3,
+    'H':s4,'I':s4,
+    'J':s5,'K':s5,
+    'L':s6,'M':s6,
+  }[kind] || s1;
 }
 
 // ── Thread length calculator ──────────────────────────────────────────────────
 // Builds the grid and counts stitches per thread slot.
-// Formula: stitch_count × 2.5cm per stitch × 1.15 waste factor, rounded to 5cm.
-function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScale) {
+// Formula: stitch_count × cm_per_stitch × 1.15 waste factor, rounded to 5cm.
+// cm_per_stitch = 2.5cm × strands (default 2 strands on 14-count Aida = 5cm per stitch)
+function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScale, strands) {
+  const strandsCount = strands || 2;
+  const cmPerStitch = 2.5 * strandsCount;
   const grid = buildGrid(word, cols || 94, rows || 94, borderStyle, textScale || 0, 2);
-  // Map cell kinds to thread slot index (0-based)
-  const kindToSlot = { 'T':0,'B':0,'A':0,'F':0, 'D':1,'G':1, 'E':2,'S':2 };
-  const counts = [0, 0, 0];
+  // Map cell kinds to thread slot index (0-based), extended to 6 slots
+  const kindToSlot = {
+    'T':0,'B':0,'A':0,'F':0,
+    'D':1,'G':1,
+    'E':2,'S':2,
+    'H':3,'I':3,
+    'J':4,'K':4,
+    'L':5,'M':5,
+  };
+  const counts = [0, 0, 0, 0, 0, 0];
   grid.forEach(function(row) {
     row.forEach(function(kind) {
       if (kind in kindToSlot) counts[kindToSlot[kind]]++;
@@ -311,7 +338,7 @@ function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScal
   const t = threads || [];
   return t.map(function(thread, i) {
     const cm = counts[i] !== undefined
-      ? Math.round((counts[i] * 2.5 * 1.15) / 5) * 5
+      ? Math.round((counts[i] * cmPerStitch * 1.15) / 5) * 5
       : 0;
     return { dmc: thread.dmc, name: thread.name, hex: thread.hex, cm: cm };
   });

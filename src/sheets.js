@@ -85,7 +85,7 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         <div className="detail-meta">
           {shoutout.stitchesW} × {shoutout.stitchesH} stitches
           &nbsp;·&nbsp; {shoutout.hoopW} × {shoutout.hoopH}mm hoop
-          &nbsp;·&nbsp; 14-count Aida
+          &nbsp;·&nbsp; {shoutout.strands || 2}-strand · 14-count Aida
           {shoutout.textScale === 1 && <span>&nbsp;·&nbsp; Small text</span>}
           {shoutout.textScale === 3 && <span>&nbsp;·&nbsp; Large text</span>}
           {shoutout.borderName && <span>&nbsp;·&nbsp; {shoutout.borderName} border</span>}

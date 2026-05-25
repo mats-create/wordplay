@@ -58,10 +58,17 @@ function DmcPickerSheet({ currentHex, onSelect, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    THREAD ROW (form sub-component)
 ═══════════════════════════════════════════════════════════════════ */
-function ThreadRow({ thread, onChange, onRemove, lengthCm }) {
+function ThreadRow({ thread, onChange, onRemove, lengthCm, slotIndex }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const slot = THREAD_SLOTS[slotIndex] || null;
   return (
     <>
+      {slot && (
+        <div className="thread-slot-label">
+          <span className="thread-slot-name">{slot.label}</span>
+          <span className="thread-slot-hint">{slot.hint}</span>
+        </div>
+      )}
       <div className="thread-row">
         <button className="thread-color-btn" style={{background:thread.hex}}
           onClick={function() { setPickerOpen(true); }}
@@ -131,6 +138,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   );
   const [threadLengths, setThreadLengths] = useState(initial&&initial.threadLengths ? initial.threadLengths : []);
   const [calculating,   setCalculating]   = useState(false);
+  const [strands,       setStrands]       = useState(initial&&initial.strands ? initial.strands : 2);
   const [textScale,     setTextScale]     = useState(initial&&initial.textScale ? initial.textScale : 0);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -147,7 +155,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
     const border = borders.find(function(b) { return b.id === borderId; });
     const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
     setTimeout(function() {
-      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale);
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale, strands);
       setThreadLengths(lengths);
       setCalculating(false);
     }, 0);
@@ -160,14 +168,14 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
 
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
-      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,textScale};
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,textScale,strands};
     const errs = validateShoutout(fields);
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
     if (hasErrors(errs)) return;
     const border = borders.find(function(b) { return b.id === borderId; });
     const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
-    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale);
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale, strands);
     setThreadLengths(lengths);
     onSave({...fields, threadLengths: lengths});
   }
@@ -261,17 +269,32 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
           <div className="form-group">
             <div className="form-label-row">
               <label className="form-label">Threads</label>
-              <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
-                disabled={calculating || !name.trim() || !borderId}
-                title="Recalculate thread lengths">
-                {calculating ? 'Calculating…' : 'Recalculate lengths'}
-              </button>
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <div className="size-toggle" style={{fontSize:11}}>
+                  {[1,2,3].map(function(n) {
+                    return (
+                      <button key={n}
+                        className={'size-btn' + (strands === n ? ' active' : '')}
+                        style={{padding:'4px 10px', fontSize:11}}
+                        onClick={function() { setStrands(n); }}
+                        title={n + ' strand' + (n > 1 ? 's' : '')}>
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+                <span style={{fontSize:11, color:'var(--grey)'}}>strands</span>
+                <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
+                  disabled={calculating || !name.trim() || !borderId}>
+                  {calculating ? 'Calculating…' : 'Recalculate'}
+                </button>
+              </div>
             </div>
             <div className="thread-list">
               {threads.map((t,i)=>(
                 <ThreadRow key={t.id||i} thread={t}
                   onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}
-                  lengthCm={getLengthCm(i)}/>
+                  lengthCm={getLengthCm(i)} slotIndex={i}/>
               ))}
             </div>
             <button className="add-thread-btn" onClick={addThread}>

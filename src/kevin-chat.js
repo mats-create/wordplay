@@ -130,7 +130,16 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
                 </div>
                 <div className={'msg-bubble ' + (isKevin ? 'msg-bubble-kevin' : 'msg-bubble-user')}>
                   {isKevin
-                    ? <div dangerouslySetInnerHTML={{__html: (typeof marked !== 'undefined' ? marked.parse(m.text) : m.text)}}/>
+                    ? <div dangerouslySetInnerHTML={{__html: (function() {
+                        let text = m.text;
+                        // Replace [swatch:#HEX] with inline colour circle
+                        text = text.replace(/\[swatch:(#[0-9A-Fa-f]{3,6})\]/g, function(_, hex) {
+                          return '<span class="kevin-swatch" style="background:' + hex + '" title="' + hex + '"></span>';
+                        });
+                        return typeof marked !== 'undefined' ? marked.parse(text) : text;
+                      })()}}/>
+                    : m.text
+                  }
                     : m.text
                   }
                 </div>

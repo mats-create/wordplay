@@ -851,3 +851,26 @@ html, body, #root {
 .size-btn:last-child { border-right: none; }
 .size-btn:hover { background: var(--offwht); color: var(--black); }
 .size-btn.active { background: var(--black); color: var(--white); }
+
+/* ── Thread slot labels ── */
+.thread-slot-label {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 10px; margin-bottom: 3px;
+}
+.thread-slot-label:first-child { margin-top: 0; }
+.thread-slot-name {
+  font-size: 11px; font-weight: 700; color: var(--black);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.thread-slot-hint {
+  font-size: 11px; color: var(--grey);
+}
+
+/* ── Kevin inline swatches ── */
+.kevin-swatch {
+  display: inline-block;
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.15);
+  vertical-align: middle; margin: 0 2px;
+  flex-shrink: 0;
+}

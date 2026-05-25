@@ -11,10 +11,20 @@ const A4H = 297 * MM;   // 841pt
 // Thread 1 (index 0) = text, Thread 2 (index 1) = border primary, Thread 3 (index 2) = border accent
 function pdfStitchColor(kind, threads) {
   const t = threads || [];
-  const bk = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
-  const gn = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
-  const cr = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
-  return {'T':bk,'B':bk,'A':bk,'F':bk,'G':gn,'D':gn,'E':cr,'S':cr}[kind] || bk;
+  const s1 = (t[0] && t[0].hex) ? t[0].hex : '#1A1A1A';
+  const s2 = (t[1] && t[1].hex) ? t[1].hex : '#4A6741';
+  const s3 = (t[2] && t[2].hex) ? t[2].hex : '#CC3300';
+  const s4 = (t[3] && t[3].hex) ? t[3].hex : '#4A6741';
+  const s5 = (t[4] && t[4].hex) ? t[4].hex : '#CC3300';
+  const s6 = (t[5] && t[5].hex) ? t[5].hex : '#1A1A1A';
+  return {
+    'T':s1,'B':s1,'A':s1,'F':s1,
+    'D':s2,'G':s2,
+    'E':s3,'S':s3,
+    'H':s4,'I':s4,
+    'J':s5,'K':s5,
+    'L':s6,'M':s6,
+  }[kind] || s1;
 }
 
 function hexToRgb(hex) {

@@ -58,6 +58,16 @@ const DEFAULT_THREADS = [
   {id:3, name:'Coral',       dmc:'DMC 350',  hex:'#CC3300', usage:'Highlights'},
 ];
 
+// Named thread slot definitions — labels for UI and Kevin
+const THREAD_SLOTS = [
+  {index:0, label:'Shoutout', hint:'Word and text colour'},
+  {index:1, label:'Border 1', hint:'Main border lines'},
+  {index:2, label:'Border 2', hint:'Secondary border colour'},
+  {index:3, label:'Border 3', hint:'Third border colour'},
+  {index:4, label:'Accent 1', hint:'First accent / motif colour'},
+  {index:5, label:'Accent 2', hint:'Second accent / motif colour'},
+];
+
 /* ═══════════════════════════════════════════════════════════════════
    DMC COLOUR DATA
    Source: DMC six-strand embroidery floss, ~454 colours
