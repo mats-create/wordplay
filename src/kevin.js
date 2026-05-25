@@ -59,6 +59,14 @@ Tools:
   Any DMC colour can go in any slot.
 - Border spec: layers [{line, type, color}], cornerMotif {color, pattern[]}, sideMotifs [{position, color, pattern}], cornerInset.
   Colour names: primary (slot 1), secondary (slot 2), accent (slot 3), border3 (slot 4), accent1 (slot 5), accent2 (slot 6).
+- Per-position overrides: to set individual corners or sides differently from the global motif, use:
+  cornerOverrides: { topLeft, topRight, bottomLeft, bottomRight } — each with {color, pattern[]}
+  sideOverrides: { top, bottom, left, right } — each with {color, pattern[]}
+  Any position not in overrides falls back to the global cornerMotif/sideMotif.
+  Use overrides for: asymmetric designs, pitch corner areas (triangles pointing different directions),
+  home/away colour asymmetry (left=home colour, right=away colour), or any position-specific design.
+  Example: to make top-left corner a triangle pointing inward, set cornerOverrides.topLeft with a
+  suitable pattern while other corners use the global cornerMotif.
 - Swatch convention: when listing or confirming thread colours in chat, include [swatch:#HEX] inline after each hex code so the user sees a colour preview. Example: "Pitch black DMC 310 [swatch:#1A1A1A]".
 
 Corner motif sizes — two options, always use one or the other:
@@ -169,7 +177,7 @@ const KEVIN_TOOLS = [
             },
             cornerMotif: {
               type: 'object',
-              description: 'Motif placed at each corner. Has color (primary/secondary/accent) and pattern (array of binary strings, all same length).',
+              description: 'Global motif placed at all corners (unless overridden). Has color and pattern (array of binary strings).',
               properties: {
                 color:   { type: 'string' },
                 pattern: { type: 'array', items: { type: 'string' } }
@@ -177,8 +185,28 @@ const KEVIN_TOOLS = [
             },
             sideMotifs: {
               type: 'array',
-              description: 'Motifs placed at centres of sides. Each has position (top-bottom/left-right/all), color, and pattern.',
+              description: 'Global motifs placed at side centres (unless overridden). Each has position (top-bottom/left-right/all), color, and pattern.',
               items: { type: 'object' }
+            },
+            cornerOverrides: {
+              type: 'object',
+              description: 'Per-corner overrides. Keys: topLeft, topRight, bottomLeft, bottomRight. Each has {color, pattern[]}. Overrides the global cornerMotif for that corner only.',
+              properties: {
+                topLeft:     { type: 'object' },
+                topRight:    { type: 'object' },
+                bottomLeft:  { type: 'object' },
+                bottomRight: { type: 'object' },
+              }
+            },
+            sideOverrides: {
+              type: 'object',
+              description: 'Per-side overrides. Keys: top, bottom, left, right. Each has {color, pattern[]}. Overrides the global sideMotif for that side only.',
+              properties: {
+                top:    { type: 'object' },
+                bottom: { type: 'object' },
+                left:   { type: 'object' },
+                right:  { type: 'object' },
+              }
             }
           },
           required: ['layers']

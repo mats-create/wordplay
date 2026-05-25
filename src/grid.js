@@ -181,42 +181,85 @@ function renderBorderSpec(spec, N, setCell) {
     // 'empty' — skip
   });
 
-  if (spec.cornerMotif) {
-    const m = spec.cornerMotif;
-    const w = m.pattern[0].length;
-    const h = m.pattern.length;
-    const k = m.color === 'secondary' ? 'D' : m.color === 'accent' ? 'E' : m.color === 'border3' ? 'H' : m.color === 'accent1' ? 'J' : m.color === 'accent2' ? 'L' : 'F';
-    const inset = spec.cornerInset || layers.length + 2;
-    [[inset,inset],[inset,N-inset-w],[N-inset-h,inset],[N-inset-h,N-inset-w]]
-      .forEach(function(pos) {
-        m.pattern.forEach(function(rs,dr) {
-          rs.split('').forEach(function(ch,dc) {
-            if (ch==='1') setCell(pos[0]+dr, pos[1]+dc, k);
-          });
-        });
-      });
+  // Helper: resolve a colour name to a grid kind
+  function colorKind(color, fallback) {
+    return color === 'secondary' ? 'D'
+      : color === 'accent'   ? 'E'
+      : color === 'border3'  ? 'H'
+      : color === 'accent1'  ? 'J'
+      : color === 'accent2'  ? 'L'
+      : fallback || 'F';
   }
 
-  if (spec.sideMotifs) {
-    spec.sideMotifs.forEach(function(motif) {
-      const mw = motif.pattern[0].length;
-      const mh = motif.pattern.length;
-      const k  = motif.color === 'secondary' ? 'D' : motif.color === 'accent' ? 'E' : motif.color === 'border3' ? 'H' : motif.color === 'accent1' ? 'J' : motif.color === 'accent2' ? 'L' : 'G';
-      const inset = spec.cornerInset || layers.length + 2;
-      const pos   = motif.position || 'all';
-      const midR  = Math.floor((N-mh)/2);
-      const midC  = Math.floor((N-mw)/2);
-      function draw(sr,sc) {
-        motif.pattern.forEach(function(rs,dr) {
-          rs.split('').forEach(function(ch,dc) {
-            if (ch==='1') setCell(sr+dr, sc+dc, k);
-          });
-        });
-      }
-      if (pos==='top-bottom'||pos==='all') { draw(inset,midC); draw(N-inset-mh,midC); }
-      if (pos==='left-right'||pos==='all') { draw(midR,inset); draw(midR,N-inset-mw); }
+  // Helper: draw a motif pattern at a given top-left position
+  function drawMotif(motif, sr, sc) {
+    if (!motif || !motif.pattern) return;
+    const k = colorKind(motif.color, 'F');
+    motif.pattern.forEach(function(rs, dr) {
+      rs.split('').forEach(function(ch, dc) {
+        if (ch === '1') setCell(sr + dr, sc + dc, k);
+      });
     });
   }
+
+  const inset = spec.cornerInset || layers.length + 2;
+
+  // ── Corner motifs — per-position overrides take precedence ──
+  // Positions: topLeft, topRight, bottomLeft, bottomRight
+  const co = spec.cornerOverrides || {};
+  const globalCorner = spec.cornerMotif || null;
+
+  // Each corner: [row offset, col offset], position name
+  const cornerDefs = [
+    { name: 'topLeft',     getPos: function(w,h) { return [inset, inset]; } },
+    { name: 'topRight',    getPos: function(w,h) { return [inset, N-inset-w]; } },
+    { name: 'bottomLeft',  getPos: function(w,h) { return [N-inset-h, inset]; } },
+    { name: 'bottomRight', getPos: function(w,h) { return [N-inset-h, N-inset-w]; } },
+  ];
+
+  cornerDefs.forEach(function(def) {
+    const motif = co[def.name] || globalCorner;
+    if (!motif || !motif.pattern) return;
+    const w = motif.pattern[0].length;
+    const h = motif.pattern.length;
+    const pos = def.getPos(w, h);
+    drawMotif(motif, pos[0], pos[1]);
+  });
+
+  // ── Side motifs — per-position overrides take precedence ──
+  // Positions: top, bottom, left, right
+  const so = spec.sideOverrides || {};
+
+  // Build a map of what the global sideMotifs cover
+  const globalSide = { top: null, bottom: null, left: null, right: null };
+  if (spec.sideMotifs) {
+    spec.sideMotifs.forEach(function(motif) {
+      const pos = motif.position || 'all';
+      if (pos === 'top-bottom' || pos === 'all') {
+        globalSide.top    = globalSide.top    || motif;
+        globalSide.bottom = globalSide.bottom || motif;
+      }
+      if (pos === 'left-right' || pos === 'all') {
+        globalSide.left  = globalSide.left  || motif;
+        globalSide.right = globalSide.right || motif;
+      }
+    });
+  }
+
+  // Draw each side — override wins over global
+  function drawSide(sideName, getPos) {
+    const motif = so[sideName] || globalSide[sideName];
+    if (!motif || !motif.pattern) return;
+    const mw = motif.pattern[0].length;
+    const mh = motif.pattern.length;
+    const pos = getPos(mw, mh);
+    drawMotif(motif, pos[0], pos[1]);
+  }
+
+  drawSide('top',    function(mw,mh) { return [inset,              Math.floor((N-mw)/2)]; });
+  drawSide('bottom', function(mw,mh) { return [N-inset-mh,         Math.floor((N-mw)/2)]; });
+  drawSide('left',   function(mw,mh) { return [Math.floor((N-mh)/2), inset             ]; });
+  drawSide('right',  function(mw,mh) { return [Math.floor((N-mh)/2), N-inset-mw        ]; });
 }
 
 // ── Built-in border specs ─────────────────────────────────────────────────────
