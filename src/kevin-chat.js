@@ -17,15 +17,15 @@ const KEVIN_SUGGESTIONS = {
 };
 
 function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
-  // Use lifted messages from App — persists across open/close
-  // extMessages=null means not yet initialised
-  const [input,    setInput]    = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [keyInput, setKeyInput] = useState(getKevinApiKey());
-  const [showKey,  setShowKey]  = useState(false);
-  const [keySaved, setKeySaved] = useState(hasKevinApiKey());
+  const [input,       setInput]       = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [keyInput,    setKeyInput]    = useState(getKevinApiKey());
+  const [showKey,     setShowKey]     = useState(false);
+  const [keySaved,    setKeySaved]    = useState(hasKevinApiKey());
+  const [pendingImage, setPendingImage] = useState(null); // {data, mediaType, preview}
   const messagesEndRef = useRef(null);
   const inputRef       = useRef(null);
+  const imageInputRef  = useRef(null);
 
   // Local alias — always use extMessages via setExtMessages
   const messages = extMessages || [];
@@ -73,12 +73,34 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
     setMessages([{ role: 'kevin', text: "Key saved. Right then — what are we working on?" }]);
   }
 
+  function handleImageSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const mediaType = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(',')[1];
+      setPendingImage({ data: base64, mediaType: mediaType, preview: dataUrl });
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  }
+
   async function send(text) {
-    if (!text.trim() || loading || !hasKevinApiKey()) return;
-    const userMsg = { role: 'user', text: text.trim() };
+    const hasText = text && text.trim();
+    const hasImage = !!pendingImage;
+    if ((!hasText && !hasImage) || loading || !hasKevinApiKey()) return;
+    const userMsg = {
+      role: 'user',
+      text: hasText ? text.trim() : 'Please analyse this image and generate a cross-stitch border motif pattern from it.',
+      image: hasImage ? pendingImage : undefined,
+    };
     const next = [...messages, userMsg];
     setMessages(next);
     setInput('');
+    setPendingImage(null);
     setLoading(true);
     try {
       const reply = await askKevin(next, context, appData);
@@ -132,13 +154,15 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
                   {isKevin
                     ? <div dangerouslySetInnerHTML={{__html: (function() {
                         let text = m.text;
-                        // Replace [swatch:#HEX] with inline colour circle
                         text = text.replace(/\[swatch:(#[0-9A-Fa-f]{3,6})\]/g, function(_, hex) {
                           return '<span class="kevin-swatch" style="background:' + hex + '" title="' + hex + '"></span>';
                         });
                         return typeof marked !== 'undefined' ? marked.parse(text) : text;
                       })()}}/>
-                    : m.text
+                    : <div>
+                        {m.image && <img src={m.image.preview} className="kevin-msg-image" alt="Uploaded"/>}
+                        {m.text}
+                      </div>
                   }
                 </div>
               </div>
@@ -197,23 +221,49 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
 
         {/* Input — only when key is set */}
         {hasKey && (
-          <div className="kevin-input-row">
-            <textarea
-              ref={inputRef}
-              className="kevin-input"
-              placeholder="Ask Claude-Kevin…"
-              value={input}
-              onChange={function(e) { setInput(e.target.value); }}
-              onKeyDown={handleKey}
-              rows={1}
-            />
-            <button className="kevin-send" onClick={function() { send(input); }}
-              disabled={!input.trim() || loading}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
+          <div className="kevin-input-area">
+            {/* Pending image preview */}
+            {pendingImage && (
+              <div className="kevin-image-preview">
+                <img src={pendingImage.preview} alt="Upload preview" className="kevin-image-thumb"/>
+                <button className="kevin-image-remove" onClick={function() { setPendingImage(null); }}
+                  title="Remove image">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+                <span className="kevin-image-label">Image ready — add a message or send to analyse</span>
+              </div>
+            )}
+            <div className="kevin-input-row">
+              {/* Hidden file input */}
+              <input ref={imageInputRef} type="file" accept="image/*"
+                style={{display:'none'}} onChange={handleImageSelect}/>
+              {/* Image upload button */}
+              <button className="kevin-image-btn" title="Upload image for motif generation"
+                onClick={function() { imageInputRef.current && imageInputRef.current.click(); }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </button>
+              <textarea
+                ref={inputRef}
+                className="kevin-input"
+                placeholder="Ask Claude-Kevin…"
+                value={input}
+                onChange={function(e) { setInput(e.target.value); }}
+                onKeyDown={handleKey}
+                rows={1}
+              />
+              <button className="kevin-send" onClick={function() { send(input); }}
+                disabled={(!input.trim() && !pendingImage) || loading}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </div>
           </div>
         )}
     </div>

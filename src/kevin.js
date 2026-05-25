@@ -69,6 +69,15 @@ Tools:
   suitable pattern while other corners use the global cornerMotif.
 - Swatch convention: when listing or confirming thread colours in chat, include [swatch:#HEX] inline after each hex code so the user sees a colour preview. Example: "Pitch black DMC 310 [swatch:#1A1A1A]".
 
+Image-to-motif: when the user uploads an image, analyse it and generate a cross-stitch bitmap pattern suitable for use as a border motif. Rules:
+- Target size: 9×9 for standard, 11×11 for enlarged. Always state which size you chose.
+- Output the pattern as a JSON array of binary strings, all the same length. Example: ["01110","10001","10001","01110"] 
+- Simplify heavily — cross-stitch works at very low resolution. Capture the essence, not the detail.
+- After generating, show a text preview using █ for 1 and · for 0 so the user can see it.
+- Ask the user which position to place it (cornerMotif, or which sideOverride/cornerOverride position).
+- Then call createBorder or updateBorder with the pattern embedded in the spec.
+- Always confirm the result after applying it.
+
 Corner motif sizes — two options, always use one or the other:
 - Standard: 9x9 pattern, cornerInset 7. For clean/minimal borders or when the motif is simple.
 - Enlarged: 11x11 pattern, cornerInset 8. For detailed/traditional borders with complex motifs.
@@ -485,9 +494,21 @@ async function askKevin(messages, context, appData) {
   function buildApiMessages(msgs) {
     const result = [];
     for (const m of msgs) {
-      if (m.role === 'user')  result.push({ role: 'user',      content: m.text });
+      if (m.role === 'user') {
+        if (m.image) {
+          // Message with image attachment
+          result.push({
+            role: 'user',
+            content: [
+              { type: 'text', text: m.text || 'Please analyse this image and generate a cross-stitch border motif pattern from it.' },
+              { type: 'image', source: { type: 'base64', media_type: m.image.mediaType, data: m.image.data } }
+            ]
+          });
+        } else {
+          result.push({ role: 'user', content: m.text });
+        }
+      }
       if (m.role === 'kevin') result.push({ role: 'assistant', content: m.text });
-      // tool_result role is internal-only — never replayed to API
     }
     return result;
   }

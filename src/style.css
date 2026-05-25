@@ -899,3 +899,42 @@ html, body, #root {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-style: italic;
 }
+
+/* ── Kevin image upload ── */
+.kevin-input-area {
+  flex-shrink: 0;
+  border-top: 1px solid var(--offwht);
+  background: var(--surface);
+}
+.kevin-image-preview {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px 0;
+}
+.kevin-image-thumb {
+  width: 48px; height: 48px; object-fit: cover;
+  border-radius: 6px; border: 1.5px solid var(--lgrey);
+  flex-shrink: 0;
+}
+.kevin-image-remove {
+  width: 22px; height: 22px; border: none; background: none;
+  cursor: pointer; color: var(--grey); padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kevin-image-remove:hover { color: var(--coral); }
+.kevin-image-remove svg { width: 12px; height: 12px; }
+.kevin-image-label {
+  font-size: 11px; color: var(--grey); font-style: italic;
+}
+.kevin-image-btn {
+  width: 32px; height: 32px; border: none; background: none;
+  cursor: pointer; color: var(--grey); padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; border-radius: 6px; transition: all 0.15s;
+}
+.kevin-image-btn:hover { background: var(--offwht); color: var(--black); }
+.kevin-image-btn svg { width: 18px; height: 18px; }
+.kevin-msg-image {
+  display: block; max-width: 160px; border-radius: 8px;
+  margin-bottom: 6px; border: 1px solid var(--lgrey);
+}
