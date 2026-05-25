@@ -398,7 +398,6 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     const canvas = canvasRef.current;
     if (!canvas || (!word && !lines)) return;
     const px = size||440;
-    const cell = px/cols;
     canvas.width = px; canvas.height = px;
     const ctx = canvas.getContext('2d');
 
@@ -409,8 +408,13 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     const grid = lines && lines.length > 0
       ? buildGridMulti(lines, cols, rows, borderStyle, 2)
       : buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
-    const pad = cell*0.1;
-    const lw  = Math.max(cell*0.24, 0.5);
+
+    // Use actual grid dimensions (may differ if buildGridMulti auto-expanded)
+    const actualCols = grid[0] ? grid[0].length : cols;
+    const actualRows = grid.length || rows;
+    const cell = px / actualCols;
+    const pad = cell * 0.1;
+    const lw  = Math.max(cell * 0.24, 0.5);
 
     grid.forEach((rowArr,row) => rowArr.forEach((kind,col) => {
       if (kind===' ') return;
@@ -426,12 +430,12 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
 
     // minor grid
     ctx.strokeStyle='rgba(0,0,0,0.07)'; ctx.lineWidth=0.3;
-    for(let i=0;i<=cols;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,px);ctx.stroke();}
-    for(let i=0;i<=rows;i++){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(px,i*cell);ctx.stroke();}
+    for(let i=0;i<=actualCols;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,px);ctx.stroke();}
+    for(let i=0;i<=actualRows;i++){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(px,i*cell);ctx.stroke();}
     // every-10
     ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=0.5;
-    for(let i=0;i<=cols;i+=10){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,px);ctx.stroke();}
-    for(let i=0;i<=rows;i+=10){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(px,i*cell);ctx.stroke();}
+    for(let i=0;i<=actualCols;i+=10){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,px);ctx.stroke();}
+    for(let i=0;i<=actualRows;i+=10){ctx.beginPath();ctx.moveTo(0,i*cell);ctx.lineTo(px,i*cell);ctx.stroke();}
     // frame
     ctx.strokeStyle='#1A1A1A'; ctx.lineWidth=1.5;
     ctx.strokeRect(0,0,px,px);
@@ -459,9 +463,9 @@ function buildGridMulti(lines, cols, rows, borderStyle, gap) {
   // Auto-expand grid based on line count so lines render at scale 2 comfortably
   // Transparent to user — stored stitch count is unchanged
   const lineCount = (lines || []).slice(0, 4).filter(function(l) { return l.text && l.text.trim(); }).length;
-  if      (lineCount >= 4) { cols = Math.max(cols, 130); rows = Math.max(rows, 130); }
-  else if (lineCount === 3) { cols = Math.max(cols, 120); rows = Math.max(rows, 120); }
-  else if (lineCount === 2) { cols = Math.max(cols, 110); rows = Math.max(rows, 110); }
+  if      (lineCount >= 4) { cols = Math.max(cols, 104); rows = Math.max(rows, 104); }
+  else if (lineCount === 3) { cols = Math.max(cols, 100); rows = Math.max(rows, 100); }
+  else if (lineCount === 2) { cols = Math.max(cols, 100); rows = Math.max(rows, 100); }
 
   const grid = [];
   for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
