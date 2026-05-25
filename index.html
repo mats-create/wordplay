@@ -933,6 +933,31 @@ html, body, #root {
   vertical-align: middle; margin: 0 2px;
   flex-shrink: 0;
 }
+
+/* ── Multi-row shoutout controls ── */
+.form-textarea-word {
+  resize: none;
+  min-height: 40px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+.multirow-count {
+  font-size: 11px; color: var(--grey); font-weight: 500;
+}
+.multirow-scales {
+  margin-top: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.multirow-scale-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 0;
+}
+.multirow-line-label {
+  font-size: 12px; color: var(--grey);
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-style: italic;
+}
 </style>
 </head>
 <body>
@@ -2381,13 +2406,13 @@ function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScal
 /* ═══════════════════════════════════════════════════════════════════
    CANVAS COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale }) {
+function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale, lines }) {
   const canvasRef = useRef(null);
   cols = cols||110; rows = rows||110;
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !word) return;
+    if (!canvas || (!word && !lines)) return;
     const px = size||440;
     const cell = px/cols;
     canvas.width = px; canvas.height = px;
@@ -2396,7 +2421,10 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.fillStyle = '#F0E6D3';
     ctx.fillRect(0,0,px,px);
 
-    const grid = buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
+    // Use multi-row builder if lines provided, otherwise single-word builder
+    const grid = lines && lines.length > 0
+      ? buildGridMulti(lines, cols, rows, borderStyle, 2)
+      : buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
     const pad = cell*0.1;
     const lw  = Math.max(cell*0.24, 0.5);
 
@@ -2424,7 +2452,7 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
     ctx.strokeStyle='#1A1A1A'; ctx.lineWidth=1.5;
     ctx.strokeRect(0,0,px,px);
 
-  }, [word, cols, rows, borderStyle, size, JSON.stringify(threads)]);
+  }, [word, cols, rows, borderStyle, size, JSON.stringify(threads), textScale, JSON.stringify(lines)]);
 
   return (
     <div className={className||'canvas-full'}>
@@ -2433,6 +2461,154 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
   );
 }
 
+
+// ── Multi-row grid builder ────────────────────────────────────────────────────
+// lines: array of {text, scale} — max 4
+// Each line independently scaled and centred horizontally.
+// Lines distributed evenly in available vertical space.
+function buildGridMulti(lines, cols, rows, borderStyle, gap) {
+  const GAP_BASE = (gap != null && gap > 0) ? gap : 1;
+  const LINE_GAP = 3; // fixed vertical gap between lines in stitches
+  cols = cols || 94;
+  rows = rows || 94;
+
+  const grid = [];
+  for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
+
+  function setCell(r, c, kind) {
+    if (r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c] === ' ')
+      grid[r][c] = kind;
+  }
+
+  const N = cols;
+  const spec = (typeof borderStyle === 'object' && borderStyle !== null)
+    ? borderStyle
+    : (BORDER_SPECS[borderStyle] || BORDER_SPECS['minimal']);
+
+  renderBorderSpec(spec, N, setCell);
+
+  // Clamp to 4 lines
+  const activeLines = (lines || []).slice(0, 4).filter(function(l) {
+    return l.text && l.text.trim();
+  });
+  if (activeLines.length === 0) return grid;
+
+  // Compute interior bounds
+  const borderDepth = (spec && spec.layers) ? spec.layers.length : 2;
+  const cornerInset = (spec && spec.cornerInset) ? spec.cornerInset : borderDepth + 2;
+  let sideMotifW = 0;
+  if (spec && spec.sideMotifs) {
+    spec.sideMotifs.forEach(function(m) {
+      const pos = m.position || 'all';
+      if (pos === 'left-right' || pos === 'all') {
+        const mw = m.pattern ? m.pattern[0].length : 0;
+        sideMotifW = Math.max(sideMotifW, mw);
+      }
+    });
+  }
+  const edgeClear = sideMotifW > 0 ? cornerInset + sideMotifW + 1 : cornerInset + 2;
+  const interiorW = cols - edgeClear * 2;
+  const interiorH = rows - edgeClear * 2;
+
+  // For each line, build char list and compute best scale
+  const LETTER_H = 7;
+  const lineData = activeLines.map(function(line) {
+    const normText = (line.text.normalize ? line.text.normalize('NFC') : line.text).toUpperCase();
+    const charList = normText.split('').map(function(ch) {
+      if (ch in DIACRITIC_MAP) {
+        const dm = DIACRITIC_MAP[ch];
+        const bitmap = LETTERS[dm.base];
+        if (Array.isArray(bitmap)) return { letter: bitmap, hasDiac: true, mark: dm.mark };
+      }
+      const direct = LETTERS[ch];
+      if (Array.isArray(direct)) return { letter: direct, hasDiac: false };
+      const norm = normaliseChar(ch);
+      const normed = LETTERS[norm];
+      if (Array.isArray(normed)) return { letter: normed, hasDiac: false };
+      return { letter: LETTERS['?'], hasDiac: false };
+    });
+    const hasDiac = charList.some(function(c) { return c.hasDiac; });
+    const diacH   = hasDiac ? 2 : 0;
+    const textH   = LETTER_H + diacH;
+    const totalW  = charList.reduce(function(s, c) { return s + c.letter[0].length; }, 0);
+    const nChars  = charList.length;
+
+    // Per-line available height = interiorH split across lines with gaps
+    const totalLineH = activeLines.length * textH + (activeLines.length - 1) * LINE_GAP;
+    const maxScaleW = totalW > 0 ? Math.floor((interiorW - GAP_BASE * (nChars - 1)) / totalW) : 1;
+    // Max scale fitting vertically — each line gets equal share
+    const shareH    = Math.floor((interiorH - (activeLines.length - 1) * LINE_GAP) / activeLines.length);
+    const maxScaleH = Math.floor(shareH / Math.max(textH, 1));
+    const maxFits   = Math.min(maxScaleW, maxScaleH);
+
+    // Resolve scale: user setting (1=S, 0=auto, 3=L) or auto
+    let S = line.scale && line.scale > 0 ? line.scale : 0;
+    if (S === 0) {
+      // Auto: prefer 2, drop to 1, rise to 3 for short words
+      if (maxFits < 1) S = 1;
+      else if (maxFits < 2) S = 1;
+      else {
+        const vis = charList.filter(function(c) { return c.letter !== LETTERS[' ']; }).length;
+        S = (maxFits >= 3 && vis <= 3) ? 3 : 2;
+      }
+    }
+    // Cap at what fits
+    S = Math.min(S, Math.max(maxFits, 1));
+
+    return { charList, hasDiac, diacH, textH, totalW, nChars, S };
+  });
+
+  // Total height of all rendered lines + gaps
+  const totalRenderedH = lineData.reduce(function(s, d) {
+    return s + d.textH * d.S;
+  }, 0) + (lineData.length - 1) * LINE_GAP;
+
+  // Start row: centre the block vertically
+  let currentRow = edgeClear + Math.floor((interiorH - totalRenderedH) / 2);
+
+  // Draw each line
+  lineData.forEach(function(d) {
+    const tw = d.totalW * d.S + GAP_BASE * (d.nChars - 1);
+    let x = Math.floor((cols - tw) / 2);
+    const letterRow = currentRow + d.diacH * d.S;
+
+    d.charList.forEach(function(charEntry) {
+      const letter = charEntry.letter;
+      const lw = letter[0].length;
+
+      // Diacritic
+      if (charEntry.hasDiac && d.hasDiac) {
+        const markRows = DIACRITICS[charEntry.mark](lw);
+        markRows.forEach(function(rs, dr) {
+          rs.split('').forEach(function(ch, dc) {
+            if (ch === '1') {
+              for (let sy = 0; sy < d.S; sy++)
+                for (let sx = 0; sx < d.S; sx++)
+                  setCell(currentRow + dr * d.S + sy, x + dc * d.S + sx, 'T');
+            }
+          });
+        });
+      }
+
+      // Letter body
+      letter.forEach(function(rs, r) {
+        rs.split('').forEach(function(ch, c) {
+          if (ch === '1') {
+            for (let dr = 0; dr < d.S; dr++)
+              for (let dc = 0; dc < d.S; dc++)
+                setCell(letterRow + r * d.S + dr, x + c * d.S + dc, 'T');
+          }
+        });
+      });
+
+      x += lw * d.S + GAP_BASE;
+    });
+
+    currentRow += d.textH * d.S + LINE_GAP;
+  });
+
+  return grid;
+}
 
 /* ---- src/utils.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
@@ -2985,8 +3161,26 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   const [calculating,   setCalculating]   = useState(false);
   const [strands,       setStrands]       = useState(initial&&initial.strands ? initial.strands : 2);
   const [textScale,     setTextScale]     = useState(initial&&initial.textScale ? initial.textScale : 0);
+  // Multi-row: per-line scale overrides. Index matches line number (0-based).
+  const [lineScales,    setLineScales]    = useState(initial&&initial.lineScales ? initial.lineScales : [0,0,0,0]);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+
+  const MAX_LINES = 4;
+
+  // Parse name into lines array (split on newline, max 4)
+  const parsedLines = name.split('\n').slice(0, MAX_LINES).map(function(text, i) {
+    return { text: text, scale: lineScales[i] || 0 };
+  });
+  const isMultiRow = parsedLines.length > 1 || name.includes('\n');
+
+  function setLineScale(i, val) {
+    setLineScales(function(prev) {
+      const next = [...prev];
+      next[i] = val;
+      return next;
+    });
+  }
 
   function touch(field) { setTouched(p=>({...p,[field]:true})); }
 
@@ -3013,7 +3207,9 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
 
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
-      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,textScale,strands};
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,
+      textScale,strands,lineScales,
+      lines: isMultiRow ? parsedLines : null};
     const errs = validateShoutout(fields);
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
@@ -3036,14 +3232,63 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
         <div className="sheet-body">
 
           <div className="form-group">
-            <label className="form-label">Word or phrase</label>
-            <input className={'form-input'+(touched.name&&errors.name?' error':'')}
-              placeholder="e.g. GOAL!" value={name}
-              onChange={e=>setName(e.target.value)}
-              onBlur={()=>touch('name')} autoFocus/>
+            <div className="form-label-row">
+              <label className="form-label">Word or phrase</label>
+              {isMultiRow && (
+                <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>
+              )}
+            </div>
+            <textarea
+              className={'form-input form-textarea-word' + (touched.name&&errors.name?' error':'')}
+              placeholder={'e.g. GOAL!\nPress Enter for multiple lines (max 4)'}
+              value={name}
+              rows={Math.max(2, parsedLines.length + 1)}
+              onChange={function(e) {
+                const ls = e.target.value.split('\n');
+                if (ls.length > MAX_LINES) return;
+                setName(e.target.value);
+              }}
+              onKeyDown={function(e) {
+                if (e.key === 'Enter') {
+                  const ls = name.split('\n');
+                  if (ls.length >= MAX_LINES) e.preventDefault();
+                }
+              }}
+              onBlur={function() { touch('name'); }}
+              autoFocus
+            />
             {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
+
+            {/* Per-line scale toggles */}
+            {isMultiRow && (
+              <div className="multirow-scales">
+                {parsedLines.map(function(line, i) {
+                  return (
+                    <div key={i} className="multirow-scale-row">
+                      <span className="multirow-line-label">
+                        {line.text.trim() ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length > 18 ? '…' : '') + '"' : 'Line ' + (i+1)}
+                      </span>
+                      <div className="size-toggle">
+                        {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
+                          return (
+                            <button key={opt.label}
+                              className={'size-btn' + ((lineScales[i]||0) === opt.value ? ' active' : '')}
+                              style={{padding:'3px 10px', fontSize:11}}
+                              onClick={function() { setLineScale(i, opt.value); }}>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
+          {/* Single-row text size — hidden when multi-row active */}
+          {!isMultiRow && (
           <div className="form-group">
             <label className="form-label">Text size</label>
             <div className="size-toggle">
@@ -3063,6 +3308,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
                'Large — bold impact for short words'}
             </div>
           </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Border style</label>
@@ -3550,7 +3796,9 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
             borderStyle={bs} threads={shoutout.threads}
-            textScale={shoutout.textScale||0} size={550}/>
+            textScale={shoutout.textScale||0}
+            lines={shoutout.lines||null}
+            size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (
@@ -4004,6 +4252,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activ
                   borderStyle={s.borderSpec||s.borderStyle||'british'}
                   threads={s.threads} size={220}
                   textScale={s.textScale||0}
+                  lines={s.lines||null}
                   className="canvas-thumb"/>
                 <div className="card-title">{s.name}</div>
                 <div className="card-sub">
