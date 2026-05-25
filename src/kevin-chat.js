@@ -140,8 +140,6 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
                       })()}}/>
                     : m.text
                   }
-                    : m.text
-                  }
                 </div>
               </div>
             );
