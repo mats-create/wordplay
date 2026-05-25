@@ -2468,9 +2468,16 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
 // Lines distributed evenly in available vertical space.
 function buildGridMulti(lines, cols, rows, borderStyle, gap) {
   const GAP_BASE = (gap != null && gap > 0) ? gap : 1;
-  const LINE_GAP = 3; // fixed vertical gap between lines in stitches
+  const LINE_GAP = 2; // vertical gap between lines in stitches
   cols = cols || 94;
   rows = rows || 94;
+
+  // Auto-expand grid based on line count so lines render at scale 2 comfortably
+  // Transparent to user — stored stitch count is unchanged
+  const lineCount = (lines || []).slice(0, 4).filter(function(l) { return l.text && l.text.trim(); }).length;
+  if      (lineCount >= 4) { cols = Math.max(cols, 130); rows = Math.max(rows, 130); }
+  else if (lineCount === 3) { cols = Math.max(cols, 120); rows = Math.max(rows, 120); }
+  else if (lineCount === 2) { cols = Math.max(cols, 110); rows = Math.max(rows, 110); }
 
   const grid = [];
   for (let r = 0; r < rows; r++) grid.push(new Array(cols).fill(' '));
