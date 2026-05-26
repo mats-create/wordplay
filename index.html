@@ -58,7 +58,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   RESET & TOKENS YADAYADA
+   RESET & TOKENS
 ═══════════════════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -3952,7 +3952,7 @@ function generateAidaPDF(shoutout, showBg) {
 
 /* ---- src/sheets.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
-   AIDA PRINT OPTIONS SHEET
+   AIDA PRINT OPTIONS SHEET TO USE
 ═══════════════════════════════════════════════════════════════════ */
 function AidaOptionsSheet({ shoutout, onClose }) {
   const [showBg,    setShowBg]    = useState(true);
@@ -4623,7 +4623,7 @@ function SignInScreen({ onSignIn, error }) {
 
 /* ---- src/screens.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
-   SHOUTOUTS SCREEN
+   SHOUTOUTS SCREEN FOR APP
 ═══════════════════════════════════════════════════════════════════ */
 function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query, setQuery] = useState('');
@@ -5021,7 +5021,7 @@ function App() {
   const [editObject,    setEditObject]    = useState(null);
   const fb = window.__firebase;
 
-  // Kevin context — what Kevin knows about the current state
+  // Kevin context — what Kevin knows about the current states
   const kevinContext = useMemo(function() {
     return {
       tab,
@@ -5522,6 +5522,7 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);</script>
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
 </body>
 </html>
