@@ -130,21 +130,13 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         )}
 
         <div className="detail-actions">
-          <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
-          {folders && folders.length > 0 && (
-            <select className="folder-select"
-              value={shoutout.folder || ''}
-              onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
-              <option value="">No folder</option>
-              {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
-            </select>
-          )}
-          <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}>
+          {/* Primary action — top right */}
+          <button className="btn btn-primary" onClick={onEdit}>
             <Ico.Edit/> Edit
           </button>
         </div>
 
-        {/* Export row */}
+        {/* Export + folder row */}
         <div className="export-actions">
           <button className="btn-export btn-export-primary"
             onClick={handleChartPDF} disabled={chartGenerating}>
@@ -163,6 +155,22 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
               <path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
             </svg>
             Aida print
+          </button>
+          {folders && folders.length > 0 && (
+            <select className="folder-select" style={{marginLeft:'auto'}}
+              value={shoutout.folder || ''}
+              onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+              <option value="">No folder</option>
+              {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+            </select>
+          )}
+        </div>
+
+        {/* Destructive action — separated at bottom */}
+        <div className="detail-actions" style={{paddingTop:0, borderTop:'1px solid var(--offwht)', marginTop:4}}>
+          <button className="btn btn-ghost" style={{color:'var(--coral)', fontSize:12}}
+            onClick={onDelete}>
+            <Ico.Delete/> Delete shoutout
           </button>
         </div>
 
@@ -298,8 +306,8 @@ function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFold
 
         <div className="detail-section">
           <div className="detail-section-label">Preview</div>
-          <CrossStitchCanvas word="ABC" cols={60} rows={60}
-            borderStyle={border.style} threads={DEFAULT_THREADS} size={400}/>
+          <CrossStitchCanvas word="ABC" cols={94} rows={94}
+            borderStyle={border.spec || border.style} threads={DEFAULT_THREADS} size={400}/>
         </div>
 
         {border.description && (
@@ -319,22 +327,27 @@ function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFold
         )}
 
         <div className="detail-actions">
-          {!border.builtIn && (
-            <button className="btn btn-danger" onClick={onDelete}><Ico.Delete/> Delete</button>
-          )}
+          <button className="btn btn-primary" onClick={onEdit}
+            disabled={border.builtIn}>
+            {border.builtIn ? <><Ico.Lock/> Built-in</> : <><Ico.Edit/> Edit</>}
+          </button>
           {folders && folders.length > 0 && (
-            <select className="folder-select"
+            <select className="folder-select" style={{marginLeft:'auto'}}
               value={border.folder || ''}
               onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
               <option value="">No folder</option>
               {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
             </select>
           )}
-          <button className="btn btn-primary" style={{marginLeft:'auto'}} onClick={onEdit}
-            disabled={border.builtIn}>
-            {border.builtIn ? <><Ico.Lock/> Built-in</> : <><Ico.Edit/> Edit</>}
-          </button>
         </div>
+        {!border.builtIn && (
+          <div className="detail-actions" style={{paddingTop:0, borderTop:'1px solid var(--offwht)', marginTop:4}}>
+            <button className="btn btn-ghost" style={{color:'var(--coral)', fontSize:12}}
+              onClick={onDelete}>
+              <Ico.Delete/> Delete border
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

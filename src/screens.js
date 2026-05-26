@@ -246,7 +246,7 @@ function BordersScreen({ borders, onSelect, folders, activeFolder, onFolderChang
               <div key={b.id} className="card" onClick={function() { onSelect(b); }}>
                 {b.builtIn && <div className="card-badge">Built-in</div>}
                 {b.folder && <div className="card-folder-tag">{b.folder}</div>}
-                <CrossStitchCanvas word="ABC" cols={60} rows={60}
+                <CrossStitchCanvas word="ABC" cols={94} rows={94}
                   borderStyle={b.spec || b.style} threads={DEFAULT_THREADS} size={220}
                   className="canvas-thumb"/>
                 <div className="card-title">{b.name}</div>

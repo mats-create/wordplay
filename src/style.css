@@ -148,6 +148,12 @@ html, body, #root {
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 12px rgba(204,51,0,0.35); transition: all 0.2s;
 }
+/* Shift FAB left of Kevin panel when it's open */
+@media (min-width: 768px) {
+  .app-layout:has(.app-kevin.kevin-visible) .fab {
+    right: calc(360px + 24px);
+  }
+}
 .fab:hover { background: #aa2900; transform: scale(1.05); }
 .fab:active { transform: scale(0.97); }
 .fab svg { width: 22px; height: 22px; }

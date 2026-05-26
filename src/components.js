@@ -110,7 +110,7 @@ function BorderPicker({ borders, selected, onSelect }) {
           className={'border-option' + (selected===b.id?' selected':'')}
           onClick={()=>onSelect(b.id, b.name)}>
           <div className="border-option-thumb">
-            <CrossStitchCanvas word="ABC" cols={40} rows={40}
+            <CrossStitchCanvas word="ABC" cols={94} rows={94}
               borderStyle={b.spec || b.style} threads={DEFAULT_THREADS} size={88}/>
           </div>
           <div className="border-option-label">{b.name}</div>
