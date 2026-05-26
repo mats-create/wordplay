@@ -209,16 +209,21 @@ function BorderForm({ initial, onSave, onClose, saving }) {
   const [touched,setTouched]= useState({});
 
   // Tile pattern state — derived from existing spec or defaults
-  const initSpec = initial && initial.spec ? initial.spec : null;
+  const initSpec = (initial && initial.spec) ? initial.spec
+    : (initial && initial.style && BORDER_SPECS && BORDER_SPECS[initial.style]) ? BORDER_SPECS[initial.style]
+    : null;
   const initWeight = initSpec && initSpec.borderWeight ? initSpec.borderWeight : 1;
   const initCornerFill = initSpec && initSpec.cornerFill ? initSpec.cornerFill : 'primary';
-  const initLayers = initSpec && initSpec.layers ? initSpec.layers.map(function(l) {
-    return { ...l, tile: l.tile || null };
-  }) : [
-    {line:0, type:'solid', color:'primary',   tile:null},
-    {line:1, type:'solid', color:'secondary',  tile:null},
-    {line:2, type:'solid', color:'accent',     tile:null},
-  ];
+
+  // Always show 5 layer rows — pad with defaults if fewer exist
+  const specLayers = initSpec && initSpec.layers ? initSpec.layers : [];
+  const initLayers = Array.from({length: 5}, function(_, i) {
+    const l = specLayers[i];
+    if (!l) return {line:i, type:'solid', color:'primary', tile:null};
+    // For check layers, use colorA as the display colour
+    const color = l.color || l.colorA || 'primary';
+    return { ...l, color, tile: l.tile || null };
+  });
 
   const [borderWeight, setBorderWeight] = useState(initWeight);
   const [cornerFill,   setCornerFill]   = useState(initCornerFill);
@@ -389,6 +394,26 @@ function BorderForm({ initial, onSave, onClose, saving }) {
               })}
             </select>
             <div className="form-hint">All 4 frame corners fill solid in this colour</div>
+          </div>
+
+          {/* Live preview */}
+          <div className="form-group">
+            <label className="form-label">Preview</label>
+            <div className="form-hint" style={{marginBottom:8}}>Colours shown are default thread slot colours</div>
+            <CrossStitchCanvas word="ABC" cols={94} rows={94}
+              borderStyle={{
+                layers: layers.slice(0, maxLayers).map(function(l, i) {
+                  return { line: i, type: l.type || 'solid', color: l.color || 'primary',
+                           tile: (l.tile && l.tile !== '00000000') ? l.tile : undefined };
+                }),
+                borderWeight: borderWeight,
+                cornerFill: cornerFill,
+                cornerInset: initSpec && initSpec.cornerInset ? initSpec.cornerInset : undefined,
+                cornerMotif: initSpec && initSpec.cornerMotif ? initSpec.cornerMotif : undefined,
+                sideMotifs: initSpec && initSpec.sideMotifs ? initSpec.sideMotifs : undefined,
+              }}
+              threads={DEFAULT_THREADS}
+              size={280}/>
           </div>
 
           <div className="form-group">
