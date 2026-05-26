@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   AIDA PRINT OPTIONS SHEET
+   AIDA PRINT OPTIONS SHEET TO USE
 ═══════════════════════════════════════════════════════════════════ */
 function AidaOptionsSheet({ shoutout, onClose }) {
   const [showBg,    setShowBg]    = useState(true);
