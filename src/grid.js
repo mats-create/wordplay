@@ -57,7 +57,8 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
 
   // ── Auto-scale ──
   // Compute true interior: must clear border layers AND side motifs
-  const borderDepth = (spec && spec.layers) ? spec.layers.length : 2;
+  const borderWeight = (spec && spec.borderWeight) ? spec.borderWeight : 1;
+  const borderDepth = (spec && spec.layers) ? spec.layers.length * borderWeight : 2;
   const cornerInset = (spec && spec.cornerInset) ? spec.cornerInset : borderDepth + 2;
 
   // Find the deepest side motif extent from the edge
@@ -162,34 +163,61 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
 function renderBorderSpec(spec, N, setCell) {
   if (!spec) return;
   const layers = spec.layers || [];
-  layers.forEach(function(layer) {
-    const ln = layer.line;
-    if (layer.type === 'solid') {
-      const k = layer.color === 'secondary' ? 'D' : layer.color === 'accent' ? 'E' : layer.color === 'border3' ? 'H' : layer.color === 'accent1' ? 'J' : layer.color === 'accent2' ? 'L' : 'B';
-      for (let i=ln; i<N-ln; i++) {
-        setCell(ln, i, k); setCell(N-1-ln, i, k);
-        setCell(i, ln, k); setCell(i, N-1-ln, k);
-      }
-    } else if (layer.type === 'check') {
-      const kA = layer.colorA === 'secondary' ? 'D' : layer.colorA === 'accent' ? 'E' : layer.colorA === 'border3' ? 'H' : layer.colorA === 'accent1' ? 'J' : layer.colorA === 'accent2' ? 'L' : 'A';
-      const kB = layer.colorB === 'secondary' ? 'D' : layer.colorB === 'accent' ? 'E' : layer.colorB === 'border3' ? 'I' : layer.colorB === 'accent1' ? 'K' : layer.colorB === 'accent2' ? 'M' : 'A';
-      for (let i=ln; i<N-ln; i++) {
-        setCell(ln,     i, i%2===0?kA:kB); setCell(N-1-ln, i, i%2===1?kA:kB);
-        setCell(i,     ln, i%2===0?kA:kB); setCell(i, N-1-ln, i%2===1?kA:kB);
-      }
-    }
-    // 'empty' — skip
-  });
+  const borderWeight = spec.borderWeight || 1;
+  const cornerFillColor = spec.cornerFill || null;
 
-  // Helper: resolve a colour name to a grid kind
+  // Helper: resolve colour name to grid kind
   function colorKind(color, fallback) {
     return color === 'secondary' ? 'D'
       : color === 'accent'   ? 'E'
       : color === 'border3'  ? 'H'
       : color === 'accent1'  ? 'J'
       : color === 'accent2'  ? 'L'
-      : fallback || 'F';
+      : fallback || 'B';
   }
+
+  // Compute corner inset — how many rows the full border occupies
+  const totalBorderRows = layers.length * borderWeight;
+  const inset = spec.cornerInset || totalBorderRows + 2;
+
+  // Corner fill kind
+  const cfKind = cornerFillColor ? colorKind(cornerFillColor, 'B') : null;
+
+  layers.forEach(function(layer, li) {
+    const k = colorKind(layer.color, 'B');
+    const kA = colorKind(layer.colorA, 'A');
+    const kB = layer.colorB === 'secondary' ? 'D' : layer.colorB === 'accent' ? 'E' : layer.colorB === 'border3' ? 'I' : layer.colorB === 'accent1' ? 'K' : layer.colorB === 'accent2' ? 'M' : 'A';
+    const tile = layer.tile || null; // 8-char binary string e.g. "10001000"
+
+    for (let w = 0; w < borderWeight; w++) {
+      const ln = li * borderWeight + w;
+      if (ln >= Math.floor(N / 2)) return;
+
+      if (layer.type === 'empty') continue;
+
+      for (let i = ln; i < N - ln; i++) {
+        const inCorner = cfKind && (i < inset || i >= N - inset);
+
+        if (inCorner) {
+          // Corner zone — always solid in cornerFill colour
+          setCell(ln,     i, cfKind); setCell(N-1-ln, i, cfKind);
+          setCell(i,     ln, cfKind); setCell(i, N-1-ln, cfKind);
+        } else if (tile) {
+          // Tile pattern — check tile[i % 8]
+          if (tile[i % tile.length] === '1') {
+            setCell(ln, i, k); setCell(N-1-ln, i, k);
+            setCell(i, ln, k); setCell(i, N-1-ln, k);
+          }
+        } else if (layer.type === 'solid') {
+          setCell(ln, i, k); setCell(N-1-ln, i, k);
+          setCell(i, ln, k); setCell(i, N-1-ln, k);
+        } else if (layer.type === 'check') {
+          setCell(ln,     i, i%2===0?kA:kB); setCell(N-1-ln, i, i%2===1?kA:kB);
+          setCell(i,     ln, i%2===0?kA:kB); setCell(i, N-1-ln, i%2===1?kA:kB);
+        }
+      }
+    }
+  });
 
   // Helper: draw a motif pattern at a given top-left position
   function drawMotif(motif, sr, sc) {
@@ -201,8 +229,6 @@ function renderBorderSpec(spec, N, setCell) {
       });
     });
   }
-
-  const inset = spec.cornerInset || layers.length + 2;
 
   // ── Corner motifs — per-position overrides take precedence ──
   // Positions: topLeft, topRight, bottomLeft, bottomRight

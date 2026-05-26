@@ -190,6 +190,15 @@ const STYLE_OPTIONS = ['british','scandinavian','minimal','custom'];
 const TRAIT_OPTIONS = ['diagonal-check','corner-footballs','goal-posts','shot-arrows',
   'geometric','diamond-repeat','two-line-frame','single-line','floral','folk-motifs'];
 
+// Helper: get a representative hex colour for a slot name (for tile cell preview)
+function threadColorForSlot(slotName) {
+  const map = {
+    'primary':'#1A1A1A','secondary':'#4A6741','accent':'#CC3300',
+    'border3':'#2255AA','accent1':'#AA8800','accent2':'#AA3388',
+  };
+  return map[slotName] || '#1A1A1A';
+}
+
 function BorderForm({ initial, onSave, onClose, saving }) {
   const isEdit = !!initial;
   const [name,   setName]   = useState(initial?initial.name:'');
@@ -198,6 +207,57 @@ function BorderForm({ initial, onSave, onClose, saving }) {
   const [traits, setTraits] = useState(initial?initial.traits:[]);
   const [errors, setErrors] = useState({});
   const [touched,setTouched]= useState({});
+
+  // Tile pattern state — derived from existing spec or defaults
+  const initSpec = initial && initial.spec ? initial.spec : null;
+  const initWeight = initSpec && initSpec.borderWeight ? initSpec.borderWeight : 1;
+  const initCornerFill = initSpec && initSpec.cornerFill ? initSpec.cornerFill : 'primary';
+  const initLayers = initSpec && initSpec.layers ? initSpec.layers.map(function(l) {
+    return { ...l, tile: l.tile || null };
+  }) : [
+    {line:0, type:'solid', color:'primary',   tile:null},
+    {line:1, type:'solid', color:'secondary',  tile:null},
+    {line:2, type:'solid', color:'accent',     tile:null},
+  ];
+
+  const [borderWeight, setBorderWeight] = useState(initWeight);
+  const [cornerFill,   setCornerFill]   = useState(initCornerFill);
+  const [layers,       setLayers]       = useState(initLayers);
+
+  const COLOR_NAMES = ['primary','secondary','accent','border3','accent1','accent2'];
+  const COLOR_LABELS = ['Shoutout','Border 1','Border 2','Border 3','Accent 1','Accent 2'];
+  const maxLayers = borderWeight === 2 ? 3 : 5;
+  const TILE_SIZE = 8;
+
+  function toggleTile(li, ci) {
+    setLayers(function(prev) {
+      return prev.map(function(layer, idx) {
+        if (idx !== li) return layer;
+        const current = layer.tile || '00000000';
+        const arr = current.split('');
+        arr[ci] = arr[ci] === '1' ? '0' : '1';
+        return { ...layer, tile: arr.join('') };
+      });
+    });
+  }
+
+  function setLayerColor(li, color) {
+    setLayers(function(prev) {
+      return prev.map(function(layer, idx) {
+        return idx === li ? { ...layer, color } : layer;
+      });
+    });
+  }
+
+  function setWeightMode(w) {
+    setBorderWeight(w);
+    if (w === 2) {
+      // Lock all tiles to solid in double mode
+      setLayers(function(prev) {
+        return prev.map(function(l) { return { ...l, tile: '11111111' }; });
+      });
+    }
+  }
 
   function toggleTrait(t) {
     setTraits(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t]);
@@ -208,12 +268,19 @@ function BorderForm({ initial, onSave, onClose, saving }) {
     const errs = validateBorder(fields);
     setErrors(errs); setTouched({name:true,description:true});
     if (hasErrors(errs)) return;
-    onSave(fields);
+    // Build updated spec preserving existing spec fields (motifs, overrides etc)
+    const baseSpec = initSpec || {};
+    const activeLayers = layers.slice(0, maxLayers).map(function(l, i) {
+      return { line: i, type: l.type || 'solid', color: l.color || 'primary',
+               tile: (l.tile && l.tile !== '11111111') ? l.tile : undefined };
+    });
+    const newSpec = { ...baseSpec, layers: activeLayers, borderWeight, cornerFill };
+    onSave({ ...fields, spec: newSpec });
   }
 
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="sheet">
+      <div className="sheet sheet-wide">
         <div className="sheet-handle"/>
         <div className="sheet-header">
           <span className="sheet-title">{isEdit?'Edit border':'New border'}</span>
@@ -231,14 +298,6 @@ function BorderForm({ initial, onSave, onClose, saving }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Style</label>
-            <select className="form-input" value={style} onChange={e=>setStyle(e.target.value)}>
-              {STYLE_OPTIONS.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-            </select>
-            <div className="form-hint">Drives the canvas rendering logic</div>
-          </div>
-
-          <div className="form-group">
             <label className="form-label">Description</label>
             <textarea className={'form-textarea'+(touched.description&&errors.description?' error':'')}
               placeholder="Describe the visual character and tradition of this border…"
@@ -246,6 +305,90 @@ function BorderForm({ initial, onSave, onClose, saving }) {
               onBlur={()=>setTouched(p=>({...p,description:true}))}/>
             {touched.description&&errors.description &&
               <div className="form-error">{errors.description}</div>}
+          </div>
+
+          {/* Stitch width toggle */}
+          <div className="form-group">
+            <label className="form-label">Stitch width</label>
+            <div className="size-toggle">
+              {[{label:'Single', value:1},{label:'Double', value:2}].map(function(opt) {
+                return (
+                  <button key={opt.label}
+                    className={'size-btn' + (borderWeight === opt.value ? ' active' : '')}
+                    onClick={function() { setWeightMode(opt.value); }}>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="form-hint">
+              {borderWeight === 2 ? 'Double stitch — max 3 layers, beginner friendly' : 'Single stitch — up to 5 layers, full pattern control'}
+            </div>
+          </div>
+
+          {/* Tile pattern editor */}
+          <div className="form-group">
+            <label className="form-label">Layer patterns</label>
+            <div className="form-hint" style={{marginBottom:8}}>
+              Each row = one border layer. Tap cells to create a repeating 8-stitch tile pattern.
+              {borderWeight === 2 && ' Locked to solid in double-stitch mode.'}
+            </div>
+            <div className="tile-layer-editor">
+              {layers.map(function(layer, li) {
+                const muted = li >= maxLayers;
+                const tile = layer.tile || '00000000';
+                const locked = borderWeight === 2;
+                return (
+                  <div key={li} className={'tile-layer-row' + (muted ? ' layer-muted' : '')}>
+                    <span className="tile-layer-num">{li+1}</span>
+                    <div className="tile-editor-cells">
+                      {Array.from({length: TILE_SIZE}).map(function(_, ci) {
+                        const on = tile[ci] === '1';
+                        const col = threadColorForSlot(layer.color);
+                        return (
+                          <div key={ci}
+                            className={'tile-edit-cell' + (on ? ' on' : '') + (locked || muted ? ' locked' : '')}
+                            style={{background: on ? col : ''}}
+                            onClick={function() { if (!locked && !muted) toggleTile(li, ci); }}>
+                            {on && (
+                              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                                <line x1="2" y1="2" x2="14" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                                <line x1="14" y1="2" x2="2" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                              </svg>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Colour slot selector */}
+                    {!muted && (
+                      <div className="tile-layer-color">
+                        <select className="tile-color-select"
+                          value={layer.color || 'primary'}
+                          onChange={function(e) { setLayerColor(li, e.target.value); }}>
+                          {COLOR_NAMES.map(function(c, ci2) {
+                            return <option key={c} value={c}>{COLOR_LABELS[ci2]}</option>;
+                          })}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Corner fill */}
+          <div className="form-group">
+            <label className="form-label">Corner fill colour</label>
+            <select className="form-input" style={{maxWidth:200}}
+              value={cornerFill}
+              onChange={function(e) { setCornerFill(e.target.value); }}>
+              {COLOR_NAMES.map(function(c, i) {
+                return <option key={c} value={c}>{COLOR_LABELS[i]}</option>;
+              })}
+            </select>
+            <div className="form-hint">All 4 frame corners fill solid in this colour</div>
           </div>
 
           <div className="form-group">
