@@ -1003,6 +1003,83 @@ html, body, #root {
   display: block; max-width: 160px; border-radius: 8px;
   margin-bottom: 6px; border: 1px solid var(--lgrey);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   OBJECTS SCREEN + STITCH EDITOR
+═══════════════════════════════════════════════════════════════════ */
+
+/* Object card */
+.object-card { align-items: center; }
+.object-preview {
+  position: relative;
+  background: var(--offwht);
+  border: 1px solid var(--lgrey);
+  border-radius: 6px;
+  margin: 8px auto;
+}
+.object-preview-empty {
+  width: 80px; height: 80px;
+  background: var(--offwht); border-radius: 6px;
+  margin: 8px auto;
+}
+
+/* Object detail preview grid */
+.object-detail-preview {
+  display: flex; flex-wrap: wrap;
+  border: 1px solid var(--lgrey); border-radius: 6px;
+  overflow: hidden; width: fit-content;
+}
+
+/* Stitch editor */
+.sheet-wide { max-width: 680px; }
+.stitch-editor-wrap {
+  overflow-x: auto; overflow-y: auto;
+  max-height: 480px;
+  border: 1px solid var(--lgrey); border-radius: 8px;
+  background: var(--offwht);
+  padding: 8px;
+}
+.stitch-editor {
+  gap: 2px;
+}
+.stitch-cell {
+  width: 32px; height: 32px;
+  background: var(--white);
+  border: 1px solid var(--lgrey);
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s;
+  user-select: none;
+}
+.stitch-cell:hover { background: #f0f0f0; }
+.stitch-cell.on { background: var(--offwht); }
+.stitch-cell.on:hover { background: #e8e0d0; }
+
+/* Object size stepper */
+.object-size-row {
+  display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+}
+.object-size-field { display: flex; flex-direction: column; gap: 4px; }
+.object-size-stepper {
+  display: flex; align-items: center; gap: 0;
+  border: 1.5px solid var(--lgrey); border-radius: var(--radius-sm);
+  overflow: hidden; width: fit-content;
+}
+.object-size-stepper button {
+  width: 32px; height: 32px; border: none; background: var(--white);
+  font-size: 16px; cursor: pointer; color: var(--black);
+  transition: background 0.1s;
+}
+.object-size-stepper button:hover:not(:disabled) { background: var(--offwht); }
+.object-size-stepper button:disabled { color: var(--lgrey); cursor: default; }
+.object-size-stepper span {
+  width: 36px; text-align: center;
+  font-size: 13px; font-weight: 500;
+  border-left: 1px solid var(--lgrey);
+  border-right: 1px solid var(--lgrey);
+  line-height: 32px;
+}
 </style>
 </head>
 <body>
@@ -1328,7 +1405,9 @@ Example enlarged 11x11 (expanded lattice): ["00000000000","00111010110","0101010
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+
+Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 41 wide, max 11 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
 Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
 }
@@ -1502,6 +1581,51 @@ const KEVIN_TOOLS = [
       required: ['id']
     }
   },
+  {
+    name: 'listObjects',
+    description: 'List all motif objects in the user\'s object library.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'createObject',
+    description: 'Create a new motif object and save it to the object library. Objects are reusable binary stitch patterns for use in border designs.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:    { type: 'string', description: 'Name for this object' },
+        pattern: { type: 'array', items: { type: 'string' }, description: 'Array of binary strings (0=empty, 1=stitch). All strings must be the same length. Max 41 wide, max 11 tall.' },
+        width:   { type: 'number', description: 'Pattern width in stitches' },
+        height:  { type: 'number', description: 'Pattern height in stitches' },
+      },
+      required: ['name', 'pattern']
+    }
+  },
+  {
+    name: 'updateObject',
+    description: 'Update an existing motif object by its id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:      { type: 'string', description: 'Object id from listObjects' },
+        name:    { type: 'string', description: 'New name' },
+        pattern: { type: 'array', items: { type: 'string' }, description: 'New pattern array' },
+        width:   { type: 'number' },
+        height:  { type: 'number' },
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'deleteObject',
+    description: 'Delete a motif object by its id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Object id to delete' },
+      },
+      required: ['id']
+    }
+  },
 ];
 
 // ── Kevin undo stack (session only) ──────────────────────────────────────────
@@ -1653,6 +1777,20 @@ async function executeKevinTool(toolName, toolInput, appData) {
         await fb.setDoc(fb.doc(fb.db, 'users', uid, 'borders', last.id), prev);
         return 'Undone — border restored.';
       }
+      if (last.action === 'createObject') {
+        await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'objects', last.id));
+        return 'Undone — object removed.';
+      }
+      if (last.action === 'updateObject' && last.previous) {
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'objects', last.id), prev);
+        return 'Undone — object restored to previous state.';
+      }
+      if (last.action === 'deleteObject' && last.previous) {
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.setDoc(fb.doc(fb.db, 'users', uid, 'objects', last.id), prev);
+        return 'Undone — object restored.';
+      }
       return 'Could not undo — previous state unavailable.';
     } catch(e) { return 'Undo failed: ' + e.message; }
   }
@@ -1720,6 +1858,64 @@ async function executeKevinTool(toolName, toolInput, appData) {
       kevinLogUndo({ action: 'deleteBorder', id, previous: current });
       return 'Border ' + id + ' deleted.';
     } catch(e) { return 'Error deleting border: ' + e.message; }
+  }
+
+  if (toolName === 'listObjects') {
+    const objs = appData.objects || [];
+    if (objs.length === 0) return 'No objects in library yet.';
+    return JSON.stringify(objs.map(function(o) {
+      return { id: o.id, name: o.name, width: o.width, height: o.height,
+               patternRows: o.pattern ? o.pattern.length : 0 };
+    }), null, 2);
+  }
+
+  if (toolName === 'createObject') {
+    try {
+      const pattern = toolInput.pattern;
+      if (!pattern || !Array.isArray(pattern) || pattern.length === 0) return 'Error: pattern array is required.';
+      const h = pattern.length;
+      const w = pattern[0].length;
+      const data = {
+        name:    toolInput.name,
+        pattern: pattern,
+        width:   toolInput.width  || w,
+        height:  toolInput.height || h,
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      };
+      const ref = await fb.addDoc(fb.collection(fb.db, 'users', uid, 'objects'), data);
+      kevinLogUndo({ action: 'createObject', id: ref.id });
+      return 'Object "' + toolInput.name + '" created with id: ' + ref.id;
+    } catch(e) { return 'Error creating object: ' + e.message; }
+  }
+
+  if (toolName === 'updateObject') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.objects || []).find(function(o) { return o.id === id; });
+      const fields = Object.assign({}, toolInput);
+      delete fields.id;
+      if (fields.pattern) {
+        fields.width  = fields.pattern[0] ? fields.pattern[0].length : (fields.width || 9);
+        fields.height = fields.pattern.length;
+      }
+      fields.updatedAt = fb.serverTimestamp();
+      await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'objects', id), fields);
+      kevinLogUndo({ action: 'updateObject', id, previous: current });
+      return 'Object ' + id + ' updated.';
+    } catch(e) { return 'Error updating object: ' + e.message; }
+  }
+
+  if (toolName === 'deleteObject') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.objects || []).find(function(o) { return o.id === id; });
+      await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'objects', id));
+      kevinLogUndo({ action: 'deleteObject', id, previous: current });
+      return 'Object ' + id + ' deleted.';
+    } catch(e) { return 'Error deleting object: ' + e.message; }
   }
 
   return 'Unknown tool: ' + toolName;
@@ -2786,6 +2982,7 @@ const Ico = {
   Lock:    ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
   Shout:   ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
   Border:  ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>,
+  Object:  ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
   Google:  ()=><svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>,
 };
 
@@ -4127,6 +4324,201 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   OBJECT DETAIL + STITCH EDITOR
+═══════════════════════════════════════════════════════════════════ */
+
+// Max dimensions based on British Classic border limits
+const OBJECT_MAX_W = 41; // top/bottom side motif max width
+const OBJECT_MAX_H = 11; // corner motif max height (enlarged)
+const OBJECT_DEFAULT_W = 9;
+const OBJECT_DEFAULT_H = 9;
+const EDITOR_CELL = 32; // px per stitch cell in editor
+
+function ObjectEditor({ initial, onSave, onClose, saving }) {
+  const isEdit = !!initial;
+  const [name,    setName]    = useState(initial ? initial.name : '');
+  const [pattern, setPattern] = useState(function() {
+    if (initial && initial.pattern) return initial.pattern.map(function(r) { return r.split(''); });
+    // Blank 9x9 grid
+    return Array.from({length: OBJECT_DEFAULT_H}, function() {
+      return Array(OBJECT_DEFAULT_W).fill('0');
+    });
+  });
+  const [nameError, setNameError] = useState('');
+
+  const h = pattern.length;
+  const w = pattern[0] ? pattern[0].length : OBJECT_DEFAULT_W;
+
+  function toggleCell(r, c) {
+    setPattern(function(prev) {
+      const next = prev.map(function(row) { return [...row]; });
+      next[r][c] = next[r][c] === '1' ? '0' : '1';
+      return next;
+    });
+  }
+
+  function resizeGrid(newW, newH) {
+    const clampW = Math.max(1, Math.min(OBJECT_MAX_W, newW));
+    const clampH = Math.max(1, Math.min(OBJECT_MAX_H, newH));
+    setPattern(function(prev) {
+      return Array.from({length: clampH}, function(_, r) {
+        return Array.from({length: clampW}, function(_, c) {
+          return (prev[r] && prev[r][c]) ? prev[r][c] : '0';
+        });
+      });
+    });
+  }
+
+  function handleSave() {
+    if (!name.trim()) { setNameError('Name is required'); return; }
+    setNameError('');
+    const patternStrings = pattern.map(function(row) { return row.join(''); });
+    onSave({ name: name.trim(), pattern: patternStrings, width: w, height: h });
+  }
+
+  return (
+    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet sheet-wide">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">{isEdit ? 'Edit object' : 'New object'}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+
+          <div className="form-group">
+            <label className="form-label">Name</label>
+            <input className={'form-input' + (nameError ? ' error' : '')}
+              placeholder="e.g. Corner diamond" value={name}
+              onChange={function(e) { setName(e.target.value); }} autoFocus/>
+            {nameError && <div className="form-error">{nameError}</div>}
+          </div>
+
+          {/* Resize controls */}
+          <div className="form-group">
+            <label className="form-label">Size</label>
+            <div className="object-size-row">
+              <div className="object-size-field">
+                <label className="form-hint">Width</label>
+                <div className="object-size-stepper">
+                  <button onClick={function() { resizeGrid(w-1, h); }} disabled={w <= 1}>−</button>
+                  <span>{w}</span>
+                  <button onClick={function() { resizeGrid(w+1, h); }} disabled={w >= OBJECT_MAX_W}>+</button>
+                </div>
+              </div>
+              <div className="object-size-field">
+                <label className="form-hint">Height</label>
+                <div className="object-size-stepper">
+                  <button onClick={function() { resizeGrid(w, h-1); }} disabled={h <= 1}>−</button>
+                  <span>{h}</span>
+                  <button onClick={function() { resizeGrid(w, h+1); }} disabled={h >= OBJECT_MAX_H}>+</button>
+                </div>
+              </div>
+              <div className="form-hint" style={{alignSelf:'flex-end', paddingBottom:4}}>
+                Max {OBJECT_MAX_W}×{OBJECT_MAX_H}
+              </div>
+            </div>
+          </div>
+
+          {/* Stitch editor */}
+          <div className="form-group">
+            <label className="form-label">Stitch editor</label>
+            <div className="form-hint" style={{marginBottom:8}}>Tap a cell to toggle a stitch on or off</div>
+            <div className="stitch-editor-wrap">
+              <div className="stitch-editor"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(' + w + ', ' + EDITOR_CELL + 'px)',
+                  gridTemplateRows: 'repeat(' + h + ', ' + EDITOR_CELL + 'px)',
+                }}>
+                {pattern.map(function(row, r) {
+                  return row.map(function(cell, c) {
+                    const on = cell === '1';
+                    return (
+                      <div key={r + '-' + c}
+                        className={'stitch-cell' + (on ? ' on' : '')}
+                        onClick={function() { toggleCell(r, c); }}>
+                        {on && (
+                          <svg viewBox="0 0 32 32" width={EDITOR_CELL} height={EDITOR_CELL}>
+                            <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="3.5" strokeLinecap="round"/>
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  });
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
+            <button className="btn btn-coral" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create object'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObjectDetail({ object, onEdit, onDelete, onClose }) {
+  const w = object.width || (object.pattern && object.pattern[0] ? object.pattern[0].length : 9);
+  const h = object.height || (object.pattern ? object.pattern.length : 9);
+  const previewCell = Math.min(Math.floor(300 / Math.max(w, h)), 28);
+  return (
+    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">{object.name}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+          <div className="detail-meta">
+            {w}×{h} stitches
+            {object.createdAt && <span> · {formatDate(object.createdAt)}</span>}
+          </div>
+
+          {/* Preview */}
+          <div className="detail-section">
+            <div className="detail-section-label">Pattern</div>
+            <div className="object-detail-preview">
+              {object.pattern && object.pattern.map(function(row, r) {
+                return row.split('').map(function(ch, c) {
+                  if (ch !== '1') return (
+                    <div key={r+'-'+c} style={{width:previewCell, height:previewCell, background:'var(--offwht)', border:'1px solid var(--lgrey)'}}/>
+                  );
+                  return (
+                    <div key={r+'-'+c} style={{width:previewCell, height:previewCell, background:'var(--surface)', border:'1px solid var(--lgrey)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                      <svg viewBox="0 0 32 32" width={previewCell-4} height={previewCell-4}>
+                        <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                        <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                  );
+                });
+              })}
+            </div>
+          </div>
+
+          <div className="detail-actions">
+            <button className="btn btn-primary" onClick={onEdit}><Ico.Edit/> Edit</button>
+          </div>
+          <div className="detail-actions" style={{paddingTop:0, borderTop:'1px solid var(--offwht)', marginTop:4}}>
+            <button className="btn btn-ghost" style={{color:'var(--coral)', fontSize:12}} onClick={onDelete}>
+              <Ico.Delete/> Delete object
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    TOP BAR + USER MENU
 ═══════════════════════════════════════════════════════════════════ */
 function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin, tmCache }) {
@@ -4146,6 +4538,10 @@ function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin
         <button className={'topbar-tab' + (tab==='borders' ? ' active' : '')}
           onClick={function() { onTabChange('borders'); }}>
           <Ico.Border/> Borders
+        </button>
+        <button className={'topbar-tab' + (tab==='objects' ? ' active' : '')}
+          onClick={function() { onTabChange('objects'); }}>
+          <Ico.Object/> Objects
         </button>
       </div>
 
@@ -4496,6 +4892,106 @@ function BordersScreen({ borders, onSelect, folders, activeFolder, onFolderChang
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   OBJECTS SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function ObjectsScreen({ objects, onSelect }) {
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(function() {
+    if (!query.trim()) return objects;
+    const q = query.toLowerCase();
+    return objects.filter(function(o) {
+      return o.name && o.name.toLowerCase().includes(q);
+    });
+  }, [objects, query]);
+
+  const showCount = query.trim() && filtered.length !== objects.length
+    ? filtered.length + ' of ' + objects.length
+    : objects.length;
+  const noun = objects.length === 1 ? 'object' : 'objects';
+
+  return (
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">Motif objects</span>
+        <span className="screen-count">{showCount} {noun}</span>
+        <div className="search-wrap">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input className="search-input" placeholder="Search…" value={query}
+            onChange={function(e) { setQuery(e.target.value); }}/>
+          {query && (
+            <button className="search-clear" onClick={function() { setQuery(''); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {objects.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon">✦</span>
+          <h3>No objects yet</h3>
+          <p>Tap + to create a motif object, or ask Claude-Kevin to generate one from an image.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon">🔍</span>
+          <h3>No results</h3>
+          <p>No objects match "{query}".</p>
+        </div>
+      ) : (
+        <div className="card-grid">
+          {filtered.map(function(o) {
+            return (
+              <div key={o.id} className="card object-card" onClick={function() { onSelect(o); }}>
+                <ObjectPreview pattern={o.pattern} size={120}/>
+                <div className="card-title">{o.name}</div>
+                <div className="card-sub">
+                  {o.width}×{o.height} stitches
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Small read-only stitch preview for cards
+function ObjectPreview({ pattern, size }) {
+  if (!pattern || pattern.length === 0) return <div className="object-preview-empty"/>;
+  const h = pattern.length;
+  const w = pattern[0].length;
+  const cell = Math.min(Math.floor(size / Math.max(w, h)), 20);
+  const pw = w * cell;
+  const ph = h * cell;
+  return (
+    <div className="object-preview" style={{width: pw, height: ph}}>
+      {pattern.map(function(row, r) {
+        return row.split('').map(function(ch, c) {
+          if (ch !== '1') return null;
+          const x = c * cell;
+          const y = r * cell;
+          const pad = cell * 0.1;
+          return (
+            <svg key={r + '-' + c} style={{position:'absolute', left:x, top:y, width:cell, height:cell}}
+              viewBox={'0 0 ' + cell + ' ' + cell}>
+              <line x1={pad} y1={pad} x2={cell-pad} y2={cell-pad} stroke="#1A1A1A" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+              <line x1={cell-pad} y1={pad} x2={pad} y2={cell-pad} stroke="#1A1A1A" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+            </svg>
+          );
+        });
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════════════ */
 
@@ -4520,6 +5016,9 @@ function App() {
   const [borderFolders,   setBorderFolders]   = useState([]);
   const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
   const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
+  const [objects,       setObjects]       = useState([]);
+  const [selObject,     setSelObject]     = useState(null);
+  const [editObject,    setEditObject]    = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -4531,8 +5030,10 @@ function App() {
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
       shoutoutFolders: shoutoutFolders.join(', ') || 'none',
       borderFolders: borderFolders.join(', ') || 'none',
+      objectCount: objects.length,
+      objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
     };
-  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders]);
+  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -4705,6 +5206,41 @@ function App() {
     return ()=>unsub();
   },[authUser]);
 
+  // ── Objects listener (per-user) ──
+  useEffect(()=>{
+    if (!authUser) { setObjects([]); return; }
+    const q = fb.query(
+      fb.collection(fb.db,'users',authUser.uid,'objects'),
+      fb.orderBy('createdAt','desc')
+    );
+    const unsub = fb.onSnapshot(q, snap=>{
+      setObjects(snap.docs.map(d=>({id:d.id,...d.data()})));
+    });
+    return ()=>unsub();
+  },[authUser]);
+
+  // ── Save object ──
+  async function saveObject(data) {
+    setSaving(true);
+    try {
+      if (editObject && editObject !== 'new') {
+        await fb.updateDoc(
+          fb.doc(fb.db,'users',authUser.uid,'objects',editObject.id),
+          {...data, updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Object updated');
+      } else {
+        await fb.addDoc(
+          fb.collection(fb.db,'users',authUser.uid,'objects'),
+          {...data, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Object created');
+      }
+      setEditObject(null); setSelObject(null);
+    } catch(e) { showToast('Something went wrong — try again'); }
+    finally { setSaving(false); }
+  }
+
   // ── Sign in/out ──
   async function handleSignIn() {
     setAuthError(null);
@@ -4785,8 +5321,10 @@ function App() {
       if (confirmDel.type==='shoutout') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',confirmDel.id));
         showToast('Shoutout deleted'); setSelShoutout(null);
+      } else if (confirmDel.type==='object') {
+        await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'objects',confirmDel.id));
+        showToast('Object deleted'); setSelObject(null);
       } else {
-        // Custom borders in per-user collection, built-ins protected
         const border = borders.find(function(b) { return b.id === confirmDel.id; });
         if (border && border.builtIn) { showToast('Cannot delete built-in borders'); setConfirmDel(null); return; }
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'borders',confirmDel.id));
@@ -4844,6 +5382,10 @@ function App() {
               onFolderRename={handleFolderRename}
               onFolderDelete={handleFolderDelete}/>
           )}
+          {tab === 'objects' && (
+            <ObjectsScreen objects={objects}
+              onSelect={function(o) { setSelObject(o); }}/>
+          )}
         </div>
 
         {/* Bottom nav — mobile only */}
@@ -4857,6 +5399,11 @@ function App() {
             onClick={function() { setTab('borders'); }}>
             <Ico.Border/>
             <span className="nav-tab-label">Borders</span>
+          </button>
+          <button className={'nav-tab' + (tab==='objects' ? ' active' : '')}
+            onClick={function() { setTab('objects'); }}>
+            <Ico.Object/>
+            <span className="nav-tab-label">Objects</span>
           </button>
           <button className={'nav-tab nav-tab-kevin' + (kevinMobileActive ? ' active' : '')}
             style={{position:'relative'}}
@@ -4872,21 +5419,25 @@ function App() {
           </button>
           {!kevinMobileActive && (
             <button className="fab-mobile"
-              title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+              title={tab==='shoutouts' ? 'New shoutout' : tab==='borders' ? 'New border' : 'New object'}
               onClick={function() {
-                tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+                if (tab === 'shoutouts') setEditShoutout('new');
+                else if (tab === 'borders') setEditBorder('new');
+                else setEditObject('new');
               }}>
               <Ico.Plus/>
             </button>
           )}
         </nav>
 
-        {/* FAB — desktop only, fixed bottom-right of content area */}
+        {/* FAB — desktop only */}
         {!kevinMobileActive && (
           <button className="fab"
-            title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+            title={tab==='shoutouts' ? 'New shoutout' : tab==='borders' ? 'New border' : 'New object'}
             onClick={function() {
-              tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+              if (tab === 'shoutouts') setEditShoutout('new');
+              else if (tab === 'borders') setEditBorder('new');
+              else setEditObject('new');
             }}>
             <Ico.Plus/>
           </button>
@@ -4903,7 +5454,7 @@ function App() {
         <KevinChat
           context={kevinContext}
           uid={authUser.uid}
-          appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
+          appData={{ shoutouts, borders, objects, fb: window.__firebase, uid: authUser.uid }}
           messages={kevinMessages}
           setMessages={setKevinMessages}
           onClose={function() {
@@ -4943,6 +5494,19 @@ function App() {
           initial={editBorder==='new' ? null : editBorder}
           onSave={saveBorder}
           onClose={function() { setEditBorder(null); }}
+          saving={saving}/>
+      )}
+      {selObject && !editObject && (
+        <ObjectDetail object={selObject}
+          onClose={function() { setSelObject(null); }}
+          onEdit={function() { setEditObject(selObject); }}
+          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}/>
+      )}
+      {editObject && (
+        <ObjectEditor
+          initial={editObject === 'new' ? null : editObject}
+          onSave={saveObject}
+          onClose={function() { setEditObject(null); }}
           saving={saving}/>
       )}
       {confirmDel && (
