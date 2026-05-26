@@ -99,12 +99,8 @@ html, body, #root {
   border-bottom: 1px solid rgba(26,26,26,0.12);
   display: flex; align-items: center; padding: 0 16px; gap: 12px;
 }
-.topbar-wordmark { font-size: 17px; font-weight: 700; color: var(--black); flex: 1; }
-.topbar-wordmark span { color: var(--coral); }
-.topbar-app-name { font-size: 12px; font-weight: 500; color: var(--grey);
-  letter-spacing: 0.5px; text-transform: uppercase; }
 .topbar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
-  cursor: pointer; border: 2px solid var(--lgrey); transition: border-color 0.15s; }
+  cursor: pointer; border: 2px solid rgba(255,255,255,0.3); transition: border-color 0.15s; }
 .topbar-avatar:hover { border-color: var(--coral); }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -531,9 +527,27 @@ html, body, #root {
 .topbar {
   flex-shrink: 0;
   height: var(--top-h);
-  background: var(--linen);
-  border-bottom: 1px solid rgba(26,26,26,0.12);
-  display: flex; align-items: center; padding: 0 16px; gap: 12px;
+  background: var(--black);
+  border-bottom: none;
+  display: flex; align-items: center; padding: 0 16px; gap: 0;
+}
+
+/* Brand — logo + app name */
+.topbar-brand {
+  display: flex; align-items: center; gap: 8px;
+  margin-right: 20px; flex-shrink: 0;
+}
+.topbar-logo { flex-shrink: 0; }
+.topbar-appname {
+  font-size: 16px; font-weight: 700; color: var(--white);
+  letter-spacing: -0.3px;
+}
+.topbar-appname span { color: var(--coral); }
+
+/* Right side — CK + avatar pushed to far right */
+.topbar-right {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
 }
 
 /* Scrollable area — fills remaining height, scrolls itself */
@@ -582,18 +596,17 @@ html, body, #root {
 .topbar-nav {
   display: flex;
   gap: 2px;
-  margin-left: 8px;
 }
 .topbar-tab {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: var(--radius-sm);
   border: none; background: transparent;
   font-family: inherit; font-size: 13px; font-weight: 500;
-  color: var(--grey); cursor: pointer; transition: all 0.15s;
+  color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.15s;
 }
 .topbar-tab svg { width: 16px; height: 16px; }
-.topbar-tab:hover { background: rgba(26,26,26,0.06); color: var(--black); }
-.topbar-tab.active { background: rgba(26,26,26,0.08); color: var(--black); }
+.topbar-tab:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+.topbar-tab.active { background: rgba(255,255,255,0.12); color: var(--white); }
 @media (max-width: 767px) { .topbar-nav { display: none; } }
 
 /* ── Kevin toggle in topbar ── */
@@ -601,13 +614,13 @@ html, body, #root {
   flex-shrink: 0;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
-  border: 1.5px solid var(--lgrey);
+  border: 1.5px solid rgba(255,255,255,0.25);
   background: transparent;
   font-family: inherit; font-size: 12px; font-weight: 700;
   color: var(--coral); cursor: pointer; transition: all 0.15s;
   position: relative;
 }
-.kevin-toggle-btn:hover { background: var(--offwht); border-color: var(--coral); }
+.kevin-toggle-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--coral); }
 .kevin-toggle-btn.active { background: var(--coral); color: var(--white); border-color: var(--coral); }
 @media (max-width: 767px) { .kevin-toggle-btn { display: none; } }
 
@@ -3952,7 +3965,7 @@ function generateAidaPDF(shoutout, showBg) {
 
 /* ---- src/sheets.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
-   AIDA PRINT OPTIONS SHEET TO USE
+   AIDA PRINT OPTIONS SHEET
 ═══════════════════════════════════════════════════════════════════ */
 function AidaOptionsSheet({ shoutout, onClose }) {
   const [showBg,    setShowBg]    = useState(true);
@@ -4485,18 +4498,32 @@ function ObjectDetail({ object, onEdit, onDelete, onClose }) {
           {/* Preview */}
           <div className="detail-section">
             <div className="detail-section-label">Pattern</div>
-            <div className="object-detail-preview">
+            <div className="object-detail-preview"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(' + w + ', ' + previewCell + 'px)',
+                width: 'fit-content',
+                gap: '1px',
+                background: 'var(--lgrey)',
+                border: '1px solid var(--lgrey)',
+                borderRadius: 6,
+                overflow: 'hidden',
+              }}>
               {object.pattern && object.pattern.map(function(row, r) {
                 return row.split('').map(function(ch, c) {
-                  if (ch !== '1') return (
-                    <div key={r+'-'+c} style={{width:previewCell, height:previewCell, background:'var(--offwht)', border:'1px solid var(--lgrey)'}}/>
-                  );
+                  const on = ch === '1';
                   return (
-                    <div key={r+'-'+c} style={{width:previewCell, height:previewCell, background:'var(--surface)', border:'1px solid var(--lgrey)', display:'flex', alignItems:'center', justifyContent:'center'}}>
-                      <svg viewBox="0 0 32 32" width={previewCell-4} height={previewCell-4}>
-                        <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
-                        <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
-                      </svg>
+                    <div key={r+'-'+c} style={{
+                      width: previewCell, height: previewCell,
+                      background: on ? 'var(--surface)' : 'var(--offwht)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {on && (
+                        <svg viewBox="0 0 32 32" width={previewCell-4} height={previewCell-4}>
+                          <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                          <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                        </svg>
+                      )}
                     </div>
                   );
                 });
@@ -4526,10 +4553,20 @@ function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin
   const hasTmWarning = tmCache && Object.values(tmCache).some(function(r) { return r && r.risk !== 'none'; });
   return (
     <div className="topbar">
-      <div className="topbar-wordmark">Nutmeg<span>&</span>Needle</div>
-      <div className="topbar-app-name">Wordplay</div>
+      {/* Logo + app name — left anchor */}
+      <div className="topbar-brand">
+        <svg className="topbar-logo" viewBox="0 0 24 24" width="22" height="22" fill="none">
+          <line x1="3" y1="3" x2="21" y2="21" stroke="#4A6741" strokeWidth="3" strokeLinecap="round"/>
+          <line x1="21" y1="3" x2="3" y2="21" stroke="#4A6741" strokeWidth="3" strokeLinecap="round"/>
+          <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="#CC3300" strokeWidth="1.5" fill="none"/>
+          <rect x="17" y="1" width="6" height="6" rx="1.5" stroke="#CC3300" strokeWidth="1.5" fill="none"/>
+          <rect x="1" y="17" width="6" height="6" rx="1.5" stroke="#CC3300" strokeWidth="1.5" fill="none"/>
+          <rect x="17" y="17" width="6" height="6" rx="1.5" stroke="#CC3300" strokeWidth="1.5" fill="none"/>
+        </svg>
+        <span className="topbar-appname">Cross<span>Pass</span></span>
+      </div>
 
-      {/* Nav tabs — desktop only */}
+      {/* Nav tabs — desktop only, left-aligned after logo */}
       <div className="topbar-nav">
         <button className={'topbar-tab' + (tab==='shoutouts' ? ' active' : '')}
           onClick={function() { onTabChange('shoutouts'); }}>
@@ -4545,34 +4582,34 @@ function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin
         </button>
       </div>
 
-      {/* Kevin toggle — desktop only */}
-      <button className={'kevin-toggle-btn' + (kevinVisible ? ' active' : '')}
-        onClick={onToggleKevin} style={{position:'relative'}}>
-        CK
-        {hasTmWarning && <span className="kevin-badge"/>}
-      </button>
-
-      {/* Avatar + sign out */}
-      <div style={{position:'relative'}}>
-        <img className="topbar-avatar"
-          src={user.photoURL||'https://via.placeholder.com/32'}
-          alt={user.displayName} onClick={function() { setOpen(function(o) { return !o; }); }}/>
-        {open && (
-          <div style={{position:'absolute',top:40,right:0,background:'var(--surface)',
-            border:'1px solid var(--lgrey)',borderRadius:10,padding:'4px 0',minWidth:180,
-            boxShadow:'0 4px 16px rgba(0,0,0,0.12)',zIndex:200}}>
-            <div style={{padding:'7px 13px 5px',fontSize:11,color:'var(--grey)',
-              borderBottom:'1px solid var(--offwht)',marginBottom:3}}>
-              {user.displayName||user.email}
+      {/* Right side — CK toggle + avatar */}
+      <div className="topbar-right">
+        <button className={'kevin-toggle-btn' + (kevinVisible ? ' active' : '')}
+          onClick={onToggleKevin} style={{position:'relative'}}>
+          CK
+          {hasTmWarning && <span className="kevin-badge"/>}
+        </button>
+        <div style={{position:'relative'}}>
+          <img className="topbar-avatar"
+            src={user.photoURL||'https://via.placeholder.com/32'}
+            alt={user.displayName} onClick={function() { setOpen(function(o) { return !o; }); }}/>
+          {open && (
+            <div style={{position:'absolute',top:40,right:0,background:'var(--surface)',
+              border:'1px solid var(--lgrey)',borderRadius:10,padding:'4px 0',minWidth:180,
+              boxShadow:'0 4px 16px rgba(0,0,0,0.12)',zIndex:200}}>
+              <div style={{padding:'7px 13px 5px',fontSize:11,color:'var(--grey)',
+                borderBottom:'1px solid var(--offwht)',marginBottom:3}}>
+                {user.displayName||user.email}
+              </div>
+              <button className="btn btn-ghost"
+                style={{width:'100%',justifyContent:'flex-start',gap:7,padding:'7px 13px',
+                  borderRadius:0,fontSize:12}}
+                onClick={function() { setOpen(false); onSignOut(); }}>
+                <Ico.SignOut/> Sign out
+              </button>
             </div>
-            <button className="btn btn-ghost"
-              style={{width:'100%',justifyContent:'flex-start',gap:7,padding:'7px 13px',
-                borderRadius:0,fontSize:12}}
-              onClick={function() { setOpen(false); onSignOut(); }}>
-              <Ico.SignOut/> Sign out
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
