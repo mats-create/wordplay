@@ -186,6 +186,74 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
 /* ═══════════════════════════════════════════════════════════════════
    BORDER FORM
 ═══════════════════════════════════════════════════════════════════ */
+// Corner crop preview for BorderForm — renders top-left ~24x24 area enlarged
+function BorderCornerPreview({ layers, borderWeight, cornerFill, initSpec }) {
+  const canvasRef = useRef(null);
+  const CROP = 24; // stitches to show
+  const SIZE = 280; // canvas px
+  const cell = SIZE / CROP;
+
+  useEffect(function() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = SIZE; canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F0E6D3';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    const spec = {
+      layers: layers.map(function(l, i) {
+        const tile = (l.tile && l.tile !== '00000000') ? l.tile : undefined;
+        return { line: i, type: l.type || 'solid', color: l.color || 'primary', tile };
+      }),
+      borderWeight: borderWeight,
+      cornerFill: cornerFill,
+      cornerInset: initSpec && initSpec.cornerInset ? initSpec.cornerInset : layers.length * borderWeight + 2,
+      cornerMotif: initSpec && initSpec.cornerMotif ? initSpec.cornerMotif : undefined,
+      sideMotifs: initSpec && initSpec.sideMotifs ? initSpec.sideMotifs : undefined,
+    };
+
+    // Build a full 94x94 grid, then crop top-left CROP×CROP
+    const N = 94;
+    const grid = [];
+    for (let r = 0; r < N; r++) grid.push(new Array(N).fill(' '));
+    function setCell(r, c, kind) {
+      if (r >= 0 && r < N && c >= 0 && c < N && grid[r][c] === ' ') grid[r][c] = kind;
+    }
+    renderBorderSpec(spec, N, setCell);
+
+    const pad = cell * 0.1;
+    const lw = Math.max(cell * 0.24, 0.5);
+    for (let r = 0; r < CROP; r++) {
+      for (let c = 0; c < CROP; c++) {
+        const kind = grid[r][c];
+        if (kind === ' ') continue;
+        const col = stitchColor(kind, DEFAULT_THREADS);
+        const x = c * cell, y = r * cell;
+        ctx.strokeStyle = col; ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(x+pad, y+pad); ctx.lineTo(x+cell-pad, y+cell-pad);
+        ctx.moveTo(x+cell-pad, y+pad); ctx.lineTo(x+pad, y+cell-pad);
+        ctx.stroke();
+      }
+    }
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 0.3;
+    for (let i = 0; i <= CROP; i++) {
+      ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,SIZE); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(SIZE,i*cell); ctx.stroke();
+    }
+    ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(0, 0, SIZE, SIZE);
+  }, [JSON.stringify(layers), borderWeight, cornerFill, JSON.stringify(initSpec)]);
+
+  return (
+    <div style={{background:'#F0E6D3', borderRadius:8, overflow:'hidden', width:SIZE, height:SIZE}}>
+      <canvas ref={canvasRef}/>
+    </div>
+  );
+}
+
 const STYLE_OPTIONS = ['british','scandinavian','minimal','custom'];
 const TRAIT_OPTIONS = ['diagonal-check','corner-footballs','goal-posts','shot-arrows',
   'geometric','diamond-repeat','two-line-frame','single-line','floral','folk-motifs'];
@@ -269,17 +337,28 @@ function BorderForm({ initial, onSave, onClose, saving }) {
   }
 
   function handleSave() {
-    const fields = {name,style,description:desc,traits};
+    const fields = {name, style, description:desc, traits};
     const errs = validateBorder(fields);
-    setErrors(errs); setTouched({name:true,description:true});
+    setErrors(errs); setTouched({name:true, description:true});
     if (hasErrors(errs)) return;
-    // Build updated spec preserving existing spec fields (motifs, overrides etc)
     const baseSpec = initSpec || {};
+    // Only include layers that have at least one tile cell on, or are defined as solid/check
     const activeLayers = layers.slice(0, maxLayers).map(function(l, i) {
-      return { line: i, type: l.type || 'solid', color: l.color || 'primary',
-               tile: (l.tile && l.tile !== '11111111') ? l.tile : undefined };
+      const tile = (l.tile && l.tile !== '00000000' && l.tile !== '11111111') ? l.tile : undefined;
+      return { line: i, type: l.type || 'solid', color: l.color || 'primary', tile };
     });
-    const newSpec = { ...baseSpec, layers: activeLayers, borderWeight, cornerFill };
+    // cornerInset = number of physical rows used + 2 padding
+    const usedRows = maxLayers * borderWeight;
+    const newCornerInset = (baseSpec.cornerInset && baseSpec.cornerInset > usedRows + 2)
+      ? baseSpec.cornerInset
+      : usedRows + 2;
+    const newSpec = {
+      ...baseSpec,
+      layers: activeLayers,
+      borderWeight,
+      cornerFill,
+      cornerInset: newCornerInset,
+    };
     onSave({ ...fields, spec: newSpec });
   }
 
@@ -396,24 +475,15 @@ function BorderForm({ initial, onSave, onClose, saving }) {
             <div className="form-hint">All 4 frame corners fill solid in this colour</div>
           </div>
 
-          {/* Live preview */}
+          {/* Live preview — corner crop */}
           <div className="form-group">
             <label className="form-label">Preview</label>
-            <div className="form-hint" style={{marginBottom:8}}>Colours shown are default thread slot colours</div>
-            <CrossStitchCanvas word="ABC" cols={94} rows={94}
-              borderStyle={{
-                layers: layers.slice(0, maxLayers).map(function(l, i) {
-                  return { line: i, type: l.type || 'solid', color: l.color || 'primary',
-                           tile: (l.tile && l.tile !== '00000000') ? l.tile : undefined };
-                }),
-                borderWeight: borderWeight,
-                cornerFill: cornerFill,
-                cornerInset: initSpec && initSpec.cornerInset ? initSpec.cornerInset : undefined,
-                cornerMotif: initSpec && initSpec.cornerMotif ? initSpec.cornerMotif : undefined,
-                sideMotifs: initSpec && initSpec.sideMotifs ? initSpec.sideMotifs : undefined,
-              }}
-              threads={DEFAULT_THREADS}
-              size={280}/>
+            <div className="form-hint" style={{marginBottom:8}}>Top-left corner with side sections — default thread colours</div>
+            <BorderCornerPreview
+              layers={layers.slice(0, maxLayers)}
+              borderWeight={borderWeight}
+              cornerFill={cornerFill}
+              initSpec={initSpec}/>
           </div>
 
           <div className="form-group">

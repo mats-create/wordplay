@@ -198,22 +198,23 @@ function renderBorderSpec(spec, N, setCell) {
       for (let i = ln; i < N - ln; i++) {
         const inCorner = cfKind && (i < inset || i >= N - inset);
 
-        if (inCorner) {
-          // Corner zone — always solid in cornerFill colour
+        if (inCorner && layer.type !== 'empty') {
+          // Corner zone — solid in cornerFill colour, only for active layers
           setCell(ln,     i, cfKind); setCell(N-1-ln, i, cfKind);
           setCell(i,     ln, cfKind); setCell(i, N-1-ln, cfKind);
-        } else if (tile) {
-          // Tile pattern — check tile[i % 8]
-          if (tile[i % tile.length] === '1') {
+        } else if (!inCorner) {
+          if (tile) {
+            if (tile[i % tile.length] === '1') {
+              setCell(ln, i, k); setCell(N-1-ln, i, k);
+              setCell(i, ln, k); setCell(i, N-1-ln, k);
+            }
+          } else if (layer.type === 'solid') {
             setCell(ln, i, k); setCell(N-1-ln, i, k);
             setCell(i, ln, k); setCell(i, N-1-ln, k);
+          } else if (layer.type === 'check') {
+            setCell(ln,     i, i%2===0?kA:kB); setCell(N-1-ln, i, i%2===1?kA:kB);
+            setCell(i,     ln, i%2===0?kA:kB); setCell(i, N-1-ln, i%2===1?kA:kB);
           }
-        } else if (layer.type === 'solid') {
-          setCell(ln, i, k); setCell(N-1-ln, i, k);
-          setCell(i, ln, k); setCell(i, N-1-ln, k);
-        } else if (layer.type === 'check') {
-          setCell(ln,     i, i%2===0?kA:kB); setCell(N-1-ln, i, i%2===1?kA:kB);
-          setCell(i,     ln, i%2===0?kA:kB); setCell(i, N-1-ln, i%2===1?kA:kB);
         }
       }
     }
