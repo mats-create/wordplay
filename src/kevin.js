@@ -59,7 +59,7 @@ Tools:
   Any DMC colour can go in any slot.
 - Border spec: layers [{line, type, color, tile?}], cornerMotif {color, pattern[]}, sideMotifs [{position, color, pattern}], cornerInset, borderWeight (1 or 2), cornerFill (colour name).
   Colour names: primary (slot 1), secondary (slot 2), accent (slot 3), border3 (slot 4), accent1 (slot 5), accent2 (slot 6).
-- Tile patterns: each layer can have an optional `tile` field — an 8-character binary string e.g. "10001000".
+- Tile patterns: each layer can have an optional 'tile' field — an 8-character binary string e.g. "10001000".
   Stitch is drawn at position i only if tile[i%8]==='1'. No tile or all-1s = solid line.
   Examples: "11001100"=dashed, "10001000"=sparse dots, "11110000"=long-short stripe.
 - borderWeight: 1 (default, single stitch) or 2 (double stitch — max 3 layers, tiles should be "11111111" solid).
