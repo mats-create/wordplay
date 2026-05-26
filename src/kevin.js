@@ -546,8 +546,7 @@ async function executeKevinTool(toolName, toolInput, appData) {
     const objs = appData.objects || [];
     if (objs.length === 0) return 'No objects in library yet.';
     return JSON.stringify(objs.map(function(o) {
-      return { id: o.id, name: o.name, width: o.width, height: o.height,
-               patternRows: o.pattern ? o.pattern.length : 0 };
+      return { id: o.id, name: o.name, width: o.width, height: o.height, pattern: o.pattern || [] };
     }), null, 2);
   }
 
