@@ -38,65 +38,7 @@
 
 ---
 
-### 1. Border ownership migration (quick fix)
-Move custom (non-built-in) borders from shared `borders/` collection to
-`users/{uid}/borders/` so each user has their own private border library.
-Built-in borders remain in the shared collection.
-
-**Approach (straightforward):** Update border listeners and CRUD in `app.js`
-to read/write custom borders from `users/{uid}/borders/`. Built-in borders
-still seeded/read from shared `borders/`. Kevin tools updated to write to the
-correct collection based on `builtIn` flag. Existing shared custom borders
-grandfathered — they remain visible to all users until a proper migration
-is done (see low-priority migration item below).
-
-**Files:** `app.js`, `kevin.js`
-**Complexity:** Medium
-
----
-
-### 2. Motif object library
-
-**User story:** As a user I want a library of reusable stitch motif objects
-created by me or Kevin, with a visual stitch editor, so I can build up a
-personal collection of patterns for use in border designs.
-
-**Scope:**
-- Per-user Firestore collection: `users/{uid}/objects/{objectId}`
-  Fields: `name`, `pattern` (string[]), `width`, `height`, `createdAt`, `updatedAt`
-- Third tab in app: Objects — list view with search, similar to Shoutouts/Borders
-- Add, edit, rename, delete objects
-- No colour management — patterns are pure binary (0/1)
-
-**Stitch editor:**
-- Grid where each cell = one stitch, rendered at ~32px per cell
-- Tap/click to toggle stitch on/off (rendered as X cross-stitch symbol)
-- Shown in isolation (not in border context)
-- Resize option: change width and height independently
-- Max dimensions based on British Classic border limits:
-  - Top/bottom motifs: max 41 stitches wide
-  - Left/right motifs: max 9 stitches tall
-  - Corner motifs: max 11×11 (enlarged standard)
-- New object starts as a blank 9×9 grid
-
-**Kevin integration:**
-- New tools: `listObjects`, `createObject`, `updateObject`, `deleteObject`
-- Kevin can generate a pattern (from vision or from scratch) and save it
-  directly to the object library
-- Kevin can retrieve objects by name and use them in border specs
-- Kevin context includes object count and names
-
-**TopBar update (item 5 from UX list):**
-- Order: Logo+Appname | [Shoutouts] [Borders] [Objects] | [CK] | Avatar
-- Consistent spacing, nav tabs visually grouped
-- Objects tab uses a suitable icon (e.g. grid/pattern icon)
-
-**Files:** `app.js`, `screens.js`, `sheets.js`, `kevin.js`, `style.css`, `utils.js`
-**Complexity:** High
-
----
-
-### 3. Border ownership full migration *(low priority)*
+### 1. Border ownership full migration *(low priority)*
 Proper migration of all existing shared custom borders to their respective
 owner's `users/{uid}/borders/` collection. Requires a one-time admin script
 that reads `createdBy` field and moves documents accordingly. Only needed
@@ -106,7 +48,7 @@ after item 1 is shipped and users have been using the app for a while.
 
 ---
 
-### 4. Aida count selector
+### 2. Aida count selector
 
 **User story:** As a user I want to choose the Aida fabric count for my design
 so the app automatically suggests the correct stitch count and strand count to
@@ -144,7 +86,7 @@ for a true 19cm finish, or document as intentional.
 
 ---
 
-### 5. Chunky border mode (beginner-friendly)
+### 3. Chunky border mode (beginner-friendly)
 
 **User story:** As a beginner stitcher I want an option for thicker border
 lines that are easier to follow and count, making the design more approachable.
@@ -169,7 +111,7 @@ shoutouts. Kevin can recommend chunky + simplified motifs for beginner designs.
 
 ---
 
-### 6. Aida print orientation selector *(low priority)*
+### 4. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
@@ -181,6 +123,8 @@ Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. L
 
 | Feature | Notes |
 |---------|-------|
+| Motif object library | Objects tab, stitch editor, Kevin tools, per-user Firestore |
+| Border ownership migration | Custom borders moved to users/{uid}/borders/ |
 | Kevin vision — image-to-motif | Image upload in Kevin chat, base64 to API, bitmap generation |
 | Extended thread roles + swatch rendering | 6 named slots, Kevin swatches, border3/accent1/accent2 colour names |
 | Multi-row shoutouts | Up to 4 lines, per-line S/N/L size, auto-expanding grid, centred |
