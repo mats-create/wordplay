@@ -18,6 +18,9 @@ function App() {
   const [borderFolders,   setBorderFolders]   = useState([]);
   const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
   const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
+  const [objects,       setObjects]       = useState([]);
+  const [selObject,     setSelObject]     = useState(null);
+  const [editObject,    setEditObject]    = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -29,8 +32,10 @@ function App() {
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
       shoutoutFolders: shoutoutFolders.join(', ') || 'none',
       borderFolders: borderFolders.join(', ') || 'none',
+      objectCount: objects.length,
+      objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
     };
-  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders]);
+  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -203,6 +208,41 @@ function App() {
     return ()=>unsub();
   },[authUser]);
 
+  // ── Objects listener (per-user) ──
+  useEffect(()=>{
+    if (!authUser) { setObjects([]); return; }
+    const q = fb.query(
+      fb.collection(fb.db,'users',authUser.uid,'objects'),
+      fb.orderBy('createdAt','desc')
+    );
+    const unsub = fb.onSnapshot(q, snap=>{
+      setObjects(snap.docs.map(d=>({id:d.id,...d.data()})));
+    });
+    return ()=>unsub();
+  },[authUser]);
+
+  // ── Save object ──
+  async function saveObject(data) {
+    setSaving(true);
+    try {
+      if (editObject && editObject !== 'new') {
+        await fb.updateDoc(
+          fb.doc(fb.db,'users',authUser.uid,'objects',editObject.id),
+          {...data, updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Object updated');
+      } else {
+        await fb.addDoc(
+          fb.collection(fb.db,'users',authUser.uid,'objects'),
+          {...data, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Object created');
+      }
+      setEditObject(null); setSelObject(null);
+    } catch(e) { showToast('Something went wrong — try again'); }
+    finally { setSaving(false); }
+  }
+
   // ── Sign in/out ──
   async function handleSignIn() {
     setAuthError(null);
@@ -283,8 +323,10 @@ function App() {
       if (confirmDel.type==='shoutout') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',confirmDel.id));
         showToast('Shoutout deleted'); setSelShoutout(null);
+      } else if (confirmDel.type==='object') {
+        await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'objects',confirmDel.id));
+        showToast('Object deleted'); setSelObject(null);
       } else {
-        // Custom borders in per-user collection, built-ins protected
         const border = borders.find(function(b) { return b.id === confirmDel.id; });
         if (border && border.builtIn) { showToast('Cannot delete built-in borders'); setConfirmDel(null); return; }
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'borders',confirmDel.id));
@@ -342,6 +384,10 @@ function App() {
               onFolderRename={handleFolderRename}
               onFolderDelete={handleFolderDelete}/>
           )}
+          {tab === 'objects' && (
+            <ObjectsScreen objects={objects}
+              onSelect={function(o) { setSelObject(o); }}/>
+          )}
         </div>
 
         {/* Bottom nav — mobile only */}
@@ -355,6 +401,11 @@ function App() {
             onClick={function() { setTab('borders'); }}>
             <Ico.Border/>
             <span className="nav-tab-label">Borders</span>
+          </button>
+          <button className={'nav-tab' + (tab==='objects' ? ' active' : '')}
+            onClick={function() { setTab('objects'); }}>
+            <Ico.Object/>
+            <span className="nav-tab-label">Objects</span>
           </button>
           <button className={'nav-tab nav-tab-kevin' + (kevinMobileActive ? ' active' : '')}
             style={{position:'relative'}}
@@ -370,21 +421,25 @@ function App() {
           </button>
           {!kevinMobileActive && (
             <button className="fab-mobile"
-              title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+              title={tab==='shoutouts' ? 'New shoutout' : tab==='borders' ? 'New border' : 'New object'}
               onClick={function() {
-                tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+                if (tab === 'shoutouts') setEditShoutout('new');
+                else if (tab === 'borders') setEditBorder('new');
+                else setEditObject('new');
               }}>
               <Ico.Plus/>
             </button>
           )}
         </nav>
 
-        {/* FAB — desktop only, fixed bottom-right of content area */}
+        {/* FAB — desktop only */}
         {!kevinMobileActive && (
           <button className="fab"
-            title={tab==='shoutouts' ? 'New shoutout' : 'New border'}
+            title={tab==='shoutouts' ? 'New shoutout' : tab==='borders' ? 'New border' : 'New object'}
             onClick={function() {
-              tab === 'shoutouts' ? setEditShoutout('new') : setEditBorder('new');
+              if (tab === 'shoutouts') setEditShoutout('new');
+              else if (tab === 'borders') setEditBorder('new');
+              else setEditObject('new');
             }}>
             <Ico.Plus/>
           </button>
@@ -401,7 +456,7 @@ function App() {
         <KevinChat
           context={kevinContext}
           uid={authUser.uid}
-          appData={{ shoutouts, borders, fb: window.__firebase, uid: authUser.uid }}
+          appData={{ shoutouts, borders, objects, fb: window.__firebase, uid: authUser.uid }}
           messages={kevinMessages}
           setMessages={setKevinMessages}
           onClose={function() {
@@ -441,6 +496,19 @@ function App() {
           initial={editBorder==='new' ? null : editBorder}
           onSave={saveBorder}
           onClose={function() { setEditBorder(null); }}
+          saving={saving}/>
+      )}
+      {selObject && !editObject && (
+        <ObjectDetail object={selObject}
+          onClose={function() { setSelObject(null); }}
+          onEdit={function() { setEditObject(selObject); }}
+          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}/>
+      )}
+      {editObject && (
+        <ObjectEditor
+          initial={editObject === 'new' ? null : editObject}
+          onSave={saveObject}
+          onClose={function() { setEditObject(null); }}
           saving={saving}/>
       )}
       {confirmDel && (

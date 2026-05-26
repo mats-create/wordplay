@@ -944,3 +944,80 @@ html, body, #root {
   display: block; max-width: 160px; border-radius: 8px;
   margin-bottom: 6px; border: 1px solid var(--lgrey);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   OBJECTS SCREEN + STITCH EDITOR
+═══════════════════════════════════════════════════════════════════ */
+
+/* Object card */
+.object-card { align-items: center; }
+.object-preview {
+  position: relative;
+  background: var(--offwht);
+  border: 1px solid var(--lgrey);
+  border-radius: 6px;
+  margin: 8px auto;
+}
+.object-preview-empty {
+  width: 80px; height: 80px;
+  background: var(--offwht); border-radius: 6px;
+  margin: 8px auto;
+}
+
+/* Object detail preview grid */
+.object-detail-preview {
+  display: flex; flex-wrap: wrap;
+  border: 1px solid var(--lgrey); border-radius: 6px;
+  overflow: hidden; width: fit-content;
+}
+
+/* Stitch editor */
+.sheet-wide { max-width: 680px; }
+.stitch-editor-wrap {
+  overflow-x: auto; overflow-y: auto;
+  max-height: 480px;
+  border: 1px solid var(--lgrey); border-radius: 8px;
+  background: var(--offwht);
+  padding: 8px;
+}
+.stitch-editor {
+  gap: 2px;
+}
+.stitch-cell {
+  width: 32px; height: 32px;
+  background: var(--white);
+  border: 1px solid var(--lgrey);
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s;
+  user-select: none;
+}
+.stitch-cell:hover { background: #f0f0f0; }
+.stitch-cell.on { background: var(--offwht); }
+.stitch-cell.on:hover { background: #e8e0d0; }
+
+/* Object size stepper */
+.object-size-row {
+  display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+}
+.object-size-field { display: flex; flex-direction: column; gap: 4px; }
+.object-size-stepper {
+  display: flex; align-items: center; gap: 0;
+  border: 1.5px solid var(--lgrey); border-radius: var(--radius-sm);
+  overflow: hidden; width: fit-content;
+}
+.object-size-stepper button {
+  width: 32px; height: 32px; border: none; background: var(--white);
+  font-size: 16px; cursor: pointer; color: var(--black);
+  transition: background 0.1s;
+}
+.object-size-stepper button:hover:not(:disabled) { background: var(--offwht); }
+.object-size-stepper button:disabled { color: var(--lgrey); cursor: default; }
+.object-size-stepper span {
+  width: 36px; text-align: center;
+  font-size: 13px; font-weight: 500;
+  border-left: 1px solid var(--lgrey);
+  border-right: 1px solid var(--lgrey);
+  line-height: 32px;
+}

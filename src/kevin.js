@@ -87,7 +87,9 @@ Example enlarged 11x11 (expanded lattice): ["00000000000","00111010110","0101010
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+
+Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 41 wide, max 11 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
 Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
 }
@@ -261,6 +263,51 @@ const KEVIN_TOOLS = [
       required: ['id']
     }
   },
+  {
+    name: 'listObjects',
+    description: 'List all motif objects in the user\'s object library.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'createObject',
+    description: 'Create a new motif object and save it to the object library. Objects are reusable binary stitch patterns for use in border designs.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:    { type: 'string', description: 'Name for this object' },
+        pattern: { type: 'array', items: { type: 'string' }, description: 'Array of binary strings (0=empty, 1=stitch). All strings must be the same length. Max 41 wide, max 11 tall.' },
+        width:   { type: 'number', description: 'Pattern width in stitches' },
+        height:  { type: 'number', description: 'Pattern height in stitches' },
+      },
+      required: ['name', 'pattern']
+    }
+  },
+  {
+    name: 'updateObject',
+    description: 'Update an existing motif object by its id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:      { type: 'string', description: 'Object id from listObjects' },
+        name:    { type: 'string', description: 'New name' },
+        pattern: { type: 'array', items: { type: 'string' }, description: 'New pattern array' },
+        width:   { type: 'number' },
+        height:  { type: 'number' },
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'deleteObject',
+    description: 'Delete a motif object by its id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Object id to delete' },
+      },
+      required: ['id']
+    }
+  },
 ];
 
 // ── Kevin undo stack (session only) ──────────────────────────────────────────
@@ -412,6 +459,20 @@ async function executeKevinTool(toolName, toolInput, appData) {
         await fb.setDoc(fb.doc(fb.db, 'users', uid, 'borders', last.id), prev);
         return 'Undone — border restored.';
       }
+      if (last.action === 'createObject') {
+        await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'objects', last.id));
+        return 'Undone — object removed.';
+      }
+      if (last.action === 'updateObject' && last.previous) {
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'objects', last.id), prev);
+        return 'Undone — object restored to previous state.';
+      }
+      if (last.action === 'deleteObject' && last.previous) {
+        const prev = Object.assign({}, last.previous); delete prev.id;
+        await fb.setDoc(fb.doc(fb.db, 'users', uid, 'objects', last.id), prev);
+        return 'Undone — object restored.';
+      }
       return 'Could not undo — previous state unavailable.';
     } catch(e) { return 'Undo failed: ' + e.message; }
   }
@@ -479,6 +540,64 @@ async function executeKevinTool(toolName, toolInput, appData) {
       kevinLogUndo({ action: 'deleteBorder', id, previous: current });
       return 'Border ' + id + ' deleted.';
     } catch(e) { return 'Error deleting border: ' + e.message; }
+  }
+
+  if (toolName === 'listObjects') {
+    const objs = appData.objects || [];
+    if (objs.length === 0) return 'No objects in library yet.';
+    return JSON.stringify(objs.map(function(o) {
+      return { id: o.id, name: o.name, width: o.width, height: o.height,
+               patternRows: o.pattern ? o.pattern.length : 0 };
+    }), null, 2);
+  }
+
+  if (toolName === 'createObject') {
+    try {
+      const pattern = toolInput.pattern;
+      if (!pattern || !Array.isArray(pattern) || pattern.length === 0) return 'Error: pattern array is required.';
+      const h = pattern.length;
+      const w = pattern[0].length;
+      const data = {
+        name:    toolInput.name,
+        pattern: pattern,
+        width:   toolInput.width  || w,
+        height:  toolInput.height || h,
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      };
+      const ref = await fb.addDoc(fb.collection(fb.db, 'users', uid, 'objects'), data);
+      kevinLogUndo({ action: 'createObject', id: ref.id });
+      return 'Object "' + toolInput.name + '" created with id: ' + ref.id;
+    } catch(e) { return 'Error creating object: ' + e.message; }
+  }
+
+  if (toolName === 'updateObject') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.objects || []).find(function(o) { return o.id === id; });
+      const fields = Object.assign({}, toolInput);
+      delete fields.id;
+      if (fields.pattern) {
+        fields.width  = fields.pattern[0] ? fields.pattern[0].length : (fields.width || 9);
+        fields.height = fields.pattern.length;
+      }
+      fields.updatedAt = fb.serverTimestamp();
+      await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'objects', id), fields);
+      kevinLogUndo({ action: 'updateObject', id, previous: current });
+      return 'Object ' + id + ' updated.';
+    } catch(e) { return 'Error updating object: ' + e.message; }
+  }
+
+  if (toolName === 'deleteObject') {
+    try {
+      const id = toolInput.id;
+      if (!id) return 'Error: id is required.';
+      const current = (appData.objects || []).find(function(o) { return o.id === id; });
+      await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'objects', id));
+      kevinLogUndo({ action: 'deleteObject', id, previous: current });
+      return 'Object ' + id + ' deleted.';
+    } catch(e) { return 'Error deleting object: ' + e.message; }
   }
 
   return 'Unknown tool: ' + toolName;

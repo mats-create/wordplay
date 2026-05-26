@@ -371,6 +371,201 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   OBJECT DETAIL + STITCH EDITOR
+═══════════════════════════════════════════════════════════════════ */
+
+// Max dimensions based on British Classic border limits
+const OBJECT_MAX_W = 41; // top/bottom side motif max width
+const OBJECT_MAX_H = 11; // corner motif max height (enlarged)
+const OBJECT_DEFAULT_W = 9;
+const OBJECT_DEFAULT_H = 9;
+const EDITOR_CELL = 32; // px per stitch cell in editor
+
+function ObjectEditor({ initial, onSave, onClose, saving }) {
+  const isEdit = !!initial;
+  const [name,    setName]    = useState(initial ? initial.name : '');
+  const [pattern, setPattern] = useState(function() {
+    if (initial && initial.pattern) return initial.pattern.map(function(r) { return r.split(''); });
+    // Blank 9x9 grid
+    return Array.from({length: OBJECT_DEFAULT_H}, function() {
+      return Array(OBJECT_DEFAULT_W).fill('0');
+    });
+  });
+  const [nameError, setNameError] = useState('');
+
+  const h = pattern.length;
+  const w = pattern[0] ? pattern[0].length : OBJECT_DEFAULT_W;
+
+  function toggleCell(r, c) {
+    setPattern(function(prev) {
+      const next = prev.map(function(row) { return [...row]; });
+      next[r][c] = next[r][c] === '1' ? '0' : '1';
+      return next;
+    });
+  }
+
+  function resizeGrid(newW, newH) {
+    const clampW = Math.max(1, Math.min(OBJECT_MAX_W, newW));
+    const clampH = Math.max(1, Math.min(OBJECT_MAX_H, newH));
+    setPattern(function(prev) {
+      return Array.from({length: clampH}, function(_, r) {
+        return Array.from({length: clampW}, function(_, c) {
+          return (prev[r] && prev[r][c]) ? prev[r][c] : '0';
+        });
+      });
+    });
+  }
+
+  function handleSave() {
+    if (!name.trim()) { setNameError('Name is required'); return; }
+    setNameError('');
+    const patternStrings = pattern.map(function(row) { return row.join(''); });
+    onSave({ name: name.trim(), pattern: patternStrings, width: w, height: h });
+  }
+
+  return (
+    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet sheet-wide">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">{isEdit ? 'Edit object' : 'New object'}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+
+          <div className="form-group">
+            <label className="form-label">Name</label>
+            <input className={'form-input' + (nameError ? ' error' : '')}
+              placeholder="e.g. Corner diamond" value={name}
+              onChange={function(e) { setName(e.target.value); }} autoFocus/>
+            {nameError && <div className="form-error">{nameError}</div>}
+          </div>
+
+          {/* Resize controls */}
+          <div className="form-group">
+            <label className="form-label">Size</label>
+            <div className="object-size-row">
+              <div className="object-size-field">
+                <label className="form-hint">Width</label>
+                <div className="object-size-stepper">
+                  <button onClick={function() { resizeGrid(w-1, h); }} disabled={w <= 1}>−</button>
+                  <span>{w}</span>
+                  <button onClick={function() { resizeGrid(w+1, h); }} disabled={w >= OBJECT_MAX_W}>+</button>
+                </div>
+              </div>
+              <div className="object-size-field">
+                <label className="form-hint">Height</label>
+                <div className="object-size-stepper">
+                  <button onClick={function() { resizeGrid(w, h-1); }} disabled={h <= 1}>−</button>
+                  <span>{h}</span>
+                  <button onClick={function() { resizeGrid(w, h+1); }} disabled={h >= OBJECT_MAX_H}>+</button>
+                </div>
+              </div>
+              <div className="form-hint" style={{alignSelf:'flex-end', paddingBottom:4}}>
+                Max {OBJECT_MAX_W}×{OBJECT_MAX_H}
+              </div>
+            </div>
+          </div>
+
+          {/* Stitch editor */}
+          <div className="form-group">
+            <label className="form-label">Stitch editor</label>
+            <div className="form-hint" style={{marginBottom:8}}>Tap a cell to toggle a stitch on or off</div>
+            <div className="stitch-editor-wrap">
+              <div className="stitch-editor"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(' + w + ', ' + EDITOR_CELL + 'px)',
+                  gridTemplateRows: 'repeat(' + h + ', ' + EDITOR_CELL + 'px)',
+                }}>
+                {pattern.map(function(row, r) {
+                  return row.map(function(cell, c) {
+                    const on = cell === '1';
+                    return (
+                      <div key={r + '-' + c}
+                        className={'stitch-cell' + (on ? ' on' : '')}
+                        onClick={function() { toggleCell(r, c); }}>
+                        {on && (
+                          <svg viewBox="0 0 32 32" width={EDITOR_CELL} height={EDITOR_CELL}>
+                            <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="3.5" strokeLinecap="round"/>
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  });
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
+            <button className="btn btn-coral" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create object'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObjectDetail({ object, onEdit, onDelete, onClose }) {
+  const w = object.width || (object.pattern && object.pattern[0] ? object.pattern[0].length : 9);
+  const h = object.height || (object.pattern ? object.pattern.length : 9);
+  const previewCell = Math.min(Math.floor(300 / Math.max(w, h)), 28);
+  return (
+    <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div className="sheet-header">
+          <span className="sheet-title">{object.name}</span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="sheet-body">
+          <div className="detail-meta">
+            {w}×{h} stitches
+            {object.createdAt && <span> · {formatDate(object.createdAt)}</span>}
+          </div>
+
+          {/* Preview */}
+          <div className="detail-section">
+            <div className="detail-section-label">Pattern</div>
+            <div className="object-detail-preview">
+              {object.pattern && object.pattern.map(function(row, r) {
+                return row.split('').map(function(ch, c) {
+                  if (ch !== '1') return (
+                    <div key={r+'-'+c} style={{width:previewCell, height:previewCell, background:'var(--offwht)', border:'1px solid var(--lgrey)'}}/>
+                  );
+                  return (
+                    <div key={r+'-'+c} style={{width:previewCell, height:previewCell, background:'var(--surface)', border:'1px solid var(--lgrey)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                      <svg viewBox="0 0 32 32" width={previewCell-4} height={previewCell-4}>
+                        <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                        <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                  );
+                });
+              })}
+            </div>
+          </div>
+
+          <div className="detail-actions">
+            <button className="btn btn-primary" onClick={onEdit}><Ico.Edit/> Edit</button>
+          </div>
+          <div className="detail-actions" style={{paddingTop:0, borderTop:'1px solid var(--offwht)', marginTop:4}}>
+            <button className="btn btn-ghost" style={{color:'var(--coral)', fontSize:12}} onClick={onDelete}>
+              <Ico.Delete/> Delete object
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    TOP BAR + USER MENU
 ═══════════════════════════════════════════════════════════════════ */
 function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin, tmCache }) {
@@ -390,6 +585,10 @@ function TopBar({ user, onSignOut, tab, onTabChange, kevinVisible, onToggleKevin
         <button className={'topbar-tab' + (tab==='borders' ? ' active' : '')}
           onClick={function() { onTabChange('borders'); }}>
           <Ico.Border/> Borders
+        </button>
+        <button className={'topbar-tab' + (tab==='objects' ? ' active' : '')}
+          onClick={function() { onTabChange('objects'); }}>
+          <Ico.Object/> Objects
         </button>
       </div>
 

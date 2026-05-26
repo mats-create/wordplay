@@ -268,5 +268,105 @@ function BordersScreen({ borders, onSelect, folders, activeFolder, onFolderChang
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   OBJECTS SCREEN
+═══════════════════════════════════════════════════════════════════ */
+function ObjectsScreen({ objects, onSelect }) {
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(function() {
+    if (!query.trim()) return objects;
+    const q = query.toLowerCase();
+    return objects.filter(function(o) {
+      return o.name && o.name.toLowerCase().includes(q);
+    });
+  }, [objects, query]);
+
+  const showCount = query.trim() && filtered.length !== objects.length
+    ? filtered.length + ' of ' + objects.length
+    : objects.length;
+  const noun = objects.length === 1 ? 'object' : 'objects';
+
+  return (
+    <div className="screen">
+      <div className="screen-header">
+        <span className="screen-title">Motif objects</span>
+        <span className="screen-count">{showCount} {noun}</span>
+        <div className="search-wrap">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input className="search-input" placeholder="Search…" value={query}
+            onChange={function(e) { setQuery(e.target.value); }}/>
+          {query && (
+            <button className="search-clear" onClick={function() { setQuery(''); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {objects.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon">✦</span>
+          <h3>No objects yet</h3>
+          <p>Tap + to create a motif object, or ask Claude-Kevin to generate one from an image.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <span className="empty-icon">🔍</span>
+          <h3>No results</h3>
+          <p>No objects match "{query}".</p>
+        </div>
+      ) : (
+        <div className="card-grid">
+          {filtered.map(function(o) {
+            return (
+              <div key={o.id} className="card object-card" onClick={function() { onSelect(o); }}>
+                <ObjectPreview pattern={o.pattern} size={120}/>
+                <div className="card-title">{o.name}</div>
+                <div className="card-sub">
+                  {o.width}×{o.height} stitches
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Small read-only stitch preview for cards
+function ObjectPreview({ pattern, size }) {
+  if (!pattern || pattern.length === 0) return <div className="object-preview-empty"/>;
+  const h = pattern.length;
+  const w = pattern[0].length;
+  const cell = Math.min(Math.floor(size / Math.max(w, h)), 20);
+  const pw = w * cell;
+  const ph = h * cell;
+  return (
+    <div className="object-preview" style={{width: pw, height: ph}}>
+      {pattern.map(function(row, r) {
+        return row.split('').map(function(ch, c) {
+          if (ch !== '1') return null;
+          const x = c * cell;
+          const y = r * cell;
+          const pad = cell * 0.1;
+          return (
+            <svg key={r + '-' + c} style={{position:'absolute', left:x, top:y, width:cell, height:cell}}
+              viewBox={'0 0 ' + cell + ' ' + cell}>
+              <line x1={pad} y1={pad} x2={cell-pad} y2={cell-pad} stroke="#1A1A1A" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+              <line x1={cell-pad} y1={pad} x2={pad} y2={cell-pad} stroke="#1A1A1A" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+            </svg>
+          );
+        });
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════════════ */
