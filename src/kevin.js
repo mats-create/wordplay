@@ -399,17 +399,17 @@ async function executeKevinTool(toolName, toolInput, appData) {
         return 'Undone — shoutout restored.';
       }
       if (last.action === 'createBorder') {
-        await fb.deleteDoc(fb.doc(fb.db, 'borders', last.id));
+        await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'borders', last.id));
         return 'Undone — border removed.';
       }
       if (last.action === 'updateBorder' && last.previous) {
         const prev = Object.assign({}, last.previous); delete prev.id;
-        await fb.updateDoc(fb.doc(fb.db, 'borders', last.id), prev);
+        await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'borders', last.id), prev);
         return 'Undone — border restored to previous state.';
       }
       if (last.action === 'deleteBorder' && last.previous) {
         const prev = Object.assign({}, last.previous); delete prev.id;
-        await fb.setDoc(fb.doc(fb.db, 'borders', last.id), prev);
+        await fb.setDoc(fb.doc(fb.db, 'users', uid, 'borders', last.id), prev);
         return 'Undone — border restored.';
       }
       return 'Could not undo — previous state unavailable.';
@@ -448,7 +448,7 @@ async function executeKevinTool(toolName, toolInput, appData) {
         createdAt:   fb.serverTimestamp(),
         updatedAt:   fb.serverTimestamp(),
       };
-      const ref = await fb.addDoc(fb.collection(fb.db, 'borders'), data);
+      const ref = await fb.addDoc(fb.collection(fb.db, 'users', uid, 'borders'), data);
       kevinLogUndo({ action: 'createBorder', id: ref.id });
       return 'Border created with id: ' + ref.id + '. It is now available in the border library.';
     } catch(e) { return 'Error creating border: ' + e.message; }
@@ -463,7 +463,7 @@ async function executeKevinTool(toolName, toolInput, appData) {
       const fields = Object.assign({}, toolInput);
       delete fields.id;
       fields.updatedAt = fb.serverTimestamp();
-      await fb.updateDoc(fb.doc(fb.db, 'borders', id), fields);
+      await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'borders', id), fields);
       kevinLogUndo({ action: 'updateBorder', id, previous: current });
       return 'Border ' + id + ' updated.';
     } catch(e) { return 'Error updating border: ' + e.message; }
@@ -475,7 +475,7 @@ async function executeKevinTool(toolName, toolInput, appData) {
       if (!id) return 'Error: id is required.';
       const current = (appData.borders || []).find(function(b) { return b.id === id; });
       if (current && current.builtIn) return 'Error: cannot delete built-in borders.';
-      await fb.deleteDoc(fb.doc(fb.db, 'borders', id));
+      await fb.deleteDoc(fb.doc(fb.db, 'users', uid, 'borders', id));
       kevinLogUndo({ action: 'deleteBorder', id, previous: current });
       return 'Border ' + id + ' deleted.';
     } catch(e) { return 'Error deleting border: ' + e.message; }

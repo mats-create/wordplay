@@ -96,9 +96,9 @@ function App() {
       setBorderFolders(next);
       saveFolders(authUser.uid, shoutoutFolders, next);
       if (activeBorderFolder === oldName) setActiveBorderFolder(newName);
-      const batch = borders.filter(function(b) { return b.folder === oldName; });
+      const batch = borders.filter(function(b) { return b.folder === oldName && !b.builtIn; });
       for (const b of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { folder: newName });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: newName });
       }
     }
   }
@@ -119,9 +119,9 @@ function App() {
       setBorderFolders(next);
       saveFolders(authUser.uid, shoutoutFolders, next);
       if (activeBorderFolder === name) setActiveBorderFolder(null);
-      const batch = borders.filter(function(b) { return b.folder === name; });
+      const batch = borders.filter(function(b) { return b.folder === name && !b.builtIn; });
       for (const b of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'borders',b.id), { folder: null });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: null });
       }
     }
   }
@@ -131,7 +131,9 @@ function App() {
       if (type === 'shoutout') {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId), { folder: folder || null });
       } else {
-        await fb.updateDoc(fb.doc(fb.db,'borders',itemId), { folder: folder || null });
+        const border = borders.find(function(b) { return b.id === itemId; });
+        if (border && border.builtIn) { showToast('Cannot move built-in borders'); return; }
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',itemId), { folder: folder || null });
       }
       showToast(folder ? 'Moved to ' + folder : 'Removed from folder');
     } catch(e) { showToast('Move failed — try again'); }
@@ -160,15 +162,32 @@ function App() {
     } catch(e) { console.warn('Border seed failed:', e); }
   }
 
-  // ── Borders listener (shared collection) ──
+  // ── Borders listener — built-ins (shared) + custom (per-user) ──
   useEffect(()=>{
     if (!authUser) { setBorders([]); return; }
     seedBorders();
-    const q = fb.query(fb.collection(fb.db,'borders'), fb.orderBy('createdAt','asc'));
-    const unsub = fb.onSnapshot(q, snap=>{
-      setBorders(snap.docs.map(d=>({id:d.id,...d.data()})));
+    // Listen to shared built-in borders
+    const qBuiltin = fb.query(fb.collection(fb.db,'borders'), fb.orderBy('createdAt','asc'));
+    // Listen to per-user custom borders
+    const qCustom  = fb.query(fb.collection(fb.db,'users',authUser.uid,'borders'), fb.orderBy('createdAt','asc'));
+
+    let builtinBorders = [];
+    let customBorders  = [];
+
+    function merge() {
+      // Built-ins first, then custom
+      setBorders([...builtinBorders, ...customBorders]);
+    }
+
+    const unsubBuiltin = fb.onSnapshot(qBuiltin, snap=>{
+      builtinBorders = snap.docs.map(d=>({id:d.id,...d.data(),builtIn:true}));
+      merge();
     });
-    return ()=>unsub();
+    const unsubCustom = fb.onSnapshot(qCustom, snap=>{
+      customBorders = snap.docs.map(d=>({id:d.id,...d.data(),builtIn:false}));
+      merge();
+    });
+    return ()=>{ unsubBuiltin(); unsubCustom(); };
   },[authUser]);
 
   // ── Shoutouts listener (per-user) ──
@@ -233,20 +252,23 @@ function App() {
   async function saveBorder(data) {
     setSaving(true);
     try {
-      // If no spec provided but style matches a built-in, use that spec
       const spec = data.spec || BORDER_SPECS[data.style] || null;
       const fullData = { ...data, spec };
       if (editBorder && editBorder !== 'new') {
-        await fb.updateDoc(
-          fb.doc(fb.db,'borders',editBorder.id),
-          {...fullData, updatedAt: fb.serverTimestamp()}
-        );
+        // Update — built-ins stay in shared collection, custom go to per-user
+        const path = editBorder.builtIn
+          ? fb.doc(fb.db,'borders',editBorder.id)
+          : fb.doc(fb.db,'users',authUser.uid,'borders',editBorder.id);
+        await fb.updateDoc(path, {...fullData, updatedAt: fb.serverTimestamp()});
         showToast('Border updated');
       } else {
-        await fb.addDoc(fb.collection(fb.db,'borders'), {
-          ...fullData, builtIn: false, createdBy: authUser.uid,
-          createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()
-        });
+        // Create — always per-user
+        await fb.addDoc(
+          fb.collection(fb.db,'users',authUser.uid,'borders'), {
+            ...fullData, builtIn: false, createdBy: authUser.uid,
+            createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()
+          }
+        );
         showToast('Border created');
       }
       setEditBorder(null); setSelBorder(null);
@@ -262,7 +284,10 @@ function App() {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',confirmDel.id));
         showToast('Shoutout deleted'); setSelShoutout(null);
       } else {
-        await fb.deleteDoc(fb.doc(fb.db,'borders',confirmDel.id));
+        // Custom borders in per-user collection, built-ins protected
+        const border = borders.find(function(b) { return b.id === confirmDel.id; });
+        if (border && border.builtIn) { showToast('Cannot delete built-in borders'); setConfirmDel(null); return; }
+        await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'borders',confirmDel.id));
         showToast('Border deleted'); setSelBorder(null);
       }
       setConfirmDel(null);
