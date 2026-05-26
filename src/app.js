@@ -23,7 +23,7 @@ function App() {
   const [editObject,    setEditObject]    = useState(null);
   const fb = window.__firebase;
 
-  // Kevin context — what Kevin knows about the current state
+  // Kevin context — what Kevin knows about the current states
   const kevinContext = useMemo(function() {
     return {
       tab,
