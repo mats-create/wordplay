@@ -38,144 +38,75 @@
 
 ---
 
-### 1. Extended thread roles + swatch rendering
+### 1. Border ownership migration (quick fix)
+Move custom (non-built-in) borders from shared `borders/` collection to
+`users/{uid}/borders/` so each user has their own private border library.
+Built-in borders remain in the shared collection.
 
-**Scope:** Extend thread system from 3 to 6 named slots, rename existing slots
-for clarity, and add colour swatch rendering in both edit mode and Kevin chat.
+**Approach (straightforward):** Update border listeners and CRUD in `app.js`
+to read/write custom borders from `users/{uid}/borders/`. Built-in borders
+still seeded/read from shared `borders/`. Kevin tools updated to write to the
+correct collection based on `builtIn` flag. Existing shared custom borders
+grandfathered — they remain visible to all users until a proper migration
+is done (see low-priority migration item below).
 
-**Thread slot naming (replaces positional numbering):**
-
-| Slot | Name | Grid kinds | Notes |
-|------|------|-----------|-------|
-| 1 | Shoutout | T, B, A, F | Word/text colour — exists |
-| 2 | Border 1 | D, G | Main border lines — exists |
-| 3 | Border 2 | E, S | Secondary border — exists (was "accent") |
-| 4 | Border 3 | H, I | Third border colour — new |
-| 5 | Accent 1 | J, K | Decorative extras — new |
-| 6 | Accent 2 | L, M | Decorative extras — new |
-
-Names are human/Kevin labels only. Rendering is driven by grid kind mapping.
-Naming does not restrict usage — Kevin assigns kinds when writing border specs.
-Slots 4–6 are optional; designs with 3 threads continue to work unchanged.
-
-**Colour names in border specs:**
-Extend from `primary/secondary/accent` to also support
-`border3`, `accent1`, `accent2` as colour names in layer and motif definitions.
-`renderBorderSpec` and `pdfStitchColor` updated to map new kinds.
-
-**Swatch rendering — edit mode:**
-Thread rows already show colour swatches. Improvements:
-- Display slot name ("Shoutout", "Border 1" etc.) as a small label above each row
-- Swatch slightly larger and more prominent
-- DMC name shown clearly alongside code
-
-**Swatch rendering — Kevin chat:**
-Kevin outputs a special inline marker `[swatch:#HEXCODE]` alongside thread
-references. The markdown renderer in `kevin-chat.js` converts this to a small
-inline coloured circle (12px, border-radius 50%, inline-block).
-Kevin system prompt updated with the convention and instructed to use it
-whenever listing or confirming thread colours.
-
-**Kevin system prompt updates:**
-- New slot names and grid kinds
-- `border3`, `accent1`, `accent2` colour names in spec format
-- Swatch marker convention `[swatch:#HEX]`
-- Slots 4–6 are optional — only include when the design calls for them
-
-**Files:** `grid.js`, `pdf.js`, `components.js`, `kevin.js`, `kevin-chat.js`, `style.css`  
+**Files:** `app.js`, `kevin.js`
 **Complexity:** Medium
 
 ---
 
-### 2. Multi-row shoutouts
-User enters text with explicit line breaks. Each line independently scaled to fill available width.
+### 2. Motif object library
+
+**User story:** As a user I want a library of reusable stitch motif objects
+created by me or Kevin, with a visual stitch editor, so I can build up a
+personal collection of patterns for use in border designs.
 
 **Scope:**
-- Input accepts newline-separated lines
-- `buildGrid` rewritten to accept a line array
-- Each line independently auto-scaled
-- Short lines scale up, long lines scale down
+- Per-user Firestore collection: `users/{uid}/objects/{objectId}`
+  Fields: `name`, `pattern` (string[]), `width`, `height`, `createdAt`, `updatedAt`
+- Third tab in app: Objects — list view with search, similar to Shoutouts/Borders
+- Add, edit, rename, delete objects
+- No colour management — patterns are pure binary (0/1)
 
-**Files:** `grid.js`, `components.js`  
-**Complexity:** High (buildGrid rewrite)
+**Stitch editor:**
+- Grid where each cell = one stitch, rendered at ~32px per cell
+- Tap/click to toggle stitch on/off (rendered as X cross-stitch symbol)
+- Shown in isolation (not in border context)
+- Resize option: change width and height independently
+- Max dimensions based on British Classic border limits:
+  - Top/bottom motifs: max 41 stitches wide
+  - Left/right motifs: max 9 stitches tall
+  - Corner motifs: max 11×11 (enlarged standard)
+- New object starts as a blank 9×9 grid
 
----
+**Kevin integration:**
+- New tools: `listObjects`, `createObject`, `updateObject`, `deleteObject`
+- Kevin can generate a pattern (from vision or from scratch) and save it
+  directly to the object library
+- Kevin can retrieve objects by name and use them in border specs
+- Kevin context includes object count and names
 
-### 3. Advanced border object overrides
+**TopBar update (item 5 from UX list):**
+- Order: Logo+Appname | [Shoutouts] [Borders] [Objects] | [CK] | Avatar
+- Consistent spacing, nav tabs visually grouped
+- Objects tab uses a suitable icon (e.g. grid/pattern icon)
 
-**User story:** As a user I want to define the specs for individual objects in
-a border design — changing thread colour, pattern shape, or orientation per
-object. Use cases include emulating pitch corner areas (triangles pointing in
-different directions), home/away colour asymmetry (left motif = home colour,
-right motif = away colour), and other creative layouts.
-
-**Scope:** Border objects only (corner motifs, side motifs). Not text.  
-**Who sets it:** Both user (via UI) and Kevin (via tools).
-
-**Design approach — per-object spec overrides:**
-The current border spec defines corners and side motifs globally. This feature
-adds an optional `overrides` map to the spec:
-- `cornerOverrides`: topLeft, topRight, bottomLeft, bottomRight — each with
-  optional `{color, pattern}` that overrides the global cornerMotif
-- `sideOverrides`: top, bottom, left, right — each with optional `{color, pattern}`
-  that overrides the global sideMotif for that position
-- Positions without overrides use the global spec as normal
-- Backwards compatible — existing specs unaffected
-
-**Kevin:** Can set overrides when creating/updating a border. System prompt
-updated with override format and position names.
-
-**UI:** Advanced section in BorderForm — collapsible grid of 4 corner + 4 side
-slots, each showing current pattern/colour with an edit option.
-
-**renderBorderSpec:** Checks for override at each position before rendering
-the global motif.
-
-**Files:** `grid.js`, `sheets.js`, `kevin.js`, `style.css`  
+**Files:** `app.js`, `screens.js`, `sheets.js`, `kevin.js`, `style.css`, `utils.js`
 **Complexity:** High
 
 ---
 
-### 4. Kevin vision — image-to-motif conversion
+### 3. Border ownership full migration *(low priority)*
+Proper migration of all existing shared custom borders to their respective
+owner's `users/{uid}/borders/` collection. Requires a one-time admin script
+that reads `createdBy` field and moves documents accordingly. Only needed
+after item 1 is shipped and users have been using the app for a while.
 
-**User story:** As a user I want to upload a reference image to Kevin so he
-can interpret it and generate a cross-stitch bitmap pattern for use as a border
-motif (corner or side). This lets me create custom motifs from real-world
-references — football objects, pitch markings, symbols, sketches — without
-needing to hand-craft binary strings.
-
-**Flow:**
-1. User uploads an image in the Kevin chat (photo, sketch, PNG/JPG)
-2. Kevin analyses the image via Anthropic vision API
-3. Kevin generates a simplified binary bitmap pattern at the target size
-   (9×9 for standard, 11×11 for enlarged) — abstracting/simplifying as needed
-4. Kevin shows the pattern as a preview in chat (rendered as a small grid)
-5. User confirms or asks for adjustments
-6. Kevin calls `createBorder` or `updateBorder` with the pattern embedded
-   in the spec as a cornerMotif or sideMotif
-
-**Known constraint — simplification:**
-Cross-stitch motifs work at very small resolutions. Kevin must interpret the
-essence of the source image rather than convert it literally. Complex images
-will be heavily abstracted. This is by design and should be communicated to
-the user ("I've simplified this to work at 9×9 stitches").
-
-**Scope:** Border motifs only (corner and side). Not text, not full designs.
-
-**Technical approach:**
-- Anthropic API already supports base64 image input — used elsewhere in the app
-- Kevin chat needs a file upload input (image only, PNG/JPG)
-- Image sent to API alongside a prompt instructing Kevin to generate a bitmap
-- Kevin renders a text-based preview of the pattern in chat before applying it
-- No new tools needed — uses existing `createBorder`/`updateBorder`
-
-**Files:** `kevin.js`, `kevin-chat.js`, `style.css`  
-**Complexity:** Medium (vision API integration is straightforward; the hard
-part is prompt engineering for reliable bitmap output)
+**Complexity:** Low (script) — but needs careful timing
 
 ---
 
-### 5. Aida count selector
+### 4. Aida count selector
 
 **User story:** As a user I want to choose the Aida fabric count for my design
 so the app automatically suggests the correct stitch count and strand count to
@@ -213,7 +144,7 @@ for a true 19cm finish, or document as intentional.
 
 ---
 
-### 6. Chunky border mode (beginner-friendly)
+### 5. Chunky border mode (beginner-friendly)
 
 **User story:** As a beginner stitcher I want an option for thicker border
 lines that are easier to follow and count, making the design more approachable.
@@ -238,7 +169,7 @@ shoutouts. Kevin can recommend chunky + simplified motifs for beginner designs.
 
 ---
 
-### 7. Aida print orientation selector *(low priority)*
+### 6. Aida print orientation selector *(low priority)*
 Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. Low value while designs are square — revisit if rectangular formats are introduced.
 
 **Files:** `pdf.js`, `sheets.js`  
@@ -250,6 +181,10 @@ Portrait/landscape toggle on the Aida Print PDF. Currently always portrait A4. L
 
 | Feature | Notes |
 |---------|-------|
+| Kevin vision — image-to-motif | Image upload in Kevin chat, base64 to API, bitmap generation |
+| Extended thread roles + swatch rendering | 6 named slots, Kevin swatches, border3/accent1/accent2 colour names |
+| Multi-row shoutouts | Up to 4 lines, per-line S/N/L size, auto-expanding grid, centred |
+| Per-position border overrides | cornerOverrides + sideOverrides, 8 independent positions, Kevin-aware |
 | Text size toggle | Small/Normal/Large segmented control, Normal=auto-scale default |
 | Thread length calculation | Per-thread cm estimate in detail view and edit form, auto-calc on save |
 | Infrastructure cleanup | Cloud Function deleted, Firebase downgraded to Spark, repo cleaned |
