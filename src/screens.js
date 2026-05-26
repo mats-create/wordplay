@@ -103,7 +103,6 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activ
             const tm = tmCache && tmCache[s.name];
             return (
               <div key={s.id} className="card" onClick={function() { onSelect(s); }}>
-                <div className="card-badge">{s.borderName||'No border'}</div>
                 {s.folder && <div className="card-folder-tag">{s.folder}</div>}
                 <CrossStitchCanvas word={s.name}
                   cols={s.stitchesW} rows={s.stitchesH}
@@ -115,6 +114,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activ
                 <div className="card-title">{s.name}</div>
                 <div className="card-sub">
                   {s.stitchesW}×{s.stitchesH} stitches · {s.hoopW}×{s.hoopH}mm
+                  {s.borderName && <span> · {s.borderName}</span>}
                 </div>
                 {s.threads&&s.threads.length>0 && (
                   <div className="thread-chips">

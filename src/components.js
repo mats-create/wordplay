@@ -111,7 +111,7 @@ function BorderPicker({ borders, selected, onSelect }) {
           onClick={()=>onSelect(b.id, b.name)}>
           <div className="border-option-thumb">
             <CrossStitchCanvas word="ABC" cols={40} rows={40}
-              borderStyle={b.style} threads={DEFAULT_THREADS} size={88}/>
+              borderStyle={b.spec || b.style} threads={DEFAULT_THREADS} size={88}/>
           </div>
           <div className="border-option-label">{b.name}</div>
         </div>
@@ -140,26 +140,8 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   const [calculating,   setCalculating]   = useState(false);
   const [strands,       setStrands]       = useState(initial&&initial.strands ? initial.strands : 2);
   const [textScale,     setTextScale]     = useState(initial&&initial.textScale ? initial.textScale : 0);
-  // Multi-row: per-line scale overrides. Index matches line number (0-based).
-  const [lineScales,    setLineScales]    = useState(initial&&initial.lineScales ? initial.lineScales : [0,0,0,0]);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-
-  const MAX_LINES = 4;
-
-  // Parse name into lines array (split on newline, max 4)
-  const parsedLines = name.split('\n').slice(0, MAX_LINES).map(function(text, i) {
-    return { text: text, scale: lineScales[i] || 0 };
-  });
-  const isMultiRow = parsedLines.length > 1 || name.includes('\n');
-
-  function setLineScale(i, val) {
-    setLineScales(function(prev) {
-      const next = [...prev];
-      next[i] = val;
-      return next;
-    });
-  }
 
   function touch(field) { setTouched(p=>({...p,[field]:true})); }
 
@@ -186,9 +168,7 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
 
   function handleSave() {
     const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
-      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,
-      textScale,strands,lineScales,
-      lines: isMultiRow ? parsedLines : null};
+      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,textScale,strands};
     const errs = validateShoutout(fields);
     setErrors(errs);
     setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
@@ -211,63 +191,14 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
         <div className="sheet-body">
 
           <div className="form-group">
-            <div className="form-label-row">
-              <label className="form-label">Word or phrase</label>
-              {isMultiRow && (
-                <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>
-              )}
-            </div>
-            <textarea
-              className={'form-input form-textarea-word' + (touched.name&&errors.name?' error':'')}
-              placeholder={'e.g. GOAL!\nPress Enter for multiple lines (max 4)'}
-              value={name}
-              rows={Math.max(2, parsedLines.length + 1)}
-              onChange={function(e) {
-                const ls = e.target.value.split('\n');
-                if (ls.length > MAX_LINES) return;
-                setName(e.target.value);
-              }}
-              onKeyDown={function(e) {
-                if (e.key === 'Enter') {
-                  const ls = name.split('\n');
-                  if (ls.length >= MAX_LINES) e.preventDefault();
-                }
-              }}
-              onBlur={function() { touch('name'); }}
-              autoFocus
-            />
+            <label className="form-label">Word or phrase</label>
+            <input className={'form-input'+(touched.name&&errors.name?' error':'')}
+              placeholder="e.g. GOAL!" value={name}
+              onChange={e=>setName(e.target.value)}
+              onBlur={()=>touch('name')} autoFocus/>
             {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
-
-            {/* Per-line scale toggles */}
-            {isMultiRow && (
-              <div className="multirow-scales">
-                {parsedLines.map(function(line, i) {
-                  return (
-                    <div key={i} className="multirow-scale-row">
-                      <span className="multirow-line-label">
-                        {line.text.trim() ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length > 18 ? '…' : '') + '"' : 'Line ' + (i+1)}
-                      </span>
-                      <div className="size-toggle">
-                        {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
-                          return (
-                            <button key={opt.label}
-                              className={'size-btn' + ((lineScales[i]||0) === opt.value ? ' active' : '')}
-                              style={{padding:'3px 10px', fontSize:11}}
-                              onClick={function() { setLineScale(i, opt.value); }}>
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
-          {/* Single-row text size — hidden when multi-row active */}
-          {!isMultiRow && (
           <div className="form-group">
             <label className="form-label">Text size</label>
             <div className="size-toggle">
@@ -287,7 +218,6 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
                'Large — bold impact for short words'}
             </div>
           </div>
-          )}
 
           <div className="form-group">
             <label className="form-label">Border style</label>

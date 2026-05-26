@@ -97,9 +97,7 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
             borderStyle={bs} threads={shoutout.threads}
-            textScale={shoutout.textScale||0}
-            lines={shoutout.lines||null}
-            size={550}/>
+            textScale={shoutout.textScale||0} size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (
@@ -424,7 +422,25 @@ function SignInScreen({ onSignIn, error }) {
       <div className="signin-wordmark">Nutmeg<span>&</span>Needle</div>
       <div className="signin-tagline">Handcrafted football moves</div>
       <div className="signin-card">
-        <span className="signin-icon">🧵</span>
+        <span className="signin-icon">
+          <svg viewBox="0 0 32 32" width="48" height="48" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="6" fill="#F0E6D3"/>
+            <line x1="3.5" y1="3.5" x2="9" y2="3.5" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="3.5" y1="3.5" x2="3.5" y2="9" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="28.5" y1="3.5" x2="23" y2="3.5" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="28.5" y1="3.5" x2="28.5" y2="9" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="3.5" y1="28.5" x2="3.5" y2="23" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="3.5" y1="28.5" x2="9" y2="28.5" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="28.5" y1="28.5" x2="28.5" y2="23" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="28.5" y1="28.5" x2="23" y2="28.5" stroke="#CC3300" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="9" y1="9" x2="23" y2="23" stroke="#4A6741" strokeWidth="3.5" strokeLinecap="round"/>
+            <line x1="23" y1="9" x2="9" y2="23" stroke="#4A6741" strokeWidth="3.5" strokeLinecap="round"/>
+            <circle cx="9" cy="9" r="1.8" fill="#F0E6D3"/>
+            <circle cx="23" cy="9" r="1.8" fill="#F0E6D3"/>
+            <circle cx="9" cy="23" r="1.8" fill="#F0E6D3"/>
+            <circle cx="23" cy="23" r="1.8" fill="#F0E6D3"/>
+          </svg>
+        </span>
         <h2>Wordplay</h2>
         <p>Your library of football shoutouts in cross-stitch.</p>
         {error && <p style={{color:'var(--coral)',fontSize:12,marginBottom:10}}>{error}</p>}
