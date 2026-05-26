@@ -4862,7 +4862,7 @@ function SignInScreen({ onSignIn, error }) {
 
 /* ---- src/screens.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
-   SHOUTOUTS SCREEN FOR APP
+   SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
 function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query, setQuery] = useState('');
@@ -5260,7 +5260,7 @@ function App() {
   const [editObject,    setEditObject]    = useState(null);
   const fb = window.__firebase;
 
-  // Kevin context — what Kevin knows about the current states
+  // Kevin context — what Kevin knows about the current state
   const kevinContext = useMemo(function() {
     return {
       tab,
@@ -5761,7 +5761,6 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);</script>
 </body>
 </html>
