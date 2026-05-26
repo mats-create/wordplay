@@ -40,12 +40,8 @@ html, body, #root {
   border-bottom: 1px solid rgba(26,26,26,0.12);
   display: flex; align-items: center; padding: 0 16px; gap: 12px;
 }
-.topbar-wordmark { font-size: 17px; font-weight: 700; color: var(--black); flex: 1; }
-.topbar-wordmark span { color: var(--coral); }
-.topbar-app-name { font-size: 12px; font-weight: 500; color: var(--grey);
-  letter-spacing: 0.5px; text-transform: uppercase; }
 .topbar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
-  cursor: pointer; border: 2px solid var(--lgrey); transition: border-color 0.15s; }
+  cursor: pointer; border: 2px solid rgba(255,255,255,0.3); transition: border-color 0.15s; }
 .topbar-avatar:hover { border-color: var(--coral); }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -472,9 +468,27 @@ html, body, #root {
 .topbar {
   flex-shrink: 0;
   height: var(--top-h);
-  background: var(--linen);
-  border-bottom: 1px solid rgba(26,26,26,0.12);
-  display: flex; align-items: center; padding: 0 16px; gap: 12px;
+  background: var(--black);
+  border-bottom: none;
+  display: flex; align-items: center; padding: 0 16px; gap: 0;
+}
+
+/* Brand — logo + app name */
+.topbar-brand {
+  display: flex; align-items: center; gap: 8px;
+  margin-right: 20px; flex-shrink: 0;
+}
+.topbar-logo { flex-shrink: 0; }
+.topbar-appname {
+  font-size: 16px; font-weight: 700; color: var(--white);
+  letter-spacing: -0.3px;
+}
+.topbar-appname span { color: var(--coral); }
+
+/* Right side — CK + avatar pushed to far right */
+.topbar-right {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
 }
 
 /* Scrollable area — fills remaining height, scrolls itself */
@@ -523,18 +537,17 @@ html, body, #root {
 .topbar-nav {
   display: flex;
   gap: 2px;
-  margin-left: 8px;
 }
 .topbar-tab {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: var(--radius-sm);
   border: none; background: transparent;
   font-family: inherit; font-size: 13px; font-weight: 500;
-  color: var(--grey); cursor: pointer; transition: all 0.15s;
+  color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.15s;
 }
 .topbar-tab svg { width: 16px; height: 16px; }
-.topbar-tab:hover { background: rgba(26,26,26,0.06); color: var(--black); }
-.topbar-tab.active { background: rgba(26,26,26,0.08); color: var(--black); }
+.topbar-tab:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+.topbar-tab.active { background: rgba(255,255,255,0.12); color: var(--white); }
 @media (max-width: 767px) { .topbar-nav { display: none; } }
 
 /* ── Kevin toggle in topbar ── */
@@ -542,13 +555,13 @@ html, body, #root {
   flex-shrink: 0;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
-  border: 1.5px solid var(--lgrey);
+  border: 1.5px solid rgba(255,255,255,0.25);
   background: transparent;
   font-family: inherit; font-size: 12px; font-weight: 700;
   color: var(--coral); cursor: pointer; transition: all 0.15s;
   position: relative;
 }
-.kevin-toggle-btn:hover { background: var(--offwht); border-color: var(--coral); }
+.kevin-toggle-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--coral); }
 .kevin-toggle-btn.active { background: var(--coral); color: var(--white); border-color: var(--coral); }
 @media (max-width: 767px) { .kevin-toggle-btn { display: none; } }
 
