@@ -308,14 +308,39 @@ html, body, #root {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 6px; }
 
-/* ── Thread editor ── */
-.thread-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
-.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr 64px auto;
-  gap: 6px; align-items: center; }
-.thread-color-btn { width: 32px; height: 32px; border-radius: 6px;
-  border: 1.5px solid var(--lgrey); cursor: pointer; padding: 0;
-  position: relative; overflow: hidden; transition: transform 0.1s; }
-.thread-color-btn:hover { transform: scale(1.1); border-color: var(--black); }
+/* ── Threditor ── */
+.threditor { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.threditor-slot {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--lgrey); background: var(--white);
+  transition: border-color 0.15s;
+}
+.threditor-slot:hover { border-color: #bbb; }
+.threditor-swatch {
+  width: 40px; height: 40px; border-radius: 8px;
+  flex-shrink: 0; padding: 0;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.threditor-swatch-btn:hover { transform: scale(1.08); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.threditor-swatch:disabled { cursor: default; }
+.threditor-info { flex: 1; min-width: 0; }
+.threditor-slot-label {
+  display: flex; align-items: baseline; gap: 5px; margin-bottom: 2px;
+}
+.threditor-slot-name {
+  font-size: 10px; font-weight: 700; color: var(--black);
+  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.threditor-slot-hint { font-size: 10px; color: var(--grey); }
+.threditor-colour-name { font-size: 13px; font-weight: 500; color: var(--black); line-height: 1.3; }
+.threditor-dmc { font-size: 11px; color: var(--grey); }
+.threditor-empty { color: var(--lgrey); font-style: italic; }
+.threditor-right {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 4px; flex-shrink: 0;
+}
+.threditor-length { font-size: 11px; font-weight: 500; color: var(--grey); white-space: nowrap; }
 .thread-remove { width: 28px; height: 28px; border-radius: 50%; background: transparent;
   border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
   color: var(--grey); transition: all 0.15s; }
@@ -942,19 +967,7 @@ html, body, #root {
 .size-btn:hover { background: var(--offwht); color: var(--black); }
 .size-btn.active { background: var(--black); color: var(--white); }
 
-/* ── Thread slot labels ── */
-.thread-slot-label {
-  display: flex; align-items: baseline; gap: 6px;
-  margin-top: 10px; margin-bottom: 3px;
-}
-.thread-slot-label:first-child { margin-top: 0; }
-.thread-slot-name {
-  font-size: 11px; font-weight: 700; color: var(--black);
-  text-transform: uppercase; letter-spacing: 0.5px;
-}
-.thread-slot-hint {
-  font-size: 11px; color: var(--grey);
-}
+
 
 /* ── Kevin inline swatches ── */
 .kevin-swatch {
@@ -3491,46 +3504,73 @@ function DmcPickerSheet({ currentHex, onSelect, onClose }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   THREAD ROW (form sub-component)
+   THREDITOR — shared thread palette component
+   Props:
+     threads        — array of thread objects
+     threadLengths  — array of {cm} objects (indexed by slot)
+     onChange(i, t) — called on colour/name/dmc change; null = readonly
+     onRemove(i)    — called on remove; null = readonly
 ═══════════════════════════════════════════════════════════════════ */
-function ThreadRow({ thread, onChange, onRemove, lengthCm, slotIndex }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const slot = THREAD_SLOTS[slotIndex] || null;
+function Threditor({ threads, threadLengths, onChange, onRemove }) {
+  const [pickerIndex, setPickerIndex] = useState(null);
+  const editable = typeof onChange === 'function';
+
   return (
-    <>
-      {slot && (
-        <div className="thread-slot-label">
-          <span className="thread-slot-name">{slot.label}</span>
-          <span className="thread-slot-hint">{slot.hint}</span>
-        </div>
-      )}
-      <div className="thread-row">
-        <button className="thread-color-btn" style={{background:thread.hex}}
-          onClick={function() { setPickerOpen(true); }}
-          title="Pick DMC colour"/>
-        <input className="form-input" placeholder="Name" value={thread.name}
-          onChange={function(e) { onChange({...thread, name:e.target.value}); }}/>
-        <input className="form-input" placeholder="DMC code" value={thread.dmc}
-          onChange={function(e) { onChange({...thread, dmc:e.target.value}); }}/>
-        <div className="thread-length" title="Estimated thread length">
-          {lengthCm != null ? '~' + lengthCm + ' cm' : '—'}
-        </div>
-        <button className="thread-remove" onClick={onRemove}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      {pickerOpen && (
+    <div className="threditor">
+      {threads.map(function(t, i) {
+        const slot = THREAD_SLOTS[i] || null;
+        const lengthEntry = threadLengths && threadLengths[i];
+        const cm = lengthEntry ? lengthEntry.cm : null;
+        const isLight = t.hex === '#FFFFFF' || t.hex === '#FFFFF0' || t.hex === '#FFF8B0' || t.hex === '#F5F5F5';
+
+        return (
+          <div key={t.id || i} className="threditor-slot">
+            <button
+              className={'threditor-swatch' + (editable ? ' threditor-swatch-btn' : '')}
+              style={{
+                background: t.hex,
+                border: isLight ? '1.5px solid var(--lgrey)' : '1.5px solid transparent',
+                cursor: editable ? 'pointer' : 'default'
+              }}
+              onClick={editable ? function() { setPickerIndex(i); } : undefined}
+              title={editable ? 'Pick DMC colour' : t.name}
+              disabled={!editable}
+            />
+            <div className="threditor-info">
+              {slot && (
+                <div className="threditor-slot-label">
+                  <span className="threditor-slot-name">{slot.label}</span>
+                  <span className="threditor-slot-hint">{slot.hint}</span>
+                </div>
+              )}
+              <div className="threditor-colour-name">{t.name || <span className="threditor-empty">No name</span>}</div>
+              <div className="threditor-dmc">{t.dmc || <span className="threditor-empty">No DMC code</span>}</div>
+            </div>
+            <div className="threditor-right">
+              {cm != null && <div className="threditor-length">{'~' + cm + ' cm'}</div>}
+              {editable && (
+                <button className="thread-remove" onClick={function() { onRemove(i); }} title="Remove thread">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {pickerIndex !== null && (
         <DmcPickerSheet
-          currentHex={thread.hex}
+          currentHex={threads[pickerIndex] ? threads[pickerIndex].hex : '#000000'}
           onSelect={function(c) {
-            onChange({...thread, hex:c.hex, dmc:'DMC '+c.dmc, name:thread.name || c.name});
+            const t = threads[pickerIndex];
+            onChange(pickerIndex, {...t, hex: c.hex, dmc: 'DMC ' + c.dmc, name: t.name || c.name});
           }}
-          onClose={function() { setPickerOpen(false); }}
+          onClose={function() { setPickerIndex(null); }}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -3792,19 +3832,20 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
                 </button>
               </div>
             </div>
-            <div className="thread-list">
-              {threads.map((t,i)=>(
-                <ThreadRow key={t.id||i} thread={t}
-                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}
-                  lengthCm={getLengthCm(i)} slotIndex={i}/>
-              ))}
-            </div>
-            <button className="add-thread-btn" onClick={addThread}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add thread
-            </button>
+            <Threditor
+              threads={threads}
+              threadLengths={threadLengths}
+              onChange={function(i, u) { updateThread(i, u); }}
+              onRemove={function(i) { removeThread(i); }}
+            />
+            {threads.length < 6 && (
+              <button className="add-thread-btn" onClick={addThread}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add thread
+              </button>
+            )}
           </div>
 
           <div className="form-group">
@@ -4215,22 +4256,12 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         {shoutout.threads&&shoutout.threads.length>0 && (
           <div className="detail-section">
             <div className="detail-section-label">Threads</div>
-            {shoutout.threads.map(function(t,i) {
-              const lengthEntry = shoutout.threadLengths && shoutout.threadLengths[i];
-              const cm = lengthEntry ? lengthEntry.cm : null;
-              return (
-                <div className="detail-thread-row" key={i}>
-                  <div className="detail-swatch" style={{background:t.hex}}/>
-                  <div style={{flex:1}}>
-                    <div className="detail-thread-name">{t.name}</div>
-                    <div className="detail-thread-dmc">{t.dmc}{t.usage?'  ·  '+t.usage:''}</div>
-                  </div>
-                  <div className="detail-thread-length">
-                    {cm != null ? '~' + cm + ' cm' : '—'}
-                  </div>
-                </div>
-              );
-            })}
+            <Threditor
+              threads={shoutout.threads}
+              threadLengths={shoutout.threadLengths || []}
+              onChange={null}
+              onRemove={null}
+            />
           </div>
         )}
 
