@@ -198,3 +198,75 @@ Low value while designs are square — revisit if rectangular formats introduced
 DMC thread = 6 strands; use 2 strands on 14-count Aida (standard).
 DMC Perlé #5 = ready-to-use alternative (no separation needed).
 Thread length formula: `stitch_count × 5cm × 1.15 waste`, rounded to 5cm.
+
+---
+
+### 6. Composite (multi-layer) objects *(high priority)*
+
+**Summary:** Extend the object system to support multi-colour designs — flags,
+emblems, complex motifs — as a stack of binary layers, each mapped to a thread
+slot colour. Fully backwards compatible with existing single-colour objects.
+
+**Use case:** World Cup flag objects, creative multi-colour corner motifs.
+Symmetry convention: 2-colour flags → 10×12, 3-colour → 9×12, cross flags → 9×9 or 12×12.
+
+**Data model:**
+Objects gain an optional `layers` array. If present, the object is composite:
+```
+{
+  name: "Brazil flag",
+  width: 9, height: 9,
+  layers: [
+    { colorSlot: "secondary", pattern: ["111111111", ...] },
+    { colorSlot: "accent",    pattern: ["000000000", ...] },
+    { colorSlot: "border3",   pattern: ["000000000", ...] }
+  ]
+}
+```
+Single-colour objects unchanged (no layers field). Max 4 layers per composite object.
+Layer colours must map to existing thread slots (primary/secondary/accent/border3/accent1/accent2).
+
+**Object editor changes:**
+- Layer tabs across top of stitch editor (Layer 1, 2, 3... with colour dot)
+- Edit one layer at a time — same 32px cell grid as today
+- Compound view tab — renders all layers together with actual slot colours.
+  Overlapping cells highlighted in coral as a placement warning.
+- Add/remove layer buttons (max 4)
+- Each layer has a colour slot selector
+
+**Border renderer:** composite objects iterate layers, draw each with its slot colour.
+Same renderBorderSpec logic, one extra loop.
+
+**Kevin:** understands composite objects, can generate flag patterns as layered binary
+arrays. Knows symmetry conventions. Can identify overlap conflicts in compound view.
+
+**Files:** `constants.js` (or grid.js), `sheets.js`, `screens.js`, `kevin.js`, `style.css`
+**Complexity:** Medium
+
+---
+
+### 7. Thread colour editor for shoutout designs *(high priority)*
+
+**Summary:** Replace the abstract slot name system in ShoutoutDetail and ShoutoutForm
+with a visual, swatch-first colour editor. Slot names ("Accent 1") become secondary
+labels — the colour swatch is the primary UI element.
+
+**Problem today:** Users see "Shoutout · Border 1 · Accent 1" as labels with small
+colour dots. No intuitive way to understand which colour is which while designing.
+Memory required to connect slot names to visual output.
+
+**Design:**
+- Each thread slot shown as a large colour swatch (32×32px minimum) with the DMC
+  number and a short role description below ("Shoutout text", "Border outer", etc.)
+- Tap swatch → opens DMC colour picker (already exists as DmcPickerSheet)
+- Slot name shown small below the swatch as secondary info
+- Thread lengths update automatically when colour changes
+- Works in both ShoutoutForm (editing) and ShoutoutDetail (viewing)
+- Potentially a shared ThreadPalette component reused across both
+
+**Kevin integration:** Kevin can describe colour choices visually ("warm red for
+the text, dark green for the border") rather than by slot name.
+
+**Files:** `components.js`, `sheets.js`, `style.css`
+**Complexity:** Low–medium
+
