@@ -125,7 +125,11 @@ function BorderPicker({ borders, selected, onSelect }) {
 ═══════════════════════════════════════════════════════════════════ */
 function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
   const isEdit = !!initial;
-  const [name,      setName]      = useState(initial?initial.name:'');
+  // Reconstruct name with newlines from lines array if editing a multi-row shoutout
+  const initName = (initial && initial.lines && initial.lines.length > 1)
+    ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
+    : (initial ? initial.name : '');
+  const [name,      setName]      = useState(initName);
   const [stitchesW, setStitchesW] = useState(initial?initial.stitchesW:94);
   const [stitchesH, setStitchesH] = useState(initial?initial.stitchesH:94);
   const [hoopW,     setHoopW]     = useState(initial?initial.hoopW:280);

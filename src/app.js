@@ -23,7 +23,7 @@ function App() {
   const [editObject,    setEditObject]    = useState(null);
   const fb = window.__firebase;
 
-  // Kevin context — what Kevin knows about the current states
+  // Kevin context — what Kevin knows about the current state
   const kevinContext = useMemo(function() {
     return {
       tab,
@@ -312,7 +312,7 @@ function App() {
         showToast('Border created');
       }
       setEditBorder(null); setSelBorder(null);
-    } catch(e) { showToast('Something went wrong — try again'); }
+    } catch(e) { showToast('Border save failed: ' + e.message); }
     finally { setSaving(false); }
   }
 
