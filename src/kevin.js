@@ -14,6 +14,7 @@ function kevinHeaders() {
   const h = {
     'Content-Type': 'application/json',
     'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'prompt-caching-2024-07-31',
     'anthropic-dangerous-direct-browser-access': 'true',
   };
   if (hasKevinApiKey()) h['x-api-key'] = _kevinApiKey.trim();
@@ -83,12 +84,7 @@ Image-to-motif: when the user uploads an image, analyse it and generate a cross-
 - Then call createBorder or updateBorder with the pattern embedded in the spec.
 - Always confirm the result after applying it.
 
-Corner motif sizes — two options, always use one or the other:
-- Standard: 9x9 pattern, cornerInset 7. For clean/minimal borders or when the motif is simple.
-- Enlarged: 11x11 pattern, cornerInset 8. For detailed/traditional borders with complex motifs.
-When updating a border to change motif size, redraw the full pattern at the new dimensions — don't just pad or trim the existing one. listBorders returns cornerMotifSizeLabel (standard/enlarged/none) so you can see the current state before editing.
-Example standard 9x9 (diamond lattice): ["011101110","101010101","110101011","001111100","011101110","001111100","110101011","101010101","011101110"]
-Example enlarged 11x11 (expanded lattice): ["00000000000","00111010110","01010101010","01101010101","00011111100","00111010110","00011111100","01101010101","01010101010","00111010110","00000000000"]
+Corner motif sizes: Standard 9x9 cornerInset 7, Enlarged 11x11 cornerInset 8. listBorders returns cornerMotifSizeLabel. Redraw fully when resizing.
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
@@ -615,8 +611,16 @@ async function askKevin(messages, context, appData) {
   // We rebuild from the internal log, ignoring any previous tool-turn details
   // (tool calls happen inside askKevin and are transparent to the UI)
   function buildApiMessages(msgs) {
+    // Cap history to last 8 exchanges and trim large kevin responses
+    const recent = msgs.slice(-8);
     const result = [];
-    for (const m of msgs) {
+    for (const m of recent) {
+      if (m.role === 'kevin') {
+        // Trim very long Kevin responses (tool result summaries can be huge)
+        const text = m.text && m.text.length > 800 ? m.text.slice(0, 800) + '...[trimmed]' : m.text;
+        result.push({ role: 'assistant', content: text });
+        continue;
+      }
       if (m.role === 'user') {
         if (m.image) {
           // Message with image attachment
@@ -631,7 +635,7 @@ async function askKevin(messages, context, appData) {
           result.push({ role: 'user', content: m.text });
         }
       }
-      if (m.role === 'kevin') result.push({ role: 'assistant', content: m.text });
+      // kevin role handled above
     }
     return result;
   }
@@ -649,8 +653,8 @@ async function askKevin(messages, context, appData) {
       headers: kevinHeaders(),
       body: JSON.stringify({
         model:      'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system:     kevinSystemPrompt(context),
+        max_tokens: 1500,
+        system: [{ type: 'text', text: kevinSystemPrompt(context), cache_control: { type: 'ephemeral' } }],
         tools:      KEVIN_TOOLS,
         messages:   apiMessages,
       }),

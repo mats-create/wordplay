@@ -270,21 +270,23 @@ function BordersScreen({ borders, onSelect, folders, activeFolder, onFolderChang
 /* ═══════════════════════════════════════════════════════════════════
    OBJECTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ObjectsScreen({ objects, onSelect }) {
+function ObjectsScreen({ objects, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query, setQuery] = useState('');
+  const [folderMenu, setFolderMenu] = useState(null);
 
   const filtered = useMemo(function() {
-    if (!query.trim()) return objects;
-    const q = query.toLowerCase();
-    return objects.filter(function(o) {
-      return o.name && o.name.toLowerCase().includes(q);
-    });
-  }, [objects, query]);
+    let list = objects;
+    if (activeFolder) list = list.filter(function(o) { return o.folder === activeFolder; });
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(function(o) { return o.name && o.name.toLowerCase().includes(q); });
+    }
+    return list;
+  }, [objects, activeFolder, query]);
 
-  const showCount = query.trim() && filtered.length !== objects.length
-    ? filtered.length + ' of ' + objects.length
-    : objects.length;
-  const noun = objects.length === 1 ? 'object' : 'objects';
+  const total = activeFolder ? objects.filter(function(o) { return o.folder === activeFolder; }).length : objects.length;
+  const showCount = query.trim() && filtered.length !== total ? filtered.length + ' of ' + total : total;
+  const noun = total === 1 ? 'object' : 'objects';
 
   return (
     <div className="screen">
@@ -307,6 +309,40 @@ function ObjectsScreen({ objects, onSelect }) {
         </div>
       </div>
 
+      <div className="folder-bar">
+        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
+          onClick={function() { onFolderChange(null); }}>All</button>
+        {(folders||[]).map(function(f) {
+          return (
+            <div key={f} className="folder-pill-wrap">
+              <button className={'folder-pill' + (activeFolder === f ? ' active' : '')}
+                onClick={function() { onFolderChange(f); }}>{f}</button>
+              <button className="folder-pill-menu" onClick={function(e) {
+                e.stopPropagation();
+                setFolderMenu(folderMenu === f ? null : f);
+              }}>⋯</button>
+              {folderMenu === f && (
+                <div className="folder-dropdown">
+                  <button onClick={function() {
+                    const name = window.prompt('Rename folder:', f);
+                    if (name && name.trim() && name.trim() !== f) onFolderRename('objects', f, name.trim());
+                    setFolderMenu(null);
+                  }}>Rename</button>
+                  <button className="danger" onClick={function() {
+                    if (window.confirm('Delete folder "' + f + '"? Objects will become unfiled.')) onFolderDelete('objects', f);
+                    setFolderMenu(null);
+                  }}>Delete</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <button className="folder-add" onClick={function() {
+          const name = window.prompt('New folder name:');
+          if (name && name.trim()) onFolderCreate('objects', name.trim());
+        }}>+ Folder</button>
+      </div>
+
       {objects.length === 0 ? (
         <div className="empty">
           <span className="empty-icon">✦</span>
@@ -317,18 +353,17 @@ function ObjectsScreen({ objects, onSelect }) {
         <div className="empty">
           <span className="empty-icon">🔍</span>
           <h3>No results</h3>
-          <p>No objects match "{query}".</p>
+          <p>{query ? 'No objects match "' + query + '".' : 'No objects in this folder.'}</p>
         </div>
       ) : (
         <div className="card-grid">
           {filtered.map(function(o) {
             return (
               <div key={o.id} className="card object-card" onClick={function() { onSelect(o); }}>
+                {o.folder && <div className="card-folder-tag">{o.folder}</div>}
                 <ObjectPreview pattern={o.pattern} size={120}/>
                 <div className="card-title">{o.name}</div>
-                <div className="card-sub">
-                  {o.width}×{o.height} stitches
-                </div>
+                <div className="card-sub">{o.width}×{o.height} stitches</div>
               </div>
             );
           })}

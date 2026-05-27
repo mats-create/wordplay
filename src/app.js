@@ -16,8 +16,10 @@ function App() {
   const [tmCache,     setTmCache]     = useState({});
   const [shoutoutFolders, setShoutoutFolders] = useState([]);
   const [borderFolders,   setBorderFolders]   = useState([]);
+  const [objectFolders,   setObjectFolders]   = useState([]);
   const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
   const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
+  const [activeObjectFolder,   setActiveObjectFolder]   = useState(null);
   const [objects,       setObjects]       = useState([]);
   const [selObject,     setSelObject]     = useState(null);
   const [editObject,    setEditObject]    = useState(null);
@@ -32,10 +34,11 @@ function App() {
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
       shoutoutFolders: shoutoutFolders.join(', ') || 'none',
       borderFolders: borderFolders.join(', ') || 'none',
+      objectFolders: objectFolders.join(', ') || 'none',
       objectCount: objects.length,
       objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
     };
-  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objects]);
+  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -60,14 +63,15 @@ function App() {
         const d = snap.data();
         setShoutoutFolders(d.shoutoutFolders || []);
         setBorderFolders(d.borderFolders || []);
+        setObjectFolders(d.objectFolders || []);
       }
     } catch(e) { console.warn('Folder load failed:', e); }
   }
 
-  async function saveFolders(uid, sf, bf) {
+  async function saveFolders(uid, sf, bf, of2) {
     try {
       await fb.setDoc(fb.doc(fb.db,'users',uid,'settings','folders'),
-        { shoutoutFolders: sf, borderFolders: bf });
+        { shoutoutFolders: sf, borderFolders: bf, objectFolders: of2 || objectFolders });
     } catch(e) { console.warn('Folder save failed:', e); }
   }
 
@@ -76,12 +80,17 @@ function App() {
       if (shoutoutFolders.includes(name)) return;
       const next = [...shoutoutFolders, name];
       setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders);
-    } else {
+      saveFolders(authUser.uid, next, borderFolders, objectFolders);
+    } else if (type === 'borders') {
       if (borderFolders.includes(name)) return;
       const next = [...borderFolders, name];
       setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next);
+      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
+    } else {
+      if (objectFolders.includes(name)) return;
+      const next = [...objectFolders, name];
+      setObjectFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
     }
   }
 
@@ -89,21 +98,29 @@ function App() {
     if (type === 'shoutouts') {
       const next = shoutoutFolders.map(function(f) { return f === oldName ? newName : f; });
       setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders);
+      saveFolders(authUser.uid, next, borderFolders, objectFolders);
       if (activeShoutoutFolder === oldName) setActiveShoutoutFolder(newName);
-      // Update all shoutouts in that folder
       const batch = shoutouts.filter(function(s) { return s.folder === oldName; });
       for (const s of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: newName });
       }
-    } else {
+    } else if (type === 'borders') {
       const next = borderFolders.map(function(f) { return f === oldName ? newName : f; });
       setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next);
+      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
       if (activeBorderFolder === oldName) setActiveBorderFolder(newName);
       const batch = borders.filter(function(b) { return b.folder === oldName && !b.builtIn; });
       for (const b of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: newName });
+      }
+    } else {
+      const next = objectFolders.map(function(f) { return f === oldName ? newName : f; });
+      setObjectFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
+      if (activeObjectFolder === oldName) setActiveObjectFolder(newName);
+      const batch = objects.filter(function(o) { return o.folder === oldName; });
+      for (const o of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id), { folder: newName });
       }
     }
   }
@@ -112,21 +129,29 @@ function App() {
     if (type === 'shoutouts') {
       const next = shoutoutFolders.filter(function(f) { return f !== name; });
       setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders);
+      saveFolders(authUser.uid, next, borderFolders, objectFolders);
       if (activeShoutoutFolder === name) setActiveShoutoutFolder(null);
-      // Unfile all shoutouts in that folder
       const batch = shoutouts.filter(function(s) { return s.folder === name; });
       for (const s of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: null });
       }
-    } else {
+    } else if (type === 'borders') {
       const next = borderFolders.filter(function(f) { return f !== name; });
       setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next);
+      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
       if (activeBorderFolder === name) setActiveBorderFolder(null);
       const batch = borders.filter(function(b) { return b.folder === name && !b.builtIn; });
       for (const b of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: null });
+      }
+    } else {
+      const next = objectFolders.filter(function(f) { return f !== name; });
+      setObjectFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
+      if (activeObjectFolder === name) setActiveObjectFolder(null);
+      const batch = objects.filter(function(o) { return o.folder === name; });
+      for (const o of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id), { folder: null });
       }
     }
   }
@@ -135,10 +160,12 @@ function App() {
     try {
       if (type === 'shoutout') {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId), { folder: folder || null });
-      } else {
+      } else if (type === 'border') {
         const border = borders.find(function(b) { return b.id === itemId; });
         if (border && border.builtIn) { showToast('Cannot move built-in borders'); return; }
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',itemId), { folder: folder || null });
+      } else {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',itemId), { folder: folder || null });
       }
       showToast(folder ? 'Moved to ' + folder : 'Removed from folder');
     } catch(e) { showToast('Move failed — try again'); }
@@ -386,7 +413,13 @@ function App() {
           )}
           {tab === 'objects' && (
             <ObjectsScreen objects={objects}
-              onSelect={function(o) { setSelObject(o); }}/>
+              onSelect={function(o) { setSelObject(o); }}
+              folders={objectFolders}
+              activeFolder={activeObjectFolder}
+              onFolderChange={setActiveObjectFolder}
+              onFolderCreate={handleFolderCreate}
+              onFolderRename={handleFolderRename}
+              onFolderDelete={handleFolderDelete}/>
           )}
         </div>
 
@@ -502,7 +535,9 @@ function App() {
         <ObjectDetail object={selObject}
           onClose={function() { setSelObject(null); }}
           onEdit={function() { setEditObject(selObject); }}
-          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}/>
+          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}
+          folders={objectFolders}
+          onMoveToFolder={function(folder) { handleMoveToFolder('object', selObject.id, folder); }}/>
       )}
       {editObject && (
         <ObjectEditor

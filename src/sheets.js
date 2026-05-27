@@ -97,7 +97,9 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
             borderStyle={bs} threads={shoutout.threads}
-            textScale={shoutout.textScale||0} size={550}/>
+            textScale={shoutout.textScale||0}
+            lines={shoutout.lines||null}
+            size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (
@@ -749,7 +751,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   );
 }
 
-function ObjectDetail({ object, onEdit, onDelete, onClose }) {
+function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
   const w = object.width || (object.pattern && object.pattern[0] ? object.pattern[0].length : 9);
   const h = object.height || (object.pattern ? object.pattern.length : 9);
   const previewCell = Math.min(Math.floor(300 / Math.max(w, h)), 28);
@@ -805,6 +807,14 @@ function ObjectDetail({ object, onEdit, onDelete, onClose }) {
 
           <div className="detail-actions">
             <button className="btn btn-primary" onClick={onEdit}><Ico.Edit/> Edit</button>
+            {folders && folders.length > 0 && (
+              <select className="folder-select" style={{marginLeft:'auto'}}
+                value={object.folder || ''}
+                onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+                <option value="">No folder</option>
+                {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+              </select>
+            )}
           </div>
           <div className="detail-actions" style={{paddingTop:0, borderTop:'1px solid var(--offwht)', marginTop:4}}>
             <button className="btn btn-ghost" style={{color:'var(--coral)', fontSize:12}} onClick={onDelete}>
