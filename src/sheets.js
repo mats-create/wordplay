@@ -611,37 +611,174 @@ const OBJECT_DEFAULT_W = 9;
 const OBJECT_DEFAULT_H = 9;
 const EDITOR_CELL = 32; // px per stitch cell in editor
 
-function ObjectEditor({ initial, onSave, onClose, saving }) {
-  const isEdit = !!initial;
-  const [name,    setName]    = useState(initial ? initial.name : '');
-  const [pattern, setPattern] = useState(function() {
-    if (initial && initial.pattern) return initial.pattern.map(function(r) { return r.split(''); });
-    // Blank 9x9 grid
-    return Array.from({length: OBJECT_DEFAULT_H}, function() {
-      return Array(OBJECT_DEFAULT_W).fill('0');
+// Neutral greys per slot index — distinguishable without implying actual thread colours
+const LAYER_SLOT_GREYS = ['#2A2A2A','#555555','#888888','#AAAAAA','#C8C8C8','#E0E0E0'];
+
+// colorSlot string -> THREAD_SLOTS index
+const COLOR_SLOT_VALUES = ['primary','secondary','accent','border3','accent1','accent2'];
+
+function layerSlotGrey(colorSlot) {
+  const i = COLOR_SLOT_VALUES.indexOf(colorSlot);
+  return LAYER_SLOT_GREYS[i >= 0 ? i : 0];
+}
+
+function blankPattern(w, h) {
+  return Array.from({length: h}, function() { return Array(w).fill('0'); });
+}
+
+function patternToArrays(strings) {
+  return strings.map(function(r) { return r.split(''); });
+}
+
+function arrayToStrings(arrays) {
+  return arrays.map(function(row) { return row.join(''); });
+}
+
+// Shared compound grid renderer — used in editor and detail
+// Returns a 2D array of {colorSlot, overlap} per cell, or null for empty
+function buildCompoundGrid(layers, w, h) {
+  // count how many layers have a stitch at each cell
+  var counts = Array.from({length: h}, function() { return Array(w).fill(0); });
+  layers.forEach(function(layer) {
+    if (!layer.pattern) return;
+    layer.pattern.forEach(function(row, r) {
+      if (r >= h) return;
+      row.forEach(function(ch, c) {
+        if (c >= w && ch === '1') return;
+        if (ch === '1') counts[r][c]++;
+      });
     });
   });
-  const [nameError, setNameError] = useState('');
+  // build result grid — last layer wins for colour, overlap flagged
+  var result = Array.from({length: h}, function() { return Array(w).fill(null); });
+  layers.forEach(function(layer) {
+    if (!layer.pattern) return;
+    layer.pattern.forEach(function(row, r) {
+      if (r >= h) return;
+      row.forEach(function(ch, c) {
+        if (c >= w) return;
+        if (ch === '1') {
+          result[r][c] = { colorSlot: layer.colorSlot, overlap: counts[r][c] > 1 };
+        }
+      });
+    });
+  });
+  return result;
+}
 
-  const h = pattern.length;
-  const w = pattern[0] ? pattern[0].length : OBJECT_DEFAULT_W;
+// Small slot palette shown in ObjectDetail — only slots used by this object
+function ObjectSlotPalette({ layers }) {
+  if (!layers || layers.length === 0) return null;
+  var usedSlots = [];
+  var seen = {};
+  layers.forEach(function(layer) {
+    var hasStitch = layer.pattern && layer.pattern.some(function(row) {
+      return row.some ? row.some(function(ch) { return ch === '1'; })
+                      : row.indexOf('1') >= 0;
+    });
+    if (hasStitch && !seen[layer.colorSlot]) {
+      seen[layer.colorSlot] = true;
+      var slotIdx = COLOR_SLOT_VALUES.indexOf(layer.colorSlot);
+      var slot = THREAD_SLOTS[slotIdx >= 0 ? slotIdx : 0];
+      usedSlots.push({ colorSlot: layer.colorSlot, slot: slot, grey: LAYER_SLOT_GREYS[slotIdx >= 0 ? slotIdx : 0] });
+    }
+  });
+  if (usedSlots.length === 0) return null;
+  return (
+    <div className="detail-section">
+      <div className="detail-section-label">Colour slots</div>
+      <div className="form-hint" style={{marginBottom:8}}>Actual colours depend on the shoutout this object is used in.</div>
+      <div className="object-slot-palette">
+        {usedSlots.map(function(entry) {
+          return (
+            <div key={entry.colorSlot} className="object-slot-row">
+              <div className="object-slot-swatch" style={{background: entry.grey}}/>
+              <div className="object-slot-info">
+                <span className="object-slot-name">{entry.slot ? entry.slot.label : entry.colorSlot}</span>
+                <span className="object-slot-hint">{entry.slot ? entry.slot.hint : ''}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ObjectEditor({ initial, onSave, onClose, saving }) {
+  const isEdit = !!initial;
+  const [name, setName] = useState(initial ? initial.name : '');
+  const [nameError, setNameError] = useState('');
+  const [activeLayer, setActiveLayer] = useState(0);
+  const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'compound'
+
+  // Initialise layers — support legacy (pattern only) and new (layers array)
+  const [layers, setLayers] = useState(function() {
+    if (initial && initial.layers && initial.layers.length > 0) {
+      return initial.layers.map(function(l) {
+        return {
+          colorSlot: l.colorSlot || 'primary',
+          pattern: patternToArrays(l.pattern),
+        };
+      });
+    }
+    if (initial && initial.pattern) {
+      return [{ colorSlot: 'primary', pattern: patternToArrays(initial.pattern) }];
+    }
+    return [{ colorSlot: 'primary', pattern: blankPattern(OBJECT_DEFAULT_W, OBJECT_DEFAULT_H) }];
+  });
+
+  const h = layers[0] && layers[0].pattern ? layers[0].pattern.length : OBJECT_DEFAULT_H;
+  const w = layers[0] && layers[0].pattern && layers[0].pattern[0] ? layers[0].pattern[0].length : OBJECT_DEFAULT_W;
 
   function toggleCell(r, c) {
-    setPattern(function(prev) {
-      const next = prev.map(function(row) { return [...row]; });
-      next[r][c] = next[r][c] === '1' ? '0' : '1';
-      return next;
+    setLayers(function(prev) {
+      return prev.map(function(layer, li) {
+        if (li !== activeLayer) return layer;
+        var next = layer.pattern.map(function(row) { return [...row]; });
+        next[r][c] = next[r][c] === '1' ? '0' : '1';
+        return { colorSlot: layer.colorSlot, pattern: next };
+      });
     });
   }
 
   function resizeGrid(newW, newH) {
     const clampW = Math.max(1, Math.min(OBJECT_MAX_W, newW));
     const clampH = Math.max(1, Math.min(OBJECT_MAX_H, newH));
-    setPattern(function(prev) {
-      return Array.from({length: clampH}, function(_, r) {
-        return Array.from({length: clampW}, function(_, c) {
-          return (prev[r] && prev[r][c]) ? prev[r][c] : '0';
-        });
+    setLayers(function(prev) {
+      return prev.map(function(layer) {
+        return {
+          colorSlot: layer.colorSlot,
+          pattern: Array.from({length: clampH}, function(_, r) {
+            return Array.from({length: clampW}, function(_, c) {
+              return (layer.pattern[r] && layer.pattern[r][c]) ? layer.pattern[r][c] : '0';
+            });
+          }),
+        };
+      });
+    });
+  }
+
+  function addLayer() {
+    if (layers.length >= 4) return;
+    var nextSlot = COLOR_SLOT_VALUES[layers.length] || 'accent';
+    setLayers(function(prev) {
+      return prev.concat([{ colorSlot: nextSlot, pattern: blankPattern(w, h) }]);
+    });
+    setActiveLayer(layers.length);
+    setViewMode('edit');
+  }
+
+  function removeLayer(li) {
+    if (layers.length <= 1) return;
+    setLayers(function(prev) { return prev.filter(function(_, i) { return i !== li; }); });
+    setActiveLayer(function(prev) { return Math.min(prev, layers.length - 2); });
+  }
+
+  function setLayerSlot(li, colorSlot) {
+    setLayers(function(prev) {
+      return prev.map(function(layer, i) {
+        return i === li ? { colorSlot: colorSlot, pattern: layer.pattern } : layer;
       });
     });
   }
@@ -649,9 +786,14 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   function handleSave() {
     if (!name.trim()) { setNameError('Name is required'); return; }
     setNameError('');
-    const patternStrings = pattern.map(function(row) { return row.join(''); });
-    onSave({ name: name.trim(), pattern: patternStrings, width: w, height: h });
+    const savedLayers = layers.map(function(layer) {
+      return { colorSlot: layer.colorSlot, pattern: arrayToStrings(layer.pattern) };
+    });
+    onSave({ name: name.trim(), layers: savedLayers, width: w, height: h });
   }
+
+  const compoundGrid = viewMode === 'compound' ? buildCompoundGrid(layers, w, h) : null;
+  const activeLayerGrey = layerSlotGrey(layers[activeLayer] && layers[activeLayer].colorSlot);
 
   return (
     <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
@@ -697,10 +839,69 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
             </div>
           </div>
 
-          {/* Stitch editor */}
+          {/* Layer tabs + stitch editor */}
           <div className="form-group">
             <label className="form-label">Stitch editor</label>
-            <div className="form-hint" style={{marginBottom:8}}>Tap a cell to toggle a stitch on or off</div>
+
+            {/* Layer tab row */}
+            <div className="object-layer-tabs">
+              {layers.map(function(layer, li) {
+                var grey = layerSlotGrey(layer.colorSlot);
+                var slotIdx = COLOR_SLOT_VALUES.indexOf(layer.colorSlot);
+                var slotLabel = THREAD_SLOTS[slotIdx >= 0 ? slotIdx : 0] ? THREAD_SLOTS[slotIdx >= 0 ? slotIdx : 0].label : layer.colorSlot;
+                return (
+                  <button key={li}
+                    className={'object-layer-tab' + (viewMode === 'edit' && activeLayer === li ? ' active' : '')}
+                    onClick={function() { setActiveLayer(li); setViewMode('edit'); }}>
+                    <span className="object-layer-dot" style={{background: grey}}/>
+                    {slotLabel}
+                  </button>
+                );
+              })}
+              <button
+                className={'object-layer-tab object-layer-tab-compound' + (viewMode === 'compound' ? ' active' : '')}
+                onClick={function() { setViewMode('compound'); }}>
+                All layers
+              </button>
+              {layers.length < 4 && (
+                <button className="object-layer-add" onClick={addLayer} title="Add layer">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Active layer controls (slot selector + remove) — edit mode only */}
+            {viewMode === 'edit' && (
+              <div className="object-layer-controls">
+                <label className="form-hint" style={{marginBottom:0, lineHeight:'28px'}}>Colour slot:</label>
+                <select className="tile-color-select"
+                  value={layers[activeLayer] ? layers[activeLayer].colorSlot : 'primary'}
+                  onChange={function(e) { setLayerSlot(activeLayer, e.target.value); }}>
+                  {COLOR_SLOT_VALUES.map(function(val, i) {
+                    var slot = THREAD_SLOTS[i];
+                    return <option key={val} value={val}>{slot ? slot.label : val}</option>;
+                  })}
+                </select>
+                {layers.length > 1 && (
+                  <button className="thread-remove" onClick={function() { removeLayer(activeLayer); }} title="Remove this layer">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                )}
+                <span className="form-hint" style={{marginLeft:'auto', marginBottom:0}}>Tap a cell to toggle on/off</span>
+              </div>
+            )}
+
+            {viewMode === 'compound' && (
+              <div className="object-layer-controls">
+                <span className="form-hint" style={{marginBottom:0}}>All layers composited. Coral = overlapping stitches.</span>
+              </div>
+            )}
+
+            {/* Grid */}
             <div className="stitch-editor-wrap">
               <div className="stitch-editor"
                 style={{
@@ -708,23 +909,44 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
                   gridTemplateColumns: 'repeat(' + w + ', ' + EDITOR_CELL + 'px)',
                   gridTemplateRows: 'repeat(' + h + ', ' + EDITOR_CELL + 'px)',
                 }}>
-                {pattern.map(function(row, r) {
+
+                {viewMode === 'edit' && layers[activeLayer] && layers[activeLayer].pattern.map(function(row, r) {
                   return row.map(function(cell, c) {
                     const on = cell === '1';
                     return (
                       <div key={r + '-' + c}
                         className={'stitch-cell' + (on ? ' on' : '')}
+                        style={on ? {background: activeLayerGrey} : {}}
                         onClick={function() { toggleCell(r, c); }}>
                         {on && (
                           <svg viewBox="0 0 32 32" width={EDITOR_CELL} height={EDITOR_CELL}>
-                            <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="3.5" strokeLinecap="round"/>
-                            <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="4" y1="4" x2="28" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="28" y1="4" x2="4" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
                           </svg>
                         )}
                       </div>
                     );
                   });
                 })}
+
+                {viewMode === 'compound' && compoundGrid && compoundGrid.map(function(row, r) {
+                  return row.map(function(cell, c) {
+                    const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                    return (
+                      <div key={r + '-' + c}
+                        className="stitch-cell"
+                        style={colour ? {background: colour, cursor:'default'} : {cursor:'default'}}>
+                        {colour && (
+                          <svg viewBox="0 0 32 32" width={EDITOR_CELL} height={EDITOR_CELL}>
+                            <line x1="4" y1="4" x2="28" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="28" y1="4" x2="4" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  });
+                })}
+
               </div>
             </div>
           </div>
@@ -742,9 +964,23 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
 }
 
 function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
-  const w = object.width || (object.pattern && object.pattern[0] ? object.pattern[0].length : 9);
-  const h = object.height || (object.pattern ? object.pattern.length : 9);
+  const w = object.width || (object.layers && object.layers[0] && object.layers[0].pattern ? object.layers[0].pattern[0].length : (object.pattern && object.pattern[0] ? object.pattern[0].length : 9));
+  const h = object.height || (object.layers && object.layers[0] ? object.layers[0].pattern.length : (object.pattern ? object.pattern.length : 9));
   const previewCell = Math.min(Math.floor(300 / Math.max(w, h)), 28);
+  const isLayered = object.layers && object.layers.length > 0;
+
+  // Build layers array for compound rendering — support legacy pattern
+  const layers = isLayered
+    ? object.layers.map(function(l) {
+        return {
+          colorSlot: l.colorSlot || 'primary',
+          pattern: l.pattern.map(function(r) { return r.split ? r.split('') : r; }),
+        };
+      })
+    : (object.pattern ? [{ colorSlot: 'primary', pattern: object.pattern.map(function(r) { return r.split(''); }) }] : []);
+
+  const compoundGrid = buildCompoundGrid(layers, w, h);
+
   return (
     <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
@@ -756,36 +992,36 @@ function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFold
         <div className="sheet-body">
           <div className="detail-meta">
             {w}×{h} stitches
+            {isLayered && object.layers.length > 1 && <span> · {object.layers.length} layers</span>}
             {object.createdAt && <span> · {formatDate(object.createdAt)}</span>}
           </div>
 
-          {/* Preview */}
+          {/* Pattern preview */}
           <div className="detail-section">
             <div className="detail-section-label">Pattern</div>
-            <div className="object-detail-preview"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(' + w + ', ' + previewCell + 'px)',
-                width: 'fit-content',
-                gap: '1px',
-                background: 'var(--lgrey)',
-                border: '1px solid var(--lgrey)',
-                borderRadius: 6,
-                overflow: 'hidden',
-              }}>
-              {object.pattern && object.pattern.map(function(row, r) {
-                return row.split('').map(function(ch, c) {
-                  const on = ch === '1';
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(' + w + ', ' + previewCell + 'px)',
+              width: 'fit-content',
+              gap: '1px',
+              background: 'var(--lgrey)',
+              border: '1px solid var(--lgrey)',
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}>
+              {compoundGrid.map(function(row, r) {
+                return row.map(function(cell, c) {
+                  const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
                   return (
                     <div key={r+'-'+c} style={{
                       width: previewCell, height: previewCell,
-                      background: on ? 'var(--surface)' : 'var(--offwht)',
+                      background: colour || 'var(--offwht)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {on && (
+                      {colour && (
                         <svg viewBox="0 0 32 32" width={previewCell-4} height={previewCell-4}>
-                          <line x1="4" y1="4" x2="28" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
-                          <line x1="28" y1="4" x2="4" y2="28" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
+                          <line x1="4" y1="4" x2="28" y2="28" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round"/>
+                          <line x1="28" y1="4" x2="4" y2="28" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round"/>
                         </svg>
                       )}
                     </div>
@@ -794,6 +1030,9 @@ function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFold
               })}
             </div>
           </div>
+
+          {/* Slot palette — only for layered objects */}
+          {isLayered && <ObjectSlotPalette layers={object.layers}/>}
 
           <div className="detail-actions">
             <button className="btn btn-primary" onClick={onEdit}><Ico.Edit/> Edit</button>

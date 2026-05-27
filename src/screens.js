@@ -361,7 +361,7 @@ function ObjectsScreen({ objects, onSelect, folders, activeFolder, onFolderChang
             return (
               <div key={o.id} className="card object-card" onClick={function() { onSelect(o); }}>
                 {o.folder && <div className="card-folder-tag">{o.folder}</div>}
-                <ObjectPreview pattern={o.pattern} size={120}/>
+                <ObjectPreview pattern={o.pattern} layers={o.layers} size={120}/>
                 <div className="card-title">{o.name}</div>
                 <div className="card-sub">{o.width}×{o.height} stitches</div>
               </div>
@@ -373,27 +373,47 @@ function ObjectsScreen({ objects, onSelect, folders, activeFolder, onFolderChang
   );
 }
 
-// Small read-only stitch preview for cards
-function ObjectPreview({ pattern, size }) {
-  if (!pattern || pattern.length === 0) return <div className="object-preview-empty"/>;
-  const h = pattern.length;
-  const w = pattern[0].length;
+// Small read-only stitch preview for cards — handles both legacy (pattern) and layered objects
+function ObjectPreview({ pattern, layers, size }) {
+  // Normalise to a layers array for compound rendering
+  var normLayers;
+  if (layers && layers.length > 0) {
+    normLayers = layers.map(function(l) {
+      return {
+        colorSlot: l.colorSlot || 'primary',
+        pattern: l.pattern.map(function(r) { return typeof r === 'string' ? r.split('') : r; }),
+      };
+    });
+  } else if (pattern && pattern.length > 0) {
+    normLayers = [{ colorSlot: 'primary', pattern: pattern.map(function(r) { return r.split(''); }) }];
+  } else {
+    return <div className="object-preview-empty"/>;
+  }
+
+  const h = normLayers[0].pattern.length;
+  const w = normLayers[0].pattern[0] ? normLayers[0].pattern[0].length : 0;
+  if (!w || !h) return <div className="object-preview-empty"/>;
+
   const cell = Math.min(Math.floor(size / Math.max(w, h)), 20);
   const pw = w * cell;
   const ph = h * cell;
+  const compoundGrid = buildCompoundGrid(normLayers, w, h);
+
   return (
     <div className="object-preview" style={{width: pw, height: ph}}>
-      {pattern.map(function(row, r) {
-        return row.split('').map(function(ch, c) {
-          if (ch !== '1') return null;
+      {compoundGrid.map(function(row, r) {
+        return row.map(function(cell_data, c) {
+          if (!cell_data) return null;
+          const colour = cell_data.overlap ? '#CC3300' : layerSlotGrey(cell_data.colorSlot);
           const x = c * cell;
           const y = r * cell;
           const pad = cell * 0.1;
           return (
             <svg key={r + '-' + c} style={{position:'absolute', left:x, top:y, width:cell, height:cell}}
               viewBox={'0 0 ' + cell + ' ' + cell}>
-              <line x1={pad} y1={pad} x2={cell-pad} y2={cell-pad} stroke="#1A1A1A" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
-              <line x1={cell-pad} y1={pad} x2={pad} y2={cell-pad} stroke="#1A1A1A" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+              <rect x="0" y="0" width={cell} height={cell} fill={colour}/>
+              <line x1={pad} y1={pad} x2={cell-pad} y2={cell-pad} stroke="#FFFFFF" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+              <line x1={cell-pad} y1={pad} x2={pad} y2={cell-pad} stroke="#FFFFFF" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
             </svg>
           );
         });
