@@ -145,6 +145,12 @@ html, body, #root {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
+/* Drop to 2 columns when Kevin panel is open */
+@media (min-width: 768px) {
+  .app-layout:has(.app-kevin.kevin-visible) .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 @media (max-width: 900px) {
   .card-grid { grid-template-columns: repeat(2, 1fr); }
 }
