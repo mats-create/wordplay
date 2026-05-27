@@ -56,46 +56,73 @@ function DmcPickerSheet({ currentHex, onSelect, onClose }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   THREAD ROW (form sub-component)
+   THREDITOR — shared thread palette component
+   Props:
+     threads        — array of thread objects
+     threadLengths  — array of {cm} objects (indexed by slot)
+     onChange(i, t) — called on colour/name/dmc change; null = readonly
+     onRemove(i)    — called on remove; null = readonly
 ═══════════════════════════════════════════════════════════════════ */
-function ThreadRow({ thread, onChange, onRemove, lengthCm, slotIndex }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const slot = THREAD_SLOTS[slotIndex] || null;
+function Threditor({ threads, threadLengths, onChange, onRemove }) {
+  const [pickerIndex, setPickerIndex] = useState(null);
+  const editable = typeof onChange === 'function';
+
   return (
-    <>
-      {slot && (
-        <div className="thread-slot-label">
-          <span className="thread-slot-name">{slot.label}</span>
-          <span className="thread-slot-hint">{slot.hint}</span>
-        </div>
-      )}
-      <div className="thread-row">
-        <button className="thread-color-btn" style={{background:thread.hex}}
-          onClick={function() { setPickerOpen(true); }}
-          title="Pick DMC colour"/>
-        <input className="form-input" placeholder="Name" value={thread.name}
-          onChange={function(e) { onChange({...thread, name:e.target.value}); }}/>
-        <input className="form-input" placeholder="DMC code" value={thread.dmc}
-          onChange={function(e) { onChange({...thread, dmc:e.target.value}); }}/>
-        <div className="thread-length" title="Estimated thread length">
-          {lengthCm != null ? '~' + lengthCm + ' cm' : '—'}
-        </div>
-        <button className="thread-remove" onClick={onRemove}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      {pickerOpen && (
+    <div className="threditor">
+      {threads.map(function(t, i) {
+        const slot = THREAD_SLOTS[i] || null;
+        const lengthEntry = threadLengths && threadLengths[i];
+        const cm = lengthEntry ? lengthEntry.cm : null;
+        const isLight = t.hex === '#FFFFFF' || t.hex === '#FFFFF0' || t.hex === '#FFF8B0' || t.hex === '#F5F5F5';
+
+        return (
+          <div key={t.id || i} className="threditor-slot">
+            <button
+              className={'threditor-swatch' + (editable ? ' threditor-swatch-btn' : '')}
+              style={{
+                background: t.hex,
+                border: isLight ? '1.5px solid var(--lgrey)' : '1.5px solid transparent',
+                cursor: editable ? 'pointer' : 'default'
+              }}
+              onClick={editable ? function() { setPickerIndex(i); } : undefined}
+              title={editable ? 'Pick DMC colour' : t.name}
+              disabled={!editable}
+            />
+            <div className="threditor-info">
+              {slot && (
+                <div className="threditor-slot-label">
+                  <span className="threditor-slot-name">{slot.label}</span>
+                  <span className="threditor-slot-hint">{slot.hint}</span>
+                </div>
+              )}
+              <div className="threditor-colour-name">{t.name || <span className="threditor-empty">No name</span>}</div>
+              <div className="threditor-dmc">{t.dmc || <span className="threditor-empty">No DMC code</span>}</div>
+            </div>
+            <div className="threditor-right">
+              {cm != null && <div className="threditor-length">{'~' + cm + ' cm'}</div>}
+              {editable && (
+                <button className="thread-remove" onClick={function() { onRemove(i); }} title="Remove thread">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {pickerIndex !== null && (
         <DmcPickerSheet
-          currentHex={thread.hex}
+          currentHex={threads[pickerIndex] ? threads[pickerIndex].hex : '#000000'}
           onSelect={function(c) {
-            onChange({...thread, hex:c.hex, dmc:'DMC '+c.dmc, name:thread.name || c.name});
+            const t = threads[pickerIndex];
+            onChange(pickerIndex, {...t, hex: c.hex, dmc: 'DMC ' + c.dmc, name: t.name || c.name});
           }}
-          onClose={function() { setPickerOpen(false); }}
+          onClose={function() { setPickerIndex(null); }}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -357,19 +384,20 @@ function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
                 </button>
               </div>
             </div>
-            <div className="thread-list">
-              {threads.map((t,i)=>(
-                <ThreadRow key={t.id||i} thread={t}
-                  onChange={u=>updateThread(i,u)} onRemove={()=>removeThread(i)}
-                  lengthCm={getLengthCm(i)} slotIndex={i}/>
-              ))}
-            </div>
-            <button className="add-thread-btn" onClick={addThread}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add thread
-            </button>
+            <Threditor
+              threads={threads}
+              threadLengths={threadLengths}
+              onChange={function(i, u) { updateThread(i, u); }}
+              onRemove={function(i) { removeThread(i); }}
+            />
+            {threads.length < 6 && (
+              <button className="add-thread-btn" onClick={addThread}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add thread
+              </button>
+            )}
           </div>
 
           <div className="form-group">

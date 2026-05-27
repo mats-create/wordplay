@@ -249,14 +249,39 @@ html, body, #root {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 6px; }
 
-/* ── Thread editor ── */
-.thread-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
-.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr 64px auto;
-  gap: 6px; align-items: center; }
-.thread-color-btn { width: 32px; height: 32px; border-radius: 6px;
-  border: 1.5px solid var(--lgrey); cursor: pointer; padding: 0;
-  position: relative; overflow: hidden; transition: transform 0.1s; }
-.thread-color-btn:hover { transform: scale(1.1); border-color: var(--black); }
+/* ── Threditor ── */
+.threditor { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.threditor-slot {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--lgrey); background: var(--white);
+  transition: border-color 0.15s;
+}
+.threditor-slot:hover { border-color: #bbb; }
+.threditor-swatch {
+  width: 40px; height: 40px; border-radius: 8px;
+  flex-shrink: 0; padding: 0;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.threditor-swatch-btn:hover { transform: scale(1.08); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.threditor-swatch:disabled { cursor: default; }
+.threditor-info { flex: 1; min-width: 0; }
+.threditor-slot-label {
+  display: flex; align-items: baseline; gap: 5px; margin-bottom: 2px;
+}
+.threditor-slot-name {
+  font-size: 10px; font-weight: 700; color: var(--black);
+  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.threditor-slot-hint { font-size: 10px; color: var(--grey); }
+.threditor-colour-name { font-size: 13px; font-weight: 500; color: var(--black); line-height: 1.3; }
+.threditor-dmc { font-size: 11px; color: var(--grey); }
+.threditor-empty { color: var(--lgrey); font-style: italic; }
+.threditor-right {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 4px; flex-shrink: 0;
+}
+.threditor-length { font-size: 11px; font-weight: 500; color: var(--grey); white-space: nowrap; }
 .thread-remove { width: 28px; height: 28px; border-radius: 50%; background: transparent;
   border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
   color: var(--grey); transition: all 0.15s; }
@@ -883,19 +908,7 @@ html, body, #root {
 .size-btn:hover { background: var(--offwht); color: var(--black); }
 .size-btn.active { background: var(--black); color: var(--white); }
 
-/* ── Thread slot labels ── */
-.thread-slot-label {
-  display: flex; align-items: baseline; gap: 6px;
-  margin-top: 10px; margin-bottom: 3px;
-}
-.thread-slot-label:first-child { margin-top: 0; }
-.thread-slot-name {
-  font-size: 11px; font-weight: 700; color: var(--black);
-  text-transform: uppercase; letter-spacing: 0.5px;
-}
-.thread-slot-hint {
-  font-size: 11px; color: var(--grey);
-}
+
 
 /* ── Kevin inline swatches ── */
 .kevin-swatch {
