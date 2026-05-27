@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   SHOUTOUTS SCREEN FOR APP
+   SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
 function ShoutoutsScreen({ shoutouts, borders, tmCache, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query, setQuery] = useState('');
