@@ -612,7 +612,15 @@ const OBJECT_DEFAULT_H = 9;
 const EDITOR_CELL = 32; // px per stitch cell in editor
 
 // Neutral greys per slot index — distinguishable without implying actual thread colours
-const LAYER_SLOT_GREYS = ['#2A2A2A','#555555','#888888','#AAAAAA','#C8C8C8','#E0E0E0'];
+const LAYER_SLOT_GREYS = ['#111111','#404040','#707070','#999999','#C0C0C0','#E4E4E4'];
+
+// Returns white or black mark colour depending on cell brightness
+function markColour(hex) {
+  var r = parseInt(hex.slice(1,3),16);
+  var g = parseInt(hex.slice(3,5),16);
+  var b = parseInt(hex.slice(5,7),16);
+  return (r*0.299 + g*0.587 + b*0.114) > 160 ? '#1A1A1A' : '#FFFFFF';
+}
 
 // colorSlot string -> THREAD_SLOTS index
 const COLOR_SLOT_VALUES = ['primary','secondary','accent','border3','accent1','accent2'];
@@ -913,6 +921,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
                 {viewMode === 'edit' && layers[activeLayer] && layers[activeLayer].pattern.map(function(row, r) {
                   return row.map(function(cell, c) {
                     const on = cell === '1';
+                    const mk = on ? markColour(activeLayerGrey) : '#1A1A1A';
                     return (
                       <div key={r + '-' + c}
                         className={'stitch-cell' + (on ? ' on' : '')}
@@ -920,8 +929,8 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
                         onClick={function() { toggleCell(r, c); }}>
                         {on && (
                           <svg viewBox="0 0 32 32" width={EDITOR_CELL} height={EDITOR_CELL}>
-                            <line x1="4" y1="4" x2="28" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
-                            <line x1="28" y1="4" x2="4" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="4" y1="4" x2="28" y2="28" stroke={mk} strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="28" y1="4" x2="4" y2="28" stroke={mk} strokeWidth="3.5" strokeLinecap="round"/>
                           </svg>
                         )}
                       </div>
@@ -932,14 +941,15 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
                 {viewMode === 'compound' && compoundGrid && compoundGrid.map(function(row, r) {
                   return row.map(function(cell, c) {
                     const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                    const mk = colour ? markColour(colour) : '#1A1A1A';
                     return (
                       <div key={r + '-' + c}
                         className="stitch-cell"
                         style={colour ? {background: colour, cursor:'default'} : {cursor:'default'}}>
                         {colour && (
                           <svg viewBox="0 0 32 32" width={EDITOR_CELL} height={EDITOR_CELL}>
-                            <line x1="4" y1="4" x2="28" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
-                            <line x1="28" y1="4" x2="4" y2="28" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="4" y1="4" x2="28" y2="28" stroke={mk} strokeWidth="3.5" strokeLinecap="round"/>
+                            <line x1="28" y1="4" x2="4" y2="28" stroke={mk} strokeWidth="3.5" strokeLinecap="round"/>
                           </svg>
                         )}
                       </div>
@@ -1012,6 +1022,7 @@ function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFold
               {compoundGrid.map(function(row, r) {
                 return row.map(function(cell, c) {
                   const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                  const mk = colour ? markColour(colour) : '#1A1A1A';
                   return (
                     <div key={r+'-'+c} style={{
                       width: previewCell, height: previewCell,
@@ -1020,8 +1031,8 @@ function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFold
                     }}>
                       {colour && (
                         <svg viewBox="0 0 32 32" width={previewCell-4} height={previewCell-4}>
-                          <line x1="4" y1="4" x2="28" y2="28" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round"/>
-                          <line x1="28" y1="4" x2="4" y2="28" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round"/>
+                          <line x1="4" y1="4" x2="28" y2="28" stroke={mk} strokeWidth="4" strokeLinecap="round"/>
+                          <line x1="28" y1="4" x2="4" y2="28" stroke={mk} strokeWidth="4" strokeLinecap="round"/>
                         </svg>
                       )}
                     </div>

@@ -405,6 +405,7 @@ function ObjectPreview({ pattern, layers, size }) {
         return row.map(function(cell_data, c) {
           if (!cell_data) return null;
           const colour = cell_data.overlap ? '#CC3300' : layerSlotGrey(cell_data.colorSlot);
+          const mk = markColour(colour);
           const x = c * cell;
           const y = r * cell;
           const pad = cell * 0.1;
@@ -412,8 +413,8 @@ function ObjectPreview({ pattern, layers, size }) {
             <svg key={r + '-' + c} style={{position:'absolute', left:x, top:y, width:cell, height:cell}}
               viewBox={'0 0 ' + cell + ' ' + cell}>
               <rect x="0" y="0" width={cell} height={cell} fill={colour}/>
-              <line x1={pad} y1={pad} x2={cell-pad} y2={cell-pad} stroke="#FFFFFF" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
-              <line x1={cell-pad} y1={pad} x2={pad} y2={cell-pad} stroke="#FFFFFF" strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+              <line x1={pad} y1={pad} x2={cell-pad} y2={cell-pad} stroke={mk} strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
+              <line x1={cell-pad} y1={pad} x2={pad} y2={cell-pad} stroke={mk} strokeWidth={Math.max(cell*0.2,1)} strokeLinecap="round"/>
             </svg>
           );
         });
