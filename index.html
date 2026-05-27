@@ -142,8 +142,14 @@ html, body, #root {
 ═══════════════════════════════════════════════════════════════════ */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+}
+@media (max-width: 900px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .card-grid { grid-template-columns: 1fr; }
 }
 .card {
   background: var(--surface); border: 1px solid var(--lgrey);
@@ -1375,6 +1381,7 @@ function kevinHeaders() {
   const h = {
     'Content-Type': 'application/json',
     'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'prompt-caching-2024-07-31',
     'anthropic-dangerous-direct-browser-access': 'true',
   };
   if (hasKevinApiKey()) h['x-api-key'] = _kevinApiKey.trim();
@@ -1444,12 +1451,7 @@ Image-to-motif: when the user uploads an image, analyse it and generate a cross-
 - Then call createBorder or updateBorder with the pattern embedded in the spec.
 - Always confirm the result after applying it.
 
-Corner motif sizes — two options, always use one or the other:
-- Standard: 9x9 pattern, cornerInset 7. For clean/minimal borders or when the motif is simple.
-- Enlarged: 11x11 pattern, cornerInset 8. For detailed/traditional borders with complex motifs.
-When updating a border to change motif size, redraw the full pattern at the new dimensions — don't just pad or trim the existing one. listBorders returns cornerMotifSizeLabel (standard/enlarged/none) so you can see the current state before editing.
-Example standard 9x9 (diamond lattice): ["011101110","101010101","110101011","001111100","011101110","001111100","110101011","101010101","011101110"]
-Example enlarged 11x11 (expanded lattice): ["00000000000","00111010110","01010101010","01101010101","00011111100","00111010110","00011111100","01101010101","01010101010","00111010110","00000000000"]
+Corner motif sizes: Standard 9x9 cornerInset 7, Enlarged 11x11 cornerInset 8. listBorders returns cornerMotifSizeLabel. Redraw fully when resizing.
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
@@ -1976,8 +1978,16 @@ async function askKevin(messages, context, appData) {
   // We rebuild from the internal log, ignoring any previous tool-turn details
   // (tool calls happen inside askKevin and are transparent to the UI)
   function buildApiMessages(msgs) {
+    // Cap history to last 8 exchanges and trim large kevin responses
+    const recent = msgs.slice(-8);
     const result = [];
-    for (const m of msgs) {
+    for (const m of recent) {
+      if (m.role === 'kevin') {
+        // Trim very long Kevin responses (tool result summaries can be huge)
+        const text = m.text && m.text.length > 800 ? m.text.slice(0, 800) + '...[trimmed]' : m.text;
+        result.push({ role: 'assistant', content: text });
+        continue;
+      }
       if (m.role === 'user') {
         if (m.image) {
           // Message with image attachment
@@ -1992,7 +2002,7 @@ async function askKevin(messages, context, appData) {
           result.push({ role: 'user', content: m.text });
         }
       }
-      if (m.role === 'kevin') result.push({ role: 'assistant', content: m.text });
+      // kevin role handled above
     }
     return result;
   }
@@ -2010,8 +2020,8 @@ async function askKevin(messages, context, appData) {
       headers: kevinHeaders(),
       body: JSON.stringify({
         model:      'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system:     kevinSystemPrompt(context),
+        max_tokens: 1500,
+        system: [{ type: 'text', text: kevinSystemPrompt(context), cache_control: { type: 'ephemeral' } }],
         tools:      KEVIN_TOOLS,
         messages:   apiMessages,
       }),
@@ -4191,7 +4201,9 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
           <CrossStitchCanvas word={shoutout.name}
             cols={shoutout.stitchesW} rows={shoutout.stitchesH}
             borderStyle={bs} threads={shoutout.threads}
-            textScale={shoutout.textScale||0} size={550}/>
+            textScale={shoutout.textScale||0}
+            lines={shoutout.lines||null}
+            size={550}/>
         </div>
 
         {shoutout.threads&&shoutout.threads.length>0 && (
@@ -4843,7 +4855,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   );
 }
 
-function ObjectDetail({ object, onEdit, onDelete, onClose }) {
+function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
   const w = object.width || (object.pattern && object.pattern[0] ? object.pattern[0].length : 9);
   const h = object.height || (object.pattern ? object.pattern.length : 9);
   const previewCell = Math.min(Math.floor(300 / Math.max(w, h)), 28);
@@ -4899,6 +4911,14 @@ function ObjectDetail({ object, onEdit, onDelete, onClose }) {
 
           <div className="detail-actions">
             <button className="btn btn-primary" onClick={onEdit}><Ico.Edit/> Edit</button>
+            {folders && folders.length > 0 && (
+              <select className="folder-select" style={{marginLeft:'auto'}}
+                value={object.folder || ''}
+                onChange={function(e) { onMoveToFolder(e.target.value || null); }}>
+                <option value="">No folder</option>
+                {folders.map(function(f) { return <option key={f} value={f}>{f}</option>; })}
+              </select>
+            )}
           </div>
           <div className="detail-actions" style={{paddingTop:0, borderTop:'1px solid var(--offwht)', marginTop:4}}>
             <button className="btn btn-ghost" style={{color:'var(--coral)', fontSize:12}} onClick={onDelete}>
@@ -5297,21 +5317,23 @@ function BordersScreen({ borders, onSelect, folders, activeFolder, onFolderChang
 /* ═══════════════════════════════════════════════════════════════════
    OBJECTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ObjectsScreen({ objects, onSelect }) {
+function ObjectsScreen({ objects, onSelect, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query, setQuery] = useState('');
+  const [folderMenu, setFolderMenu] = useState(null);
 
   const filtered = useMemo(function() {
-    if (!query.trim()) return objects;
-    const q = query.toLowerCase();
-    return objects.filter(function(o) {
-      return o.name && o.name.toLowerCase().includes(q);
-    });
-  }, [objects, query]);
+    let list = objects;
+    if (activeFolder) list = list.filter(function(o) { return o.folder === activeFolder; });
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(function(o) { return o.name && o.name.toLowerCase().includes(q); });
+    }
+    return list;
+  }, [objects, activeFolder, query]);
 
-  const showCount = query.trim() && filtered.length !== objects.length
-    ? filtered.length + ' of ' + objects.length
-    : objects.length;
-  const noun = objects.length === 1 ? 'object' : 'objects';
+  const total = activeFolder ? objects.filter(function(o) { return o.folder === activeFolder; }).length : objects.length;
+  const showCount = query.trim() && filtered.length !== total ? filtered.length + ' of ' + total : total;
+  const noun = total === 1 ? 'object' : 'objects';
 
   return (
     <div className="screen">
@@ -5334,6 +5356,40 @@ function ObjectsScreen({ objects, onSelect }) {
         </div>
       </div>
 
+      <div className="folder-bar">
+        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
+          onClick={function() { onFolderChange(null); }}>All</button>
+        {(folders||[]).map(function(f) {
+          return (
+            <div key={f} className="folder-pill-wrap">
+              <button className={'folder-pill' + (activeFolder === f ? ' active' : '')}
+                onClick={function() { onFolderChange(f); }}>{f}</button>
+              <button className="folder-pill-menu" onClick={function(e) {
+                e.stopPropagation();
+                setFolderMenu(folderMenu === f ? null : f);
+              }}>⋯</button>
+              {folderMenu === f && (
+                <div className="folder-dropdown">
+                  <button onClick={function() {
+                    const name = window.prompt('Rename folder:', f);
+                    if (name && name.trim() && name.trim() !== f) onFolderRename('objects', f, name.trim());
+                    setFolderMenu(null);
+                  }}>Rename</button>
+                  <button className="danger" onClick={function() {
+                    if (window.confirm('Delete folder "' + f + '"? Objects will become unfiled.')) onFolderDelete('objects', f);
+                    setFolderMenu(null);
+                  }}>Delete</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <button className="folder-add" onClick={function() {
+          const name = window.prompt('New folder name:');
+          if (name && name.trim()) onFolderCreate('objects', name.trim());
+        }}>+ Folder</button>
+      </div>
+
       {objects.length === 0 ? (
         <div className="empty">
           <span className="empty-icon">✦</span>
@@ -5344,18 +5400,17 @@ function ObjectsScreen({ objects, onSelect }) {
         <div className="empty">
           <span className="empty-icon">🔍</span>
           <h3>No results</h3>
-          <p>No objects match "{query}".</p>
+          <p>{query ? 'No objects match "' + query + '".' : 'No objects in this folder.'}</p>
         </div>
       ) : (
         <div className="card-grid">
           {filtered.map(function(o) {
             return (
               <div key={o.id} className="card object-card" onClick={function() { onSelect(o); }}>
+                {o.folder && <div className="card-folder-tag">{o.folder}</div>}
                 <ObjectPreview pattern={o.pattern} size={120}/>
                 <div className="card-title">{o.name}</div>
-                <div className="card-sub">
-                  {o.width}×{o.height} stitches
-                </div>
+                <div className="card-sub">{o.width}×{o.height} stitches</div>
               </div>
             );
           })}
@@ -5417,8 +5472,10 @@ function App() {
   const [tmCache,     setTmCache]     = useState({});
   const [shoutoutFolders, setShoutoutFolders] = useState([]);
   const [borderFolders,   setBorderFolders]   = useState([]);
+  const [objectFolders,   setObjectFolders]   = useState([]);
   const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
   const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
+  const [activeObjectFolder,   setActiveObjectFolder]   = useState(null);
   const [objects,       setObjects]       = useState([]);
   const [selObject,     setSelObject]     = useState(null);
   const [editObject,    setEditObject]    = useState(null);
@@ -5433,10 +5490,11 @@ function App() {
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
       shoutoutFolders: shoutoutFolders.join(', ') || 'none',
       borderFolders: borderFolders.join(', ') || 'none',
+      objectFolders: objectFolders.join(', ') || 'none',
       objectCount: objects.length,
       objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
     };
-  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objects]);
+  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -5461,14 +5519,15 @@ function App() {
         const d = snap.data();
         setShoutoutFolders(d.shoutoutFolders || []);
         setBorderFolders(d.borderFolders || []);
+        setObjectFolders(d.objectFolders || []);
       }
     } catch(e) { console.warn('Folder load failed:', e); }
   }
 
-  async function saveFolders(uid, sf, bf) {
+  async function saveFolders(uid, sf, bf, of2) {
     try {
       await fb.setDoc(fb.doc(fb.db,'users',uid,'settings','folders'),
-        { shoutoutFolders: sf, borderFolders: bf });
+        { shoutoutFolders: sf, borderFolders: bf, objectFolders: of2 || objectFolders });
     } catch(e) { console.warn('Folder save failed:', e); }
   }
 
@@ -5477,12 +5536,17 @@ function App() {
       if (shoutoutFolders.includes(name)) return;
       const next = [...shoutoutFolders, name];
       setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders);
-    } else {
+      saveFolders(authUser.uid, next, borderFolders, objectFolders);
+    } else if (type === 'borders') {
       if (borderFolders.includes(name)) return;
       const next = [...borderFolders, name];
       setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next);
+      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
+    } else {
+      if (objectFolders.includes(name)) return;
+      const next = [...objectFolders, name];
+      setObjectFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
     }
   }
 
@@ -5490,21 +5554,29 @@ function App() {
     if (type === 'shoutouts') {
       const next = shoutoutFolders.map(function(f) { return f === oldName ? newName : f; });
       setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders);
+      saveFolders(authUser.uid, next, borderFolders, objectFolders);
       if (activeShoutoutFolder === oldName) setActiveShoutoutFolder(newName);
-      // Update all shoutouts in that folder
       const batch = shoutouts.filter(function(s) { return s.folder === oldName; });
       for (const s of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: newName });
       }
-    } else {
+    } else if (type === 'borders') {
       const next = borderFolders.map(function(f) { return f === oldName ? newName : f; });
       setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next);
+      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
       if (activeBorderFolder === oldName) setActiveBorderFolder(newName);
       const batch = borders.filter(function(b) { return b.folder === oldName && !b.builtIn; });
       for (const b of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: newName });
+      }
+    } else {
+      const next = objectFolders.map(function(f) { return f === oldName ? newName : f; });
+      setObjectFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
+      if (activeObjectFolder === oldName) setActiveObjectFolder(newName);
+      const batch = objects.filter(function(o) { return o.folder === oldName; });
+      for (const o of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id), { folder: newName });
       }
     }
   }
@@ -5513,21 +5585,29 @@ function App() {
     if (type === 'shoutouts') {
       const next = shoutoutFolders.filter(function(f) { return f !== name; });
       setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders);
+      saveFolders(authUser.uid, next, borderFolders, objectFolders);
       if (activeShoutoutFolder === name) setActiveShoutoutFolder(null);
-      // Unfile all shoutouts in that folder
       const batch = shoutouts.filter(function(s) { return s.folder === name; });
       for (const s of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: null });
       }
-    } else {
+    } else if (type === 'borders') {
       const next = borderFolders.filter(function(f) { return f !== name; });
       setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next);
+      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
       if (activeBorderFolder === name) setActiveBorderFolder(null);
       const batch = borders.filter(function(b) { return b.folder === name && !b.builtIn; });
       for (const b of batch) {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: null });
+      }
+    } else {
+      const next = objectFolders.filter(function(f) { return f !== name; });
+      setObjectFolders(next);
+      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
+      if (activeObjectFolder === name) setActiveObjectFolder(null);
+      const batch = objects.filter(function(o) { return o.folder === name; });
+      for (const o of batch) {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id), { folder: null });
       }
     }
   }
@@ -5536,10 +5616,12 @@ function App() {
     try {
       if (type === 'shoutout') {
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId), { folder: folder || null });
-      } else {
+      } else if (type === 'border') {
         const border = borders.find(function(b) { return b.id === itemId; });
         if (border && border.builtIn) { showToast('Cannot move built-in borders'); return; }
         await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',itemId), { folder: folder || null });
+      } else {
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',itemId), { folder: folder || null });
       }
       showToast(folder ? 'Moved to ' + folder : 'Removed from folder');
     } catch(e) { showToast('Move failed — try again'); }
@@ -5787,7 +5869,13 @@ function App() {
           )}
           {tab === 'objects' && (
             <ObjectsScreen objects={objects}
-              onSelect={function(o) { setSelObject(o); }}/>
+              onSelect={function(o) { setSelObject(o); }}
+              folders={objectFolders}
+              activeFolder={activeObjectFolder}
+              onFolderChange={setActiveObjectFolder}
+              onFolderCreate={handleFolderCreate}
+              onFolderRename={handleFolderRename}
+              onFolderDelete={handleFolderDelete}/>
           )}
         </div>
 
@@ -5903,7 +5991,9 @@ function App() {
         <ObjectDetail object={selObject}
           onClose={function() { setSelObject(null); }}
           onEdit={function() { setEditObject(selObject); }}
-          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}/>
+          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}
+          folders={objectFolders}
+          onMoveToFolder={function(folder) { handleMoveToFolder('object', selObject.id, folder); }}/>
       )}
       {editObject && (
         <ObjectEditor
