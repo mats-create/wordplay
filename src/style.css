@@ -1138,11 +1138,17 @@ html, body, #root {
    COMPOSE SHEET
 ═══════════════════════════════════════════════════════════════════ */
 .sheet-fullscreen {
-  position: fixed; inset: 0; z-index: 110;
+  position: absolute; inset: 0;
   background: var(--offwht);
   display: grid;
   grid-template-columns: 1fr 340px;
   grid-template-rows: 48px 1fr;
+  overflow: hidden;
+  z-index: 10;
+}
+/* app-main must be relative so ComposeSheet positions within it */
+.app-main:has(.sheet-fullscreen) {
+  position: relative;
   overflow: hidden;
 }
 
