@@ -1197,11 +1197,17 @@ html, body, #root {
    COMPOSE SHEET
 ═══════════════════════════════════════════════════════════════════ */
 .sheet-fullscreen {
-  position: fixed; inset: 0; z-index: 110;
+  position: absolute; inset: 0;
   background: var(--offwht);
   display: grid;
   grid-template-columns: 1fr 340px;
   grid-template-rows: 48px 1fr;
+  overflow: hidden;
+  z-index: 10;
+}
+/* app-main must be relative so ComposeSheet positions within it */
+.app-main:has(.sheet-fullscreen) {
+  position: relative;
   overflow: hidden;
 }
 
@@ -3165,7 +3171,7 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
 // lines: array of {text, scale} — max 4
 // Each line independently scaled and centred horizontally.
 // Lines distributed evenly in available vertical space.
-function buildGridMulti(lines, cols, rows, borderStyle, gap) {
+function buildGridMulti(lines, cols, rows, borderStyle, gap, placedObjects) {
   const GAP_BASE = (gap != null && gap > 0) ? gap : 1;
   const LINE_GAP = 2; // vertical gap between lines in stitches
   cols = cols || 94;
@@ -3192,6 +3198,49 @@ function buildGridMulti(lines, cols, rows, borderStyle, gap) {
     : (BORDER_SPECS[borderStyle] || BORDER_SPECS['minimal']);
 
   renderBorderSpec(spec, N, setCell);
+
+  // ── Placed objects (same logic as buildGrid) ──
+  if (placedObjects && typeof placedObjects === 'object') {
+    const borderDepthPO = (spec && spec.layers) ? spec.layers.length : 2;
+    const insetPO = (spec && spec.cornerInset) ? spec.cornerInset : borderDepthPO + 2;
+    const COLOR_SLOT_KINDS_PO = {
+      primary:'T', secondary:'D', accent:'E', border3:'H', accent1:'J', accent2:'L'
+    };
+    function forceCellMG(r, c, kind) {
+      if (r >= 0 && r < rows && c >= 0 && c < cols) grid[r][c] = kind;
+    }
+    Object.keys(placedObjects).forEach(function(posId) {
+      const obj = placedObjects[posId];
+      if (!obj) return;
+      const layers = obj.layers
+        ? obj.layers
+        : [{ colorSlot: 'primary', pattern: obj.pattern || [] }];
+      if (!layers.length || !layers[0].pattern || !layers[0].pattern.length) return;
+      const ph = layers[0].pattern.length;
+      const firstRow = typeof layers[0].pattern[0] === 'string'
+        ? layers[0].pattern[0] : layers[0].pattern[0].join('');
+      const pw = firstRow.length;
+      let sr, sc;
+      if      (posId === 'topLeft')     { sr = insetPO;             sc = insetPO; }
+      else if (posId === 'topRight')    { sr = insetPO;             sc = cols - insetPO - pw; }
+      else if (posId === 'bottomLeft')  { sr = rows - insetPO - ph; sc = insetPO; }
+      else if (posId === 'bottomRight') { sr = rows - insetPO - ph; sc = cols - insetPO - pw; }
+      else if (posId === 'top')         { sr = insetPO;             sc = Math.floor((cols - pw) / 2); }
+      else if (posId === 'bottom')      { sr = rows - insetPO - ph; sc = Math.floor((cols - pw) / 2); }
+      else if (posId === 'left')        { sr = Math.floor((rows - ph) / 2); sc = insetPO; }
+      else if (posId === 'right')       { sr = Math.floor((rows - ph) / 2); sc = cols - insetPO - pw; }
+      else return;
+      layers.forEach(function(layer) {
+        const kind = COLOR_SLOT_KINDS_PO[layer.colorSlot] || 'F';
+        (layer.pattern || []).forEach(function(rowData, dr) {
+          const rs = typeof rowData === 'string' ? rowData : rowData.join('');
+          rs.split('').forEach(function(ch, dc) {
+            if (ch === '1') forceCellMG(sr + dr, sc + dc, kind);
+          });
+        });
+      });
+    });
+  }
 
   // Clamp to 4 lines
   const activeLines = (lines || []).slice(0, 4).filter(function(l) {
@@ -3315,7 +3364,6 @@ function buildGridMulti(lines, cols, rows, borderStyle, gap) {
 
   return grid;
 }
-
 /* ---- src/utils.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
    VALIDATION HELPERS
