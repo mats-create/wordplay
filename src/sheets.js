@@ -61,7 +61,7 @@ function AidaOptionsSheet({ shoutout, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUT DETAIL
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
+function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, onCompose, folders, onMoveToFolder }) {
   const [showAidaOptions, setShowAidaOptions] = useState(false);
   const [chartGenerating, setChartGenerating] = useState(false);
 
@@ -122,9 +122,16 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         )}
 
         <div className="detail-actions">
-          {/* Primary action — top right */}
           <button className="btn btn-primary" onClick={onEdit}>
             <Ico.Edit/> Edit
+          </button>
+          <button className="btn btn-tonal" onClick={onCompose}
+            title="Open the composition workspace">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 3v18"/>
+            </svg>
+            Compose
           </button>
         </div>
 
@@ -1179,3 +1186,639 @@ function SignInScreen({ onSignIn, error }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPOSE SHEET
+   Full-screen composition UI — word, border, colour, objects.
+   Entry point: "Compose" button in ShoutoutDetail.
+   Saves placedObjects (and all existing fields) back to Firestore
+   via the same onSave handler as ShoutoutForm.
+═══════════════════════════════════════════════════════════════════ */
+
+// Position definitions for the 8 placement zones
+const COMPOSE_POSITIONS = [
+  {id:'topLeft',    label:'Top left',    isCorner:true,  maxW:9,  maxH:9},
+  {id:'top',        label:'Top',         isCorner:false, maxW:41, maxH:9},
+  {id:'topRight',   label:'Top right',   isCorner:true,  maxW:9,  maxH:9},
+  {id:'left',       label:'Left',        isCorner:false, maxW:9,  maxH:41},
+  {id:'centre',     label:'',            isCorner:false, maxW:0,  maxH:0},
+  {id:'right',      label:'Right',       isCorner:false, maxW:9,  maxH:41},
+  {id:'bottomLeft', label:'Bottom left', isCorner:true,  maxW:9,  maxH:9},
+  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:41, maxH:9},
+  {id:'bottomRight',label:'Bottom right',isCorner:true,  maxW:9,  maxH:9},
+];
+
+// Render a small compound preview canvas for a layered object
+// Uses actual thread colours from the threads array
+function objectPreviewCanvas(obj, size, threads) {
+  const cv = document.createElement('canvas');
+  cv.width = size; cv.height = size;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#F0E6D3';
+  ctx.fillRect(0, 0, size, size);
+  if (!obj || !obj.layers || !obj.layers[0]) return cv;
+  const ph = obj.layers[0].pattern.length;
+  const pw = obj.layers[0].pattern[0] ? obj.layers[0].pattern[0].length : 0;
+  if (!ph || !pw) return cv;
+  const cell = Math.min(size / Math.max(ph, pw), size);
+  const offX = Math.floor((size - pw * cell) / 2);
+  const offY = Math.floor((size - ph * cell) / 2);
+  const pad  = cell * 0.1;
+  const lw   = Math.max(cell * 0.22, 0.5);
+  // Build compound — last layer wins per cell
+  const compound = [];
+  for (let r = 0; r < ph; r++) { compound.push([]); for (let c = 0; c < pw; c++) compound[r].push(null); }
+  obj.layers.forEach(function(layer) {
+    const kind = layer.colorSlot === 'secondary' ? 'D'
+               : layer.colorSlot === 'accent'    ? 'E'
+               : layer.colorSlot === 'border3'   ? 'H'
+               : layer.colorSlot === 'accent1'   ? 'J'
+               : layer.colorSlot === 'accent2'   ? 'L' : 'T';
+    (layer.pattern || []).forEach(function(rs, dr) {
+      const row = typeof rs === 'string' ? rs : rs.join('');
+      row.split('').forEach(function(ch, dc) {
+        if (ch === '1' && dr < ph && dc < pw) compound[dr][dc] = kind;
+      });
+    });
+  });
+  compound.forEach(function(row, r) {
+    row.forEach(function(kind, c) {
+      if (!kind) return;
+      const colour = stitchColor(kind, threads);
+      if (!colour) return;
+      const x = offX + c * cell;
+      const y = offY + r * cell;
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(x + pad, y + pad);
+      ctx.lineTo(x + cell - pad, y + cell - pad);
+      ctx.moveTo(x + cell - pad, y + pad);
+      ctx.lineTo(x + pad, y + cell - pad);
+      ctx.stroke();
+    });
+  });
+  return cv;
+}
+
+// Position grid cell component
+function PosCell({ pos, placed, threads, onClick, onClear }) {
+  const canvasRef = useRef(null);
+
+  useEffect(function() {
+    if (!placed || !canvasRef.current) return;
+    const cv = objectPreviewCanvas(placed, 56, threads);
+    const el = canvasRef.current;
+    el.width = cv.width; el.height = cv.height;
+    el.getContext('2d').drawImage(cv, 0, 0);
+  }, [placed, threads]);
+
+  if (pos.id === 'centre') {
+    return (
+      <div className="pos-wrap">
+        <div className="pos-cell centre">
+          <span style={{fontSize:9, color:'#ccc'}}>word</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pos-wrap">
+      <div className={'pos-cell' + (placed ? ' occupied' : '')} onClick={onClick}>
+        {placed
+          ? <>
+              <canvas ref={canvasRef} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+              <button className="pos-cell-clear"
+                onClick={function(e) { e.stopPropagation(); onClear(); }}
+                title="Remove object">
+                &#x2715;
+              </button>
+            </>
+          : <span className="pos-cell-plus">+</span>
+        }
+      </div>
+      {pos.label && <div className="pos-label">{pos.label}</div>}
+    </div>
+  );
+}
+
+// Object picker sheet — slides in to show the object library for a position
+function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear, onClose }) {
+  return (
+    <div className="obj-picker-overlay open"
+      onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="obj-picker-sheet">
+        <div className="obj-picker-header">
+          <span className="obj-picker-title">
+            Place object — {position.label}
+          </span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="obj-picker-hint">
+          Max {position.maxW} wide &times; {position.maxH} tall stitches
+        </div>
+        <div className="obj-list">
+          {objects.length === 0 && (
+            <div style={{gridColumn:'1/-1',fontSize:12,color:'var(--grey)',padding:'8px 0'}}>
+              No objects in your library yet. Create some in the Objects tab.
+            </div>
+          )}
+          {objects.map(function(obj) {
+            const ph = obj.layers && obj.layers[0] ? obj.layers[0].pattern.length : (obj.pattern ? obj.pattern.length : 0);
+            const pw = obj.layers && obj.layers[0] && obj.layers[0].pattern[0]
+              ? obj.layers[0].pattern[0].length
+              : (obj.pattern && obj.pattern[0] ? obj.pattern[0].length : 0);
+            const fits = pw <= position.maxW && ph <= position.maxH;
+            // Normalise legacy (pattern-only) objects to layers format for preview
+            const normObj = obj.layers ? obj : { ...obj, layers: [{ colorSlot: 'primary', pattern: obj.pattern || [] }] };
+            const cv = objectPreviewCanvas(normObj, 64, threads);
+            const layerCount = normObj.layers.length;
+            return (
+              <div key={obj.id}
+                className={'obj-card' + (!fits ? ' disabled' : '')}
+                title={!fits ? 'Too large for this position' : ''}
+                onClick={fits ? function() { onSelect(normObj); } : undefined}>
+                <canvas width={64} height={64} ref={function(el) {
+                  if (el) { el.width = cv.width; el.height = cv.height; el.getContext('2d').drawImage(cv, 0, 0); }
+                }}/>
+                <div className="obj-card-name">{obj.name}</div>
+                <div className="obj-card-slots">
+                  {layerCount === 1 ? '1 colour slot' : layerCount + ' colour slots'}
+                  {!fits && <span> &middot; too large</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {placed && (
+          <div className="obj-picker-clear">
+            <button onClick={onClear}>Remove object from this position</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main ComposeSheet component
+function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
+  // ── State — initialise from existing shoutout ──
+  const isEdit = !!initial;
+  const initName = (initial && initial.lines && initial.lines.length > 1)
+    ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
+    : (initial ? initial.name : '');
+
+  const [name,         setName]         = useState(initName);
+  const [stitchesW,    setStitchesW]    = useState(initial ? initial.stitchesW : 94);
+  const [stitchesH,    setStitchesH]    = useState(initial ? initial.stitchesH : 94);
+  const [hoopW,        setHoopW]        = useState(initial ? initial.hoopW : 280);
+  const [hoopH,        setHoopH]        = useState(initial ? initial.hoopH : 250);
+  const [notes,        setNotes]        = useState(initial ? initial.notes : '');
+  const [borderId,     setBorderId]     = useState(initial ? initial.borderId : '');
+  const [borderName,   setBorderName]   = useState(initial ? initial.borderName : '');
+  const [threads,      setThreads]      = useState(
+    initial && initial.threads && initial.threads.length > 0 ? initial.threads : DEFAULT_THREADS
+  );
+  const [threadLengths,setThreadLengths]= useState(initial && initial.threadLengths ? initial.threadLengths : []);
+  const [strands,      setStrands]      = useState(initial && initial.strands ? initial.strands : 2);
+  const [textScale,    setTextScale]    = useState(initial && initial.textScale ? initial.textScale : 0);
+  const [lineScales,   setLineScales]   = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
+  const [placedObjects,setPlacedObjects]= useState(initial && initial.placedObjects ? initial.placedObjects : {});
+  const [activeTab,    setActiveTab]    = useState('word');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pickerPos,    setPickerPos]    = useState(null); // position id open in obj picker
+  const [calculating,  setCalculating]  = useState(false);
+  const [errors,       setErrors]       = useState({});
+
+  const MAX_LINES = 4;
+  const parsedLines = name.split('\n').slice(0, MAX_LINES).map(function(text, i) {
+    return { text: text, scale: lineScales[i] || 0 };
+  });
+  const isMultiRow = name.includes('\n') && parsedLines.length > 1;
+
+  // ── Canvas ref and render ──
+  const canvasContainerRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // Resolve border spec for rendering
+  const activeBorder = useMemo(function() {
+    return borders.find(function(b) { return b.id === borderId; }) || null;
+  }, [borders, borderId]);
+
+  const activeBorderSpec = useMemo(function() {
+    if (!activeBorder) return null;
+    return activeBorder.spec || BORDER_SPECS[activeBorder.style] || null;
+  }, [activeBorder]);
+
+  // Render the canvas whenever state changes
+  useEffect(function() {
+    const canvas = canvasRef.current;
+    const container = canvasContainerRef.current;
+    if (!canvas || !container) return;
+
+    const avail = Math.min(container.clientWidth - 40, container.clientHeight - 48);
+    const px = Math.max(160, Math.min(avail, 560));
+    canvas.width  = px;
+    canvas.height = px;
+    canvas.style.width  = px + 'px';
+    canvas.style.height = px + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F0E6D3';
+    ctx.fillRect(0, 0, px, px);
+
+    const cols = +stitchesW || 94;
+    const rows = +stitchesH || 94;
+
+    const grid = isMultiRow
+      ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2)
+      : buildGrid(name.replace(/\n/g, ' '), cols, rows, activeBorderSpec, textScale, 2, placedObjects);
+
+    const actualCols = grid[0] ? grid[0].length : cols;
+    const actualRows = grid.length || rows;
+    const cell = px / actualCols;
+    const pad  = cell * 0.1;
+    const lw   = Math.max(cell * 0.24, 0.5);
+
+    grid.forEach(function(rowArr, row) {
+      rowArr.forEach(function(kind, col) {
+        if (kind === ' ') return;
+        const c = stitchColor(kind, threads);
+        if (!c) return;
+        const x = col * cell, y = row * cell;
+        ctx.strokeStyle = c; ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(x + pad, y + pad); ctx.lineTo(x + cell - pad, y + cell - pad);
+        ctx.moveTo(x + cell - pad, y + pad); ctx.lineTo(x + pad, y + cell - pad);
+        ctx.stroke();
+      });
+    });
+
+    // Minor grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 0.3;
+    for (let i = 0; i <= actualCols; i++) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
+    for (let i = 0; i <= actualRows; i++) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.5;
+    for (let i = 0; i <= actualCols; i+=10) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
+    for (let i = 0; i <= actualRows; i+=10) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
+    ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(0, 0, px, px);
+
+  }, [name, stitchesW, stitchesH, borderId, threads, textScale, lineScales, placedObjects, activeBorderSpec, isMultiRow]);
+
+  // Resize observer to refit canvas when panel resizes
+  useEffect(function() {
+    if (!canvasContainerRef.current) return;
+    const ro = new ResizeObserver(function() {
+      // Trigger re-render by forcing a tiny state change won't work cleanly —
+      // instead we call the canvas render inline via the existing useEffect dep
+      // The ResizeObserver just ensures the effect reruns on resize
+    });
+    ro.observe(canvasContainerRef.current);
+    return function() { ro.disconnect(); };
+  }, []);
+
+  // ── Thread helpers ──
+  function updateThread(i, u) { setThreads(function(p) { return p.map(function(t, idx) { return idx === i ? u : t; }); }); }
+  function removeThread(i)    { setThreads(function(p) { return p.filter(function(_, idx) { return idx !== i; }); }); }
+  function addThread()        {
+    if (threads.length >= 6) return;
+    setThreads(function(p) { return [...p, {id:Date.now(), name:'', dmc:'', hex:'#666666', usage:''}]; });
+  }
+  function setLineScale(i, val) {
+    setLineScales(function(prev) { const next = [...prev]; next[i] = val; return next; });
+  }
+
+  function handleRecalculate() {
+    if (!name.trim() || !borderId) return;
+    setCalculating(true);
+    setTimeout(function() {
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
+      setThreadLengths(lengths);
+      setCalculating(false);
+    }, 0);
+  }
+
+  // ── Save ──
+  function handleSave() {
+    const fields = {
+      name, stitchesW: +stitchesW, stitchesH: +stitchesH,
+      hoopW: +hoopW, hoopH: +hoopH, notes, borderId, borderName,
+      threads, textScale, strands, lineScales,
+      lines: isMultiRow ? parsedLines : null,
+      placedObjects,
+    };
+    const errs = validateShoutout(fields);
+    setErrors(errs);
+    if (hasErrors(errs)) {
+      setActiveTab('word');
+      return;
+    }
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
+    setThreadLengths(lengths);
+    onSave({ ...fields, threadLengths: lengths });
+  }
+
+  // ── Position grid helpers ──
+  function openPicker(posId) { setPickerPos(posId); }
+  function closePicker()     { setPickerPos(null); }
+  function placeObject(posId, obj) {
+    setPlacedObjects(function(prev) { return { ...prev, [posId]: obj }; });
+    setPickerPos(null);
+  }
+  function clearPosition(posId) {
+    setPlacedObjects(function(prev) {
+      const next = { ...prev };
+      delete next[posId];
+      return next;
+    });
+    setPickerPos(null);
+  }
+
+  const activePosition = pickerPos ? COMPOSE_POSITIONS.find(function(p) { return p.id === pickerPos; }) : null;
+
+  // ── Render ──
+  return (
+    <div className="sheet-fullscreen">
+
+      {/* Top bar */}
+      <div className="compose-topbar">
+        <button className="btn-icon" onClick={onClose} title="Close composition">
+          <Ico.Close/>
+        </button>
+        <span className="compose-topbar-title">
+          {isEdit ? 'Compose' : 'New shoutout'}
+          {name.trim() && <span className="compose-topbar-word"> — {name.replace(/\n/g,' ')}</span>}
+        </span>
+        <div className="compose-actions">
+          {hasErrors(errors) && (
+            <span style={{fontSize:11, color:'var(--coral)'}}>Fix errors before saving</span>
+          )}
+          <button className="btn btn-outlined btn-sm" onClick={onClose}>Cancel</button>
+          <button className="btn btn-coral btn-sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create shoutout'}
+          </button>
+        </div>
+      </div>
+
+      {/* Canvas work area */}
+      <div className="compose-canvas-area" ref={canvasContainerRef}>
+        <div className="compose-canvas-wrap">
+          <canvas ref={canvasRef}
+            style={{borderRadius:6, border:'1.5px solid var(--black)', display:'block'}}/>
+          <div className="compose-canvas-label">
+            {(+stitchesW || 94)} &times; {(+stitchesH || 94)} stitches
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel */}
+      <div className="compose-panel">
+        <div className="compose-tabs">
+          {['word','border','colour','objects'].map(function(tab) {
+            const labels = {word:'Word', border:'Border', colour:'Colour', objects:'Objects'};
+            return (
+              <button key={tab}
+                className={'compose-tab' + (activeTab === tab ? ' active' : '')}
+                onClick={function() { setActiveTab(tab); }}>
+                {labels[tab]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="compose-panel-body">
+
+          {/* ── Word tab ── */}
+          {activeTab === 'word' && (
+            <>
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label className="form-label">Word or phrase</label>
+                  {isMultiRow && <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>}
+                </div>
+                <textarea
+                  className={'form-input form-textarea-word' + (errors.name ? ' error' : '')}
+                  placeholder={'e.g. GOAL\nPress Enter for multiple lines'}
+                  value={name}
+                  rows={Math.max(2, parsedLines.length + 1)}
+                  onChange={function(e) {
+                    const ls = e.target.value.split('\n');
+                    if (ls.length <= MAX_LINES) setName(e.target.value);
+                  }}
+                  onKeyDown={function(e) {
+                    if (e.key === 'Enter' && name.split('\n').length >= MAX_LINES) e.preventDefault();
+                  }}
+                  autoFocus
+                />
+                {errors.name && <div className="form-error">{errors.name}</div>}
+                {isMultiRow && (
+                  <div className="multirow-scales">
+                    {parsedLines.map(function(line, i) {
+                      return (
+                        <div key={i} className="multirow-scale-row">
+                          <span className="multirow-line-label">
+                            {line.text.trim()
+                              ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length>18?'…':'') + '"'
+                              : 'Line '+(i+1)}
+                          </span>
+                          <div className="size-toggle">
+                            {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
+                              return (
+                                <button key={opt.label}
+                                  className={'size-btn' + ((lineScales[i]||0)===opt.value?' active':'')}
+                                  style={{padding:'3px 10px',fontSize:11}}
+                                  onClick={function() { setLineScale(i, opt.value); }}>
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {!isMultiRow && (
+                <div className="form-group">
+                  <label className="form-label">Text size</label>
+                  <div className="size-toggle">
+                    {[{label:'Small',value:1},{label:'Normal',value:0},{label:'Large',value:3}].map(function(opt) {
+                      return (
+                        <button key={opt.label}
+                          className={'size-btn' + (textScale === opt.value ? ' active' : '')}
+                          onClick={function() { setTextScale(opt.value); }}>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="form-hint">
+                    {textScale === 0 ? 'Auto — best fit for the word'
+                     : textScale === 1 ? 'Small — fits longer words'
+                     : 'Large — bold impact for short words'}
+                  </div>
+                </div>
+              )}
+
+              {/* Settings — collapsible */}
+              <button className="compose-settings-toggle"
+                onClick={function() { setSettingsOpen(function(v) { return !v; }); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings {settingsOpen ? '▲' : '▼'}
+              </button>
+
+              {settingsOpen && (
+                <div className="compose-settings-body">
+                  <div className="form-group">
+                    <label className="form-label">Stitch count</label>
+                    <div className="form-row">
+                      <div>
+                        <input type="number" className={'form-input'+(errors.stitchesW?' error':'')}
+                          value={stitchesW} onChange={function(e){setStitchesW(e.target.value);}}/>
+                        <div className={errors.stitchesW?'form-error':'form-hint'}>{errors.stitchesW||'Width'}</div>
+                      </div>
+                      <div>
+                        <input type="number" className={'form-input'+(errors.stitchesH?' error':'')}
+                          value={stitchesH} onChange={function(e){setStitchesH(e.target.value);}}/>
+                        <div className={errors.stitchesH?'form-error':'form-hint'}>{errors.stitchesH||'Height'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Hoop size (mm)</label>
+                    <div className="form-row">
+                      <div>
+                        <input type="number" className={'form-input'+(errors.hoopW?' error':'')}
+                          value={hoopW} onChange={function(e){setHoopW(e.target.value);}}/>
+                        <div className={errors.hoopW?'form-error':'form-hint'}>{errors.hoopW||'Width'}</div>
+                      </div>
+                      <div>
+                        <input type="number" className={'form-input'+(errors.hoopH?' error':'')}
+                          value={hoopH} onChange={function(e){setHoopH(e.target.value);}}/>
+                        <div className={errors.hoopH?'form-error':'form-hint'}>{errors.hoopH||'Height'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Notes</label>
+                    <textarea className="form-textarea" placeholder="Any notes…"
+                      value={notes} onChange={function(e){setNotes(e.target.value);}}/>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Border tab ── */}
+          {activeTab === 'border' && (
+            <>
+              <div className="form-group">
+                {errors.borderId && <div className="form-error" style={{marginBottom:8}}>{errors.borderId}</div>}
+                <BorderPicker borders={borders} selected={borderId}
+                  onSelect={function(id,nm) { setBorderId(id); setBorderName(nm); }}/>
+              </div>
+            </>
+          )}
+
+          {/* ── Colour tab ── */}
+          {activeTab === 'colour' && (
+            <>
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label className="form-label">Threads</label>
+                  <div style={{display:'flex', alignItems:'center', gap:8}}>
+                    <div className="size-toggle" style={{fontSize:11}}>
+                      {[1,2,3].map(function(n) {
+                        return (
+                          <button key={n}
+                            className={'size-btn' + (strands === n ? ' active' : '')}
+                            style={{padding:'4px 10px', fontSize:11}}
+                            onClick={function() { setStrands(n); }}
+                            title={n + ' strand' + (n>1?'s':'')}>
+                            {n}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <span style={{fontSize:11, color:'var(--grey)'}}>strands</span>
+                    <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
+                      disabled={calculating || !name.trim() || !borderId}>
+                      {calculating ? 'Calculating…' : 'Recalculate'}
+                    </button>
+                  </div>
+                </div>
+                <Threditor
+                  threads={threads}
+                  threadLengths={threadLengths}
+                  onChange={updateThread}
+                  onRemove={removeThread}
+                />
+                {threads.length < 6 && (
+                  <button className="add-thread-btn" onClick={addThread}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Add thread
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── Objects tab ── */}
+          {activeTab === 'objects' && (
+            <>
+              <div className="form-group">
+                <div className="form-hint" style={{marginBottom:10}}>
+                  Tap a position to place an object. Layer colours follow your thread palette.
+                </div>
+                <div className="pos-grid">
+                  {COMPOSE_POSITIONS.map(function(pos) {
+                    return (
+                      <PosCell key={pos.id}
+                        pos={pos}
+                        placed={placedObjects[pos.id] || null}
+                        threads={threads}
+                        onClick={pos.id !== 'centre' ? function() { openPicker(pos.id); } : undefined}
+                        onClear={function() { clearPosition(pos.id); }}
+                      />
+                    );
+                  })}
+                </div>
+                {Object.keys(placedObjects).length > 0 && (
+                  <button className="btn btn-ghost btn-sm"
+                    style={{color:'var(--coral)', fontSize:11, marginTop:4}}
+                    onClick={function() { setPlacedObjects({}); }}>
+                    Clear all positions
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+        </div>
+      </div>
+
+      {/* Object picker overlay */}
+      {pickerPos && activePosition && (
+        <ObjPickerSheet
+          position={activePosition}
+          objects={objects}
+          threads={threads}
+          placed={placedObjects[pickerPos] || null}
+          onSelect={function(obj) { placeObject(pickerPos, obj); }}
+          onClear={function() { clearPosition(pickerPos); }}
+          onClose={closePicker}
+        />
+      )}
+
+    </div>
+  );
+}

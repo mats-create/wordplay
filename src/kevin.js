@@ -92,6 +92,10 @@ Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.s
 
 Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 41 wide, max 11 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
+Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{colorSlot, pattern[]}] instead of a top-level pattern field. Each layer's colorSlot maps to a thread slot (primary/secondary/accent/border3/accent1/accent2), so the object renders in the actual thread colours of whichever shoutout uses it. Max 4 layers per object. Use createObject/updateObject with the layers field to create or update layered objects.
+
+Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. Objects placed at corners must be max 9x9 stitches; side positions accept max 41 wide x 9 tall (top/bottom) or 9 wide x 41 tall (left/right).
+
 Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
 }
 
@@ -309,6 +313,31 @@ const KEVIN_TOOLS = [
       required: ['id']
     }
   },
+  {
+    name: 'placeObject',
+    description: 'Place an object from the object library at a specific position on a shoutout. The object renders using the shoutout thread palette via its colorSlot assignments. Corner positions (topLeft/topRight/bottomLeft/bottomRight) accept max 9x9 objects. Side positions top/bottom accept max 41 wide x 9 tall; left/right accept max 9 wide x 41 tall.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shoutoutId: { type: 'string', description: 'Shoutout id from listShoutouts' },
+        positionId: { type: 'string', description: 'Position: topLeft, topRight, bottomLeft, bottomRight, top, bottom, left, right' },
+        objectId:   { type: 'string', description: 'Object id from listObjects' },
+      },
+      required: ['shoutoutId', 'positionId', 'objectId']
+    }
+  },
+  {
+    name: 'removeObject',
+    description: 'Remove a placed object from a specific position on a shoutout, restoring the border default motif at that position.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shoutoutId: { type: 'string', description: 'Shoutout id from listShoutouts' },
+        positionId: { type: 'string', description: 'Position to clear: topLeft, topRight, bottomLeft, bottomRight, top, bottom, left, right' },
+      },
+      required: ['shoutoutId', 'positionId']
+    }
+  },
 ];
 
 // ── Kevin undo stack (session only) ──────────────────────────────────────────
@@ -326,12 +355,19 @@ async function executeKevinTool(toolName, toolInput, appData) {
     const shoutouts = appData.shoutouts || [];
     if (shoutouts.length === 0) return 'No shoutouts in library yet.';
     return JSON.stringify(shoutouts.map(function(s) {
+      const placed = s.placedObjects || {};
+      const placedSummary = Object.keys(placed).length > 0
+        ? Object.keys(placed).map(function(pos) {
+            return pos + ': ' + (placed[pos].name || placed[pos].id || 'object');
+          }).join(', ')
+        : 'none';
       return {
         id: s.id, name: s.name,
         stitches: s.stitchesW + 'x' + s.stitchesH,
         hoop: s.hoopW + 'x' + s.hoopH + 'mm',
         border: s.borderName || 'none',
         threads: (s.threads || []).map(function(t) { return t.name + ' (' + t.dmc + ')'; }),
+        placedObjects: placedSummary,
         notes: s.notes || '',
       };
     }), null, 2);
@@ -598,6 +634,49 @@ async function executeKevinTool(toolName, toolInput, appData) {
       kevinLogUndo({ action: 'deleteObject', id, previous: current });
       return 'Object ' + id + ' deleted.';
     } catch(e) { return 'Error deleting object: ' + e.message; }
+  }
+
+  if (toolName === 'placeObject') {
+    try {
+      const { shoutoutId, positionId, objectId } = toolInput;
+      if (!shoutoutId || !positionId || !objectId) return 'Error: shoutoutId, positionId, and objectId are all required.';
+      const validPositions = ['topLeft','topRight','bottomLeft','bottomRight','top','bottom','left','right'];
+      if (!validPositions.includes(positionId)) return 'Error: invalid positionId. Must be one of: ' + validPositions.join(', ');
+      const shoutout = (appData.shoutouts || []).find(function(s) { return s.id === shoutoutId; });
+      if (!shoutout) return 'Error: shoutout not found with id: ' + shoutoutId;
+      const obj = (appData.objects || []).find(function(o) { return o.id === objectId; });
+      if (!obj) return 'Error: object not found with id: ' + objectId;
+      const current = shoutout;
+      const currentPlaced = Object.assign({}, shoutout.placedObjects || {});
+      // Normalise legacy pattern-only objects to layers format before storing
+      const normObj = obj.layers ? obj : { ...obj, layers: [{ colorSlot: 'primary', pattern: obj.pattern || [] }] };
+      currentPlaced[positionId] = normObj;
+      await fb.updateDoc(
+        fb.doc(fb.db, 'users', uid, 'shoutouts', shoutoutId),
+        { placedObjects: currentPlaced, updatedAt: fb.serverTimestamp() }
+      );
+      kevinLogUndo({ action: 'updateShoutout', id: shoutoutId, uid, previous: current });
+      return 'Placed "' + obj.name + '" at ' + positionId + ' on shoutout "' + shoutout.name + '".';
+    } catch(e) { return 'Error placing object: ' + e.message; }
+  }
+
+  if (toolName === 'removeObject') {
+    try {
+      const { shoutoutId, positionId } = toolInput;
+      if (!shoutoutId || !positionId) return 'Error: shoutoutId and positionId are required.';
+      const shoutout = (appData.shoutouts || []).find(function(s) { return s.id === shoutoutId; });
+      if (!shoutout) return 'Error: shoutout not found with id: ' + shoutoutId;
+      const current = shoutout;
+      const currentPlaced = Object.assign({}, shoutout.placedObjects || {});
+      if (!currentPlaced[positionId]) return 'No object placed at ' + positionId + ' on this shoutout.';
+      delete currentPlaced[positionId];
+      await fb.updateDoc(
+        fb.doc(fb.db, 'users', uid, 'shoutouts', shoutoutId),
+        { placedObjects: currentPlaced, updatedAt: fb.serverTimestamp() }
+      );
+      kevinLogUndo({ action: 'updateShoutout', id: shoutoutId, uid, previous: current });
+      return 'Removed object from ' + positionId + ' on shoutout "' + shoutout.name + '".';
+    } catch(e) { return 'Error removing object: ' + e.message; }
   }
 
   return 'Unknown tool: ' + toolName;

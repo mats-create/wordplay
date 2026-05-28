@@ -23,6 +23,7 @@ function App() {
   const [objects,       setObjects]       = useState([]);
   const [selObject,     setSelObject]     = useState(null);
   const [editObject,    setEditObject]    = useState(null);
+  const [composeShoutout, setComposeShoutout] = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -279,6 +280,36 @@ function App() {
   }
   async function handleSignOut() { await fb.signOut(fb.auth); }
 
+  // ── Save from ComposeSheet ──
+  async function saveCompose(data) {
+    setSaving(true);
+    try {
+      const border = borders.find(function(b) { return b.id === data.borderId; });
+      const borderSpec = (border && border.spec) ? border.spec
+                       : (BORDER_SPECS[border && border.style] || null);
+      const fullData = {
+        ...data,
+        borderStyle: border ? border.style : 'british',
+        borderSpec:  borderSpec,
+      };
+      if (composeShoutout && composeShoutout !== 'new') {
+        await fb.updateDoc(
+          fb.doc(fb.db,'users',authUser.uid,'shoutouts',composeShoutout.id),
+          {...fullData, updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Shoutout updated');
+      } else {
+        await fb.addDoc(
+          fb.collection(fb.db,'users',authUser.uid,'shoutouts'),
+          {...fullData, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Shoutout created');
+      }
+      setComposeShoutout(null); setSelShoutout(null);
+    } catch(e) { showToast('Something went wrong — try again'); }
+    finally { setSaving(false); }
+  }
+
   // ── Save shoutout ──
   async function saveShoutout(data) {
     setSaving(true);
@@ -504,6 +535,7 @@ function App() {
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
           onEdit={function() { setEditShoutout(selShoutout); }}
+          onCompose={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
           onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
           folders={shoutoutFolders}
           onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
@@ -544,6 +576,15 @@ function App() {
           initial={editObject === 'new' ? null : editObject}
           onSave={saveObject}
           onClose={function() { setEditObject(null); }}
+          saving={saving}/>
+      )}
+      {composeShoutout && (
+        <ComposeSheet
+          initial={composeShoutout === 'new' ? null : composeShoutout}
+          borders={borders}
+          objects={objects}
+          onSave={saveCompose}
+          onClose={function() { setComposeShoutout(null); }}
           saving={saving}/>
       )}
       {confirmDel && (
