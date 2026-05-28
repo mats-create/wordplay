@@ -1685,7 +1685,7 @@ Object library: per-user collection of reusable binary stitch patterns. Objects 
 
 Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{colorSlot, pattern[]}] instead of a top-level pattern field. Each layer's colorSlot maps to a thread slot (primary/secondary/accent/border3/accent1/accent2), so the object renders in the actual thread colours of whichever shoutout uses it. Max 4 layers per object. Use createObject/updateObject with the layers field to create or update layered objects.
 
-Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. Objects placed at corners must be max 9x9 stitches; side positions accept max 41 wide x 9 tall (top/bottom) or 9 wide x 41 tall (left/right).
+Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. All 8 positions accept objects up to 42×42 stitches — the canvas is the visual guide for overlap or fit issues.
 
 Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
 }
@@ -3955,277 +3955,6 @@ function BorderPicker({ borders, selected, onSelect }) {
           <div className="border-option-label">{b.name}</div>
         </div>
       ))}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   SHOUTOUT FORM
-═══════════════════════════════════════════════════════════════════ */
-function ShoutoutForm({ initial, borders, onSave, onClose, saving }) {
-  const isEdit = !!initial;
-  // Reconstruct name with newlines from lines array if editing a multi-row shoutout
-  const initName = (initial && initial.lines && initial.lines.length > 1)
-    ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
-    : (initial ? initial.name : '');
-  const [name,      setName]      = useState(initName);
-  const [stitchesW, setStitchesW] = useState(initial?initial.stitchesW:94);
-  const [stitchesH, setStitchesH] = useState(initial?initial.stitchesH:94);
-  const [hoopW,     setHoopW]     = useState(initial?initial.hoopW:280);
-  const [hoopH,     setHoopH]     = useState(initial?initial.hoopH:250);
-  const [notes,     setNotes]     = useState(initial?initial.notes:'');
-  const [borderId,  setBorderId]  = useState(initial?initial.borderId:'');
-  const [borderName,setBorderName]= useState(initial?initial.borderName:'');
-  const [threads,   setThreads]   = useState(
-    initial&&initial.threads&&initial.threads.length>0 ? initial.threads : DEFAULT_THREADS
-  );
-  const [threadLengths, setThreadLengths] = useState(initial&&initial.threadLengths ? initial.threadLengths : []);
-  const [calculating,   setCalculating]   = useState(false);
-  const [strands,       setStrands]       = useState(initial&&initial.strands ? initial.strands : 2);
-  const [textScale,     setTextScale]     = useState(initial&&initial.textScale ? initial.textScale : 0);
-  const [lineScales,    setLineScales]    = useState(initial&&initial.lineScales ? initial.lineScales : [0,0,0,0]);
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
-
-  const MAX_LINES = 4;
-
-  // Parse name into lines (split on newline, max 4)
-  const parsedLines = name.split('\n').slice(0, MAX_LINES).map(function(text, i) {
-    return { text: text, scale: lineScales[i] || 0 };
-  });
-  const isMultiRow = name.includes('\n') && parsedLines.length > 1;
-
-  function setLineScale(i, val) {
-    setLineScales(function(prev) {
-      const next = [...prev]; next[i] = val; return next;
-    });
-  }
-
-  function touch(field) { setTouched(p=>({...p,[field]:true})); }
-
-  function updateThread(i,u) { setThreads(p=>p.map((t,idx)=>idx===i?u:t)); }
-  function removeThread(i)   { setThreads(p=>p.filter((_,idx)=>idx!==i)); }
-  function addThread()       { setThreads(p=>[...p,{id:Date.now(),name:'',dmc:'',hex:'#666666',usage:''}]); }
-
-  function handleRecalculate() {
-    if (!name.trim() || !borderId) return;
-    setCalculating(true);
-    const border = borders.find(function(b) { return b.id === borderId; });
-    const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
-    setTimeout(function() {
-      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale, strands);
-      setThreadLengths(lengths);
-      setCalculating(false);
-    }, 0);
-  }
-
-  function getLengthCm(i) {
-    const entry = threadLengths[i];
-    return entry ? entry.cm : null;
-  }
-
-  function handleSave() {
-    const fields = {name,stitchesW:+stitchesW,stitchesH:+stitchesH,
-      hoopW:+hoopW,hoopH:+hoopH,notes,borderId,borderName,threads,
-      textScale,strands,lineScales,
-      lines: isMultiRow ? parsedLines : null};
-    const errs = validateShoutout(fields);
-    setErrors(errs);
-    setTouched({name:true,stitchesW:true,stitchesH:true,hoopW:true,hoopH:true,borderId:true});
-    if (hasErrors(errs)) return;
-    const border = borders.find(function(b) { return b.id === borderId; });
-    const borderSpec = border && (border.spec || BORDER_SPECS[border.style]);
-    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, borderSpec, threads, textScale, strands);
-    setThreadLengths(lengths);
-    onSave({...fields, threadLengths: lengths});
-  }
-
-  return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="sheet">
-        <div className="sheet-handle"/>
-        <div className="sheet-header">
-          <span className="sheet-title">{isEdit?'Edit shoutout':'New shoutout'}</span>
-          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
-        </div>
-        <div className="sheet-body">
-
-          <div className="form-group">
-            <div className="form-label-row">
-              <label className="form-label">Word or phrase</label>
-              {isMultiRow && <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>}
-            </div>
-            <textarea
-              className={'form-input form-textarea-word' + (touched.name&&errors.name?' error':'')}
-              placeholder={'e.g. GOAL!\nPress Enter for multiple lines (max 4)'}
-              value={name}
-              rows={Math.max(2, parsedLines.length + 1)}
-              onChange={function(e) {
-                const ls = e.target.value.split('\n');
-                if (ls.length > MAX_LINES) return;
-                setName(e.target.value);
-              }}
-              onKeyDown={function(e) {
-                if (e.key === 'Enter') {
-                  const ls = name.split('\n');
-                  if (ls.length >= MAX_LINES) e.preventDefault();
-                }
-              }}
-              onBlur={function() { touch('name'); }}
-              autoFocus
-            />
-            {touched.name&&errors.name && <div className="form-error">{errors.name}</div>}
-            {isMultiRow && (
-              <div className="multirow-scales">
-                {parsedLines.map(function(line, i) {
-                  return (
-                    <div key={i} className="multirow-scale-row">
-                      <span className="multirow-line-label">
-                        {line.text.trim() ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length>18?'…':'') + '"' : 'Line '+(i+1)}
-                      </span>
-                      <div className="size-toggle">
-                        {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
-                          return (
-                            <button key={opt.label}
-                              className={'size-btn' + ((lineScales[i]||0)===opt.value?' active':'')}
-                              style={{padding:'3px 10px',fontSize:11}}
-                              onClick={function() { setLineScale(i, opt.value); }}>
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Single-row text size — hidden when multi-row */}
-          {!isMultiRow && (
-          <div className="form-group">
-            <label className="form-label">Text size</label>
-            <div className="size-toggle">
-              {[{label:'Small', value:1},{label:'Normal', value:0},{label:'Large', value:3}].map(function(opt) {
-                return (
-                  <button key={opt.label}
-                    className={'size-btn' + (textScale === opt.value ? ' active' : '')}
-                    onClick={function() { setTextScale(opt.value); }}>
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="form-hint">
-              {textScale === 0 ? 'Auto — best fit for the word' :
-               textScale === 1 ? 'Small — fits longer words' :
-               'Large — bold impact for short words'}
-            </div>
-          </div>
-          )}
-
-          <div className="form-group">
-            <label className="form-label">Border style</label>
-            <BorderPicker borders={borders} selected={borderId}
-              onSelect={(id,nm)=>{setBorderId(id);setBorderName(nm);touch('borderId');}}/>
-            {touched.borderId&&errors.borderId && <div className="form-error">{errors.borderId}</div>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Stitch count</label>
-            <div className="form-row">
-              <div>
-                <input type="number" className={'form-input'+(touched.stitchesW&&errors.stitchesW?' error':'')}
-                  value={stitchesW} onChange={e=>setStitchesW(e.target.value)} onBlur={()=>touch('stitchesW')}/>
-                <div className={touched.stitchesW&&errors.stitchesW?'form-error':'form-hint'}>
-                  {touched.stitchesW&&errors.stitchesW?errors.stitchesW:'Width (stitches)'}
-                </div>
-              </div>
-              <div>
-                <input type="number" className={'form-input'+(touched.stitchesH&&errors.stitchesH?' error':'')}
-                  value={stitchesH} onChange={e=>setStitchesH(e.target.value)} onBlur={()=>touch('stitchesH')}/>
-                <div className={touched.stitchesH&&errors.stitchesH?'form-error':'form-hint'}>
-                  {touched.stitchesH&&errors.stitchesH?errors.stitchesH:'Height (stitches)'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Hoop size (mm)</label>
-            <div className="form-row">
-              <div>
-                <input type="number" className={'form-input'+(touched.hoopW&&errors.hoopW?' error':'')}
-                  value={hoopW} onChange={e=>setHoopW(e.target.value)} onBlur={()=>touch('hoopW')}/>
-                <div className={touched.hoopW&&errors.hoopW?'form-error':'form-hint'}>
-                  {touched.hoopW&&errors.hoopW?errors.hoopW:'Width (mm)'}
-                </div>
-              </div>
-              <div>
-                <input type="number" className={'form-input'+(touched.hoopH&&errors.hoopH?' error':'')}
-                  value={hoopH} onChange={e=>setHoopH(e.target.value)} onBlur={()=>touch('hoopH')}/>
-                <div className={touched.hoopH&&errors.hoopH?'form-error':'form-hint'}>
-                  {touched.hoopH&&errors.hoopH?errors.hoopH:'Height (mm)'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <div className="form-label-row">
-              <label className="form-label">Threads</label>
-              <div style={{display:'flex', alignItems:'center', gap:8}}>
-                <div className="size-toggle" style={{fontSize:11}}>
-                  {[1,2,3].map(function(n) {
-                    return (
-                      <button key={n}
-                        className={'size-btn' + (strands === n ? ' active' : '')}
-                        style={{padding:'4px 10px', fontSize:11}}
-                        onClick={function() { setStrands(n); }}
-                        title={n + ' strand' + (n > 1 ? 's' : '')}>
-                        {n}
-                      </button>
-                    );
-                  })}
-                </div>
-                <span style={{fontSize:11, color:'var(--grey)'}}>strands</span>
-                <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
-                  disabled={calculating || !name.trim() || !borderId}>
-                  {calculating ? 'Calculating…' : 'Recalculate'}
-                </button>
-              </div>
-            </div>
-            <Threditor
-              threads={threads}
-              threadLengths={threadLengths}
-              onChange={function(i, u) { updateThread(i, u); }}
-              onRemove={function(i) { removeThread(i); }}
-            />
-            {threads.length < 6 && (
-              <button className="add-thread-btn" onClick={addThread}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Add thread
-              </button>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Notes</label>
-            <textarea className="form-textarea" placeholder="Any notes about this shoutout…"
-              value={notes} onChange={e=>setNotes(e.target.value)}/>
-          </div>
-
-          <div className="form-actions">
-            <button className="btn btn-outlined" onClick={onClose}>Cancel</button>
-            <button className="btn btn-coral" onClick={handleSave} disabled={saving}>
-              {saving?'Saving…':isEdit?'Save changes':'Create shoutout'}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -6790,7 +6519,6 @@ function App() {
   const [borders,     setBorders]     = useState([]);
   const [selShoutout, setSelShoutout] = useState(null);
   const [selBorder,   setSelBorder]   = useState(null);
-  const [editShoutout,setEditShoutout]= useState(null);
   const [editBorder,  setEditBorder]  = useState(null);
   const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
@@ -7126,40 +6854,6 @@ function App() {
   }
 
   // ── Save shoutout ──
-  async function saveShoutout(data) {
-    setSaving(true);
-    try {
-      const border = borders.find(function(b) { return b.id === data.borderId; });
-      const borderSpec = (border && border.spec) ? border.spec
-                       : (BORDER_SPECS[border && border.style] || null);
-      const fullData = {
-        ...data,
-        borderStyle: border ? border.style : 'british',
-        borderSpec:  borderSpec,
-      };
-      if (editShoutout && editShoutout !== 'new') {
-        await fb.updateDoc(
-          fb.doc(fb.db,'users',authUser.uid,'shoutouts',editShoutout.id),
-          {...fullData, updatedAt: fb.serverTimestamp()}
-        );
-        showToast('Shoutout updated');
-      } else {
-        await fb.addDoc(
-          fb.collection(fb.db,'users',authUser.uid,'shoutouts'),
-          {...fullData, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
-        );
-        showToast('Shoutout created');
-      }
-      setEditShoutout(null); setSelShoutout(null);
-      const word = data.name;
-      if (word && !tmCache[word]) {
-        checkTrademark(word, kevinContext).then(function(result) {
-          if (result) setTmCache(function(prev) { return {...prev, [word]: result}; });
-        }).catch(function() {});
-      }
-    } catch(e) { showToast('Something went wrong — try again'); }
-    finally { setSaving(false); }
-  }
 
   // ── Save border ──
   async function saveBorder(data) {
@@ -7358,23 +7052,16 @@ function App() {
       </div>
 
       {/* ── Modals ── */}
-      {selShoutout && !editShoutout && (
+      {selShoutout && !composeShoutout && (
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
-          onEdit={function() { setEditShoutout(selShoutout); }}
+          onEdit={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
           onCompose={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
           onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
           folders={shoutoutFolders}
           onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
       )}
-      {editShoutout && (
-        <ShoutoutForm
-          initial={editShoutout==='new' ? null : editShoutout}
-          borders={borders}
-          onSave={saveShoutout}
-          onClose={function() { setEditShoutout(null); }}
-          saving={saving}/>
-      )}
+
       {selBorder && !editBorder && (
         <BorderDetail border={selBorder}
           onClose={function() { setSelBorder(null); }}
