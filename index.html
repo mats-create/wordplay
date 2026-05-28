@@ -5713,15 +5713,15 @@ function SignInScreen({ onSignIn, error }) {
 
 // Position definitions for the 8 placement zones
 const COMPOSE_POSITIONS = [
-  {id:'topLeft',    label:'Top left',    isCorner:true,  maxW:9,  maxH:9},
-  {id:'top',        label:'Top',         isCorner:false, maxW:42, maxH:12},
-  {id:'topRight',   label:'Top right',   isCorner:true,  maxW:9,  maxH:9},
-  {id:'left',       label:'Left',        isCorner:false, maxW:12, maxH:42},
+  {id:'topLeft',    label:'Top left',    isCorner:true,  maxW:42, maxH:42},
+  {id:'top',        label:'Top',         isCorner:false, maxW:42, maxH:42},
+  {id:'topRight',   label:'Top right',   isCorner:true,  maxW:42, maxH:42},
+  {id:'left',       label:'Left',        isCorner:false, maxW:42, maxH:42},
   {id:'centre',     label:'',            isCorner:false, maxW:0,  maxH:0},
-  {id:'right',      label:'Right',       isCorner:false, maxW:12, maxH:42},
-  {id:'bottomLeft', label:'Bottom left', isCorner:true,  maxW:9,  maxH:9},
-  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:42, maxH:12},
-  {id:'bottomRight',label:'Bottom right',isCorner:true,  maxW:9,  maxH:9},
+  {id:'right',      label:'Right',       isCorner:false, maxW:42, maxH:42},
+  {id:'bottomLeft', label:'Bottom left', isCorner:true,  maxW:42, maxH:42},
+  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:42, maxH:42},
+  {id:'bottomRight',label:'Bottom right',isCorner:true,  maxW:42, maxH:42},
 ];
 
 // Render a small compound preview canvas for a layered object
@@ -5832,7 +5832,7 @@ function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear,
           <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
         </div>
         <div className="obj-picker-hint">
-          Max {position.maxW} wide &times; {position.maxH} tall stitches
+          Tap an object to place it. Any overlap with borders or text will show in the canvas.
         </div>
         <div className="obj-list">
           {objects.length === 0 && (
@@ -5845,23 +5845,20 @@ function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear,
             const pw = obj.layers && obj.layers[0] && obj.layers[0].pattern[0]
               ? obj.layers[0].pattern[0].length
               : (obj.pattern && obj.pattern[0] ? obj.pattern[0].length : 0);
-            const fits = pw <= position.maxW && ph <= position.maxH;
             // Normalise legacy (pattern-only) objects to layers format for preview
             const normObj = obj.layers ? obj : { ...obj, layers: [{ colorSlot: 'primary', pattern: obj.pattern || [] }] };
             const cv = objectPreviewCanvas(normObj, 64, threads);
             const layerCount = normObj.layers.length;
             return (
               <div key={obj.id}
-                className={'obj-card' + (!fits ? ' disabled' : '')}
-                title={!fits ? 'Too large for this position' : ''}
-                onClick={fits ? function() { onSelect(normObj); } : undefined}>
+                className="obj-card"
+                onClick={function() { onSelect(normObj); }}>
                 <canvas width={64} height={64} ref={function(el) {
                   if (el) { el.width = cv.width; el.height = cv.height; el.getContext('2d').drawImage(cv, 0, 0); }
                 }}/>
                 <div className="obj-card-name">{obj.name}</div>
                 <div className="obj-card-slots">
-                  {layerCount === 1 ? '1 colour slot' : layerCount + ' colour slots'}
-                  {!fits && <span> &middot; too large</span>}
+                  {pw}×{ph} stitches · {layerCount === 1 ? '1 colour' : layerCount + ' colours'}
                 </div>
               </div>
             );
