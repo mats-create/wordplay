@@ -6,7 +6,6 @@ function App() {
   const [borders,     setBorders]     = useState([]);
   const [selShoutout, setSelShoutout] = useState(null);
   const [selBorder,   setSelBorder]   = useState(null);
-  const [editShoutout,setEditShoutout]= useState(null);
   const [editBorder,  setEditBorder]  = useState(null);
   const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
@@ -342,40 +341,6 @@ function App() {
   }
 
   // ── Save shoutout ──
-  async function saveShoutout(data) {
-    setSaving(true);
-    try {
-      const border = borders.find(function(b) { return b.id === data.borderId; });
-      const borderSpec = (border && border.spec) ? border.spec
-                       : (BORDER_SPECS[border && border.style] || null);
-      const fullData = {
-        ...data,
-        borderStyle: border ? border.style : 'british',
-        borderSpec:  borderSpec,
-      };
-      if (editShoutout && editShoutout !== 'new') {
-        await fb.updateDoc(
-          fb.doc(fb.db,'users',authUser.uid,'shoutouts',editShoutout.id),
-          {...fullData, updatedAt: fb.serverTimestamp()}
-        );
-        showToast('Shoutout updated');
-      } else {
-        await fb.addDoc(
-          fb.collection(fb.db,'users',authUser.uid,'shoutouts'),
-          {...fullData, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
-        );
-        showToast('Shoutout created');
-      }
-      setEditShoutout(null); setSelShoutout(null);
-      const word = data.name;
-      if (word && !tmCache[word]) {
-        checkTrademark(word, kevinContext).then(function(result) {
-          if (result) setTmCache(function(prev) { return {...prev, [word]: result}; });
-        }).catch(function() {});
-      }
-    } catch(e) { showToast('Something went wrong — try again'); }
-    finally { setSaving(false); }
-  }
 
   // ── Save border ──
   async function saveBorder(data) {
@@ -574,23 +539,16 @@ function App() {
       </div>
 
       {/* ── Modals ── */}
-      {selShoutout && !editShoutout && (
+      {selShoutout && !composeShoutout && (
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
-          onEdit={function() { setEditShoutout(selShoutout); }}
+          onEdit={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
           onCompose={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
           onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
           folders={shoutoutFolders}
           onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
       )}
-      {editShoutout && (
-        <ShoutoutForm
-          initial={editShoutout==='new' ? null : editShoutout}
-          borders={borders}
-          onSave={saveShoutout}
-          onClose={function() { setEditShoutout(null); }}
-          saving={saving}/>
-      )}
+
       {selBorder && !editBorder && (
         <BorderDetail border={selBorder}
           onClose={function() { setSelBorder(null); }}
