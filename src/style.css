@@ -374,6 +374,12 @@ html, body, #root {
 /* ── Border picker ── */
 .border-picker { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .border-picker::-webkit-scrollbar { height: 3px; }
+
+/* Border picker inside compose panel — grid not scroll row */
+.compose-panel .border-picker {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px; overflow-x: visible; padding-bottom: 0;
+}
 .border-option {
   flex-shrink: 0; width: 88px; cursor: pointer;
   border: 2px solid var(--lgrey); border-radius: var(--radius-sm);

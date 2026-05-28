@@ -1488,7 +1488,28 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
   function openObjPicker(posId) { setPickerPos(posId); }
   function closeObjPicker() { setPickerPos(null); }
   function placeObject(posId, obj) {
-    setPlacedObjects(function(prev) { return Object.assign({}, prev, {[posId]: obj}); });
+    // Normalise to plain layers format so canvas renders immediately
+    // and Firestore serialisation works cleanly
+    const layers = obj.layers
+      ? obj.layers.map(function(l) {
+          return {
+            colorSlot: l.colorSlot || 'primary',
+            pattern: (l.pattern || []).map(function(r) {
+              return typeof r === 'string' ? r : r.join('');
+            }),
+          };
+        })
+      : [{ colorSlot: 'primary', pattern: (obj.pattern || []).map(function(r) {
+          return typeof r === 'string' ? r : r.join('');
+        }) }];
+    const normObj = {
+      id: obj.id || posId,
+      name: obj.name || '',
+      width: obj.width || (layers[0] && layers[0].pattern[0] ? layers[0].pattern[0].length : 0),
+      height: obj.height || (layers[0] ? layers[0].pattern.length : 0),
+      layers: layers,
+    };
+    setPlacedObjects(function(prev) { return Object.assign({}, prev, {[posId]: normObj}); });
     setPickerPos(null);
   }
   function clearPosition(posId) {
