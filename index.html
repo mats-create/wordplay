@@ -308,39 +308,14 @@ html, body, #root {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 6px; }
 
-/* ── Threditor ── */
-.threditor { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
-.threditor-slot {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 10px; border-radius: var(--radius-sm);
-  border: 1px solid var(--lgrey); background: var(--white);
-  transition: border-color 0.15s;
-}
-.threditor-slot:hover { border-color: #bbb; }
-.threditor-swatch {
-  width: 40px; height: 40px; border-radius: 8px;
-  flex-shrink: 0; padding: 0;
-  transition: transform 0.12s, box-shadow 0.12s;
-}
-.threditor-swatch-btn:hover { transform: scale(1.08); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
-.threditor-swatch:disabled { cursor: default; }
-.threditor-info { flex: 1; min-width: 0; }
-.threditor-slot-label {
-  display: flex; align-items: baseline; gap: 5px; margin-bottom: 2px;
-}
-.threditor-slot-name {
-  font-size: 10px; font-weight: 700; color: var(--black);
-  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
-}
-.threditor-slot-hint { font-size: 10px; color: var(--grey); }
-.threditor-colour-name { font-size: 13px; font-weight: 500; color: var(--black); line-height: 1.3; }
-.threditor-dmc { font-size: 11px; color: var(--grey); }
-.threditor-empty { color: var(--lgrey); font-style: italic; }
-.threditor-right {
-  display: flex; flex-direction: column; align-items: flex-end;
-  gap: 4px; flex-shrink: 0;
-}
-.threditor-length { font-size: 11px; font-weight: 500; color: var(--grey); white-space: nowrap; }
+/* ── Thread editor ── */
+.thread-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 6px; }
+.thread-row { display: grid; grid-template-columns: 32px 1fr 1fr 64px auto;
+  gap: 6px; align-items: center; }
+.thread-color-btn { width: 32px; height: 32px; border-radius: 6px;
+  border: 1.5px solid var(--lgrey); cursor: pointer; padding: 0;
+  position: relative; overflow: hidden; transition: transform 0.1s; }
+.thread-color-btn:hover { transform: scale(1.1); border-color: var(--black); }
 .thread-remove { width: 28px; height: 28px; border-radius: 50%; background: transparent;
   border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
   color: var(--grey); transition: all 0.15s; }
@@ -422,6 +397,8 @@ html, body, #root {
 .btn-coral:hover:not(:disabled)    { background: #aa2900; }
 .btn-outlined { background: transparent; color: var(--black); border: 1.5px solid var(--lgrey); }
 .btn-outlined:hover:not(:disabled) { border-color: var(--black); background: var(--offwht); }
+.btn-tonal { background: var(--offwht); color: var(--black); border: 1.5px solid var(--lgrey); }
+.btn-tonal:hover:not(:disabled) { background: #E8E4DC; border-color: #999; }
 .btn-danger   { background: transparent; color: var(--coral); border: 1.5px solid var(--coral); }
 .btn-danger:hover:not(:disabled)   { background: #fff0ed; }
 .btn-ghost    { background: transparent; color: var(--grey); padding: 7px 10px; }
@@ -967,7 +944,19 @@ html, body, #root {
 .size-btn:hover { background: var(--offwht); color: var(--black); }
 .size-btn.active { background: var(--black); color: var(--white); }
 
-
+/* ── Thread slot labels ── */
+.thread-slot-label {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 10px; margin-bottom: 3px;
+}
+.thread-slot-label:first-child { margin-top: 0; }
+.thread-slot-name {
+  font-size: 11px; font-weight: 700; color: var(--black);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.thread-slot-hint {
+  font-size: 11px; color: var(--grey);
+}
 
 /* ── Kevin inline swatches ── */
 .kevin-swatch {
@@ -1119,54 +1108,6 @@ html, body, #root {
   line-height: 32px;
 }
 
-/* ── Object layer editor ── */
-.object-layer-tabs {
-  display: flex; align-items: center; gap: 4px;
-  flex-wrap: wrap; margin-bottom: 6px;
-}
-.object-layer-tab {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 10px; border-radius: 20px;
-  border: 1.5px solid var(--lgrey); background: var(--white);
-  font-family: inherit; font-size: 11px; font-weight: 500;
-  color: var(--grey); cursor: pointer; transition: all 0.15s;
-}
-.object-layer-tab:hover { border-color: var(--black); color: var(--black); }
-.object-layer-tab.active { background: var(--black); border-color: var(--black); color: var(--white); }
-.object-layer-tab-compound { font-style: italic; }
-.object-layer-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.3);
-}
-.object-layer-add {
-  width: 28px; height: 28px; border-radius: 50%;
-  border: 1.5px dashed var(--lgrey); background: transparent;
-  cursor: pointer; color: var(--grey);
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; flex-shrink: 0;
-}
-.object-layer-add:hover { border-color: var(--green); color: var(--green); }
-.object-layer-controls {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px; flex-wrap: wrap;
-}
-
-/* ── Object slot palette (detail view) ── */
-.object-slot-palette { display: flex; flex-direction: column; gap: 6px; }
-.object-slot-row {
-  display: flex; align-items: center; gap: 10px;
-}
-.object-slot-swatch {
-  width: 28px; height: 28px; border-radius: 6px;
-  border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;
-}
-.object-slot-info { display: flex; align-items: baseline; gap: 6px; }
-.object-slot-name {
-  font-size: 11px; font-weight: 700; color: var(--black);
-  text-transform: uppercase; letter-spacing: 0.5px;
-}
-.object-slot-hint { font-size: 11px; color: var(--grey); }
-
 /* ── Tile layer pattern editor (BorderForm) ── */
 .tile-layer-editor { display: flex; flex-direction: column; gap: 6px; }
 .tile-layer-row {
@@ -1194,6 +1135,162 @@ html, body, #root {
   padding: 4px 6px; border-radius: var(--radius-sm);
   border: 1px solid var(--lgrey); background: var(--white);
   color: var(--black); cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPOSE SHEET
+═══════════════════════════════════════════════════════════════════ */
+.sheet-fullscreen {
+  position: fixed; inset: 0; z-index: 110;
+  background: var(--offwht);
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: 48px 1fr;
+  overflow: hidden;
+}
+
+/* Top bar */
+.compose-topbar {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--lgrey);
+  flex-shrink: 0;
+}
+.compose-topbar-title {
+  font-size: 13px; font-weight: 700; color: var(--black);
+  flex: 1;
+}
+.compose-topbar-word {
+  font-size: 13px; color: var(--grey); font-weight: 400;
+}
+
+/* Canvas area */
+.compose-canvas-area {
+  background: #E8E2D8;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; overflow: hidden; position: relative;
+}
+.compose-canvas-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.compose-canvas-label {
+  font-size: 11px; color: var(--grey); letter-spacing: 0.3px;
+}
+
+/* Right panel */
+.compose-panel {
+  background: var(--white);
+  border-left: 1px solid var(--lgrey);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.compose-tabs {
+  display: flex; border-bottom: 1px solid var(--lgrey); flex-shrink: 0;
+}
+.compose-tab {
+  flex: 1; padding: 10px 4px; font-size: 11px; font-weight: 500;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--grey); border-bottom: 2px solid transparent;
+  transition: all 0.15s; font-family: inherit;
+}
+.compose-tab.active { color: var(--black); border-bottom-color: var(--black); }
+.compose-panel-body {
+  flex: 1; overflow-y: auto; padding: 14px 16px;
+}
+
+/* Settings drawer inside compose panel */
+.compose-settings-toggle {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 0; background: none; border: none;
+  font-family: inherit; font-size: 11px; font-weight: 500;
+  color: var(--grey); cursor: pointer; width: 100%;
+  border-top: 1px solid var(--lgrey); margin-top: 8px;
+}
+.compose-settings-toggle:hover { color: var(--black); }
+.compose-settings-body { padding-top: 12px; }
+
+/* Object position grid */
+.pos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px; aspect-ratio: 1; margin-bottom: 10px;
+}
+.pos-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pos-cell {
+  width: 100%; aspect-ratio: 1;
+  border: 1.5px dashed var(--lgrey); border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s; background: var(--white);
+  position: relative; overflow: hidden;
+}
+.pos-cell.centre { cursor: default; background: transparent; border-style: solid; opacity: 0.3; }
+.pos-cell:not(.centre):hover { border-color: #999; border-style: solid; }
+.pos-cell.occupied { border-style: solid; border-color: var(--black); }
+.pos-cell-plus { font-size: 18px; color: var(--lgrey); line-height: 1; transition: color 0.15s; }
+.pos-cell:not(.centre):hover .pos-cell-plus { color: #999; }
+.pos-cell canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pos-cell-clear {
+  position: absolute; top: 3px; right: 3px;
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--black); border: none; cursor: pointer;
+  color: #fff; font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s; line-height: 1;
+}
+.pos-cell.occupied:hover .pos-cell-clear { opacity: 1; }
+.pos-label { font-size: 9px; color: var(--grey); text-align: center; }
+
+/* Object picker sheet (full-screen overlay with side sheet) */
+.obj-picker-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  z-index: 200; display: none; align-items: flex-end; justify-content: flex-end;
+}
+.obj-picker-overlay.open { display: flex; }
+.obj-picker-sheet {
+  background: var(--white); width: 340px; height: 100vh;
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--lgrey);
+  box-shadow: -4px 0 20px rgba(0,0,0,0.12);
+}
+.obj-picker-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--lgrey);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.obj-picker-title { font-size: 14px; font-weight: 600; color: var(--black); }
+.obj-picker-hint {
+  padding: 8px 16px; font-size: 11px; color: var(--grey);
+  border-bottom: 1px solid var(--lgrey); flex-shrink: 0;
+}
+.obj-list {
+  flex: 1; overflow-y: auto; padding: 12px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-content: start;
+}
+.obj-card {
+  border: 1.5px solid var(--lgrey); border-radius: var(--radius);
+  padding: 10px; cursor: pointer; transition: all 0.15s; background: var(--white);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.obj-card:hover { border-color: var(--black); }
+.obj-card.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.obj-card canvas { border-radius: 4px; display: block; }
+.obj-card-name { font-size: 11px; font-weight: 500; color: var(--black); text-align: center; }
+.obj-card-slots { font-size: 10px; color: var(--grey); text-align: center; }
+.obj-picker-clear {
+  padding: 10px 16px; border-top: 1px solid var(--lgrey); flex-shrink: 0;
+}
+.obj-picker-clear button {
+  width: 100%; padding: 8px; border: 1px solid var(--lgrey);
+  border-radius: var(--radius); background: none; font-family: inherit;
+  font-size: 12px; color: var(--coral); cursor: pointer; transition: all 0.15s;
+}
+.obj-picker-clear button:hover { border-color: var(--coral); background: #fff0ed; }
+
+/* Compose action row */
+.compose-actions {
+  display: flex; align-items: center; gap: 8px; justify-content: flex-end;
 }
 </style>
 </head>
@@ -1526,6 +1623,10 @@ Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.s
 
 Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 41 wide, max 11 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
+Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{colorSlot, pattern[]}] instead of a top-level pattern field. Each layer's colorSlot maps to a thread slot (primary/secondary/accent/border3/accent1/accent2), so the object renders in the actual thread colours of whichever shoutout uses it. Max 4 layers per object. Use createObject/updateObject with the layers field to create or update layered objects.
+
+Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. Objects placed at corners must be max 9x9 stitches; side positions accept max 41 wide x 9 tall (top/bottom) or 9 wide x 41 tall (left/right).
+
 Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
 }
 
@@ -1743,6 +1844,31 @@ const KEVIN_TOOLS = [
       required: ['id']
     }
   },
+  {
+    name: 'placeObject',
+    description: 'Place an object from the object library at a specific position on a shoutout. The object renders using the shoutout thread palette via its colorSlot assignments. Corner positions (topLeft/topRight/bottomLeft/bottomRight) accept max 9x9 objects. Side positions top/bottom accept max 41 wide x 9 tall; left/right accept max 9 wide x 41 tall.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shoutoutId: { type: 'string', description: 'Shoutout id from listShoutouts' },
+        positionId: { type: 'string', description: 'Position: topLeft, topRight, bottomLeft, bottomRight, top, bottom, left, right' },
+        objectId:   { type: 'string', description: 'Object id from listObjects' },
+      },
+      required: ['shoutoutId', 'positionId', 'objectId']
+    }
+  },
+  {
+    name: 'removeObject',
+    description: 'Remove a placed object from a specific position on a shoutout, restoring the border default motif at that position.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shoutoutId: { type: 'string', description: 'Shoutout id from listShoutouts' },
+        positionId: { type: 'string', description: 'Position to clear: topLeft, topRight, bottomLeft, bottomRight, top, bottom, left, right' },
+      },
+      required: ['shoutoutId', 'positionId']
+    }
+  },
 ];
 
 // ── Kevin undo stack (session only) ──────────────────────────────────────────
@@ -1760,12 +1886,19 @@ async function executeKevinTool(toolName, toolInput, appData) {
     const shoutouts = appData.shoutouts || [];
     if (shoutouts.length === 0) return 'No shoutouts in library yet.';
     return JSON.stringify(shoutouts.map(function(s) {
+      const placed = s.placedObjects || {};
+      const placedSummary = Object.keys(placed).length > 0
+        ? Object.keys(placed).map(function(pos) {
+            return pos + ': ' + (placed[pos].name || placed[pos].id || 'object');
+          }).join(', ')
+        : 'none';
       return {
         id: s.id, name: s.name,
         stitches: s.stitchesW + 'x' + s.stitchesH,
         hoop: s.hoopW + 'x' + s.hoopH + 'mm',
         border: s.borderName || 'none',
         threads: (s.threads || []).map(function(t) { return t.name + ' (' + t.dmc + ')'; }),
+        placedObjects: placedSummary,
         notes: s.notes || '',
       };
     }), null, 2);
@@ -2032,6 +2165,49 @@ async function executeKevinTool(toolName, toolInput, appData) {
       kevinLogUndo({ action: 'deleteObject', id, previous: current });
       return 'Object ' + id + ' deleted.';
     } catch(e) { return 'Error deleting object: ' + e.message; }
+  }
+
+  if (toolName === 'placeObject') {
+    try {
+      const { shoutoutId, positionId, objectId } = toolInput;
+      if (!shoutoutId || !positionId || !objectId) return 'Error: shoutoutId, positionId, and objectId are all required.';
+      const validPositions = ['topLeft','topRight','bottomLeft','bottomRight','top','bottom','left','right'];
+      if (!validPositions.includes(positionId)) return 'Error: invalid positionId. Must be one of: ' + validPositions.join(', ');
+      const shoutout = (appData.shoutouts || []).find(function(s) { return s.id === shoutoutId; });
+      if (!shoutout) return 'Error: shoutout not found with id: ' + shoutoutId;
+      const obj = (appData.objects || []).find(function(o) { return o.id === objectId; });
+      if (!obj) return 'Error: object not found with id: ' + objectId;
+      const current = shoutout;
+      const currentPlaced = Object.assign({}, shoutout.placedObjects || {});
+      // Normalise legacy pattern-only objects to layers format before storing
+      const normObj = obj.layers ? obj : { ...obj, layers: [{ colorSlot: 'primary', pattern: obj.pattern || [] }] };
+      currentPlaced[positionId] = normObj;
+      await fb.updateDoc(
+        fb.doc(fb.db, 'users', uid, 'shoutouts', shoutoutId),
+        { placedObjects: currentPlaced, updatedAt: fb.serverTimestamp() }
+      );
+      kevinLogUndo({ action: 'updateShoutout', id: shoutoutId, uid, previous: current });
+      return 'Placed "' + obj.name + '" at ' + positionId + ' on shoutout "' + shoutout.name + '".';
+    } catch(e) { return 'Error placing object: ' + e.message; }
+  }
+
+  if (toolName === 'removeObject') {
+    try {
+      const { shoutoutId, positionId } = toolInput;
+      if (!shoutoutId || !positionId) return 'Error: shoutoutId and positionId are required.';
+      const shoutout = (appData.shoutouts || []).find(function(s) { return s.id === shoutoutId; });
+      if (!shoutout) return 'Error: shoutout not found with id: ' + shoutoutId;
+      const current = shoutout;
+      const currentPlaced = Object.assign({}, shoutout.placedObjects || {});
+      if (!currentPlaced[positionId]) return 'No object placed at ' + positionId + ' on this shoutout.';
+      delete currentPlaced[positionId];
+      await fb.updateDoc(
+        fb.doc(fb.db, 'users', uid, 'shoutouts', shoutoutId),
+        { placedObjects: currentPlaced, updatedAt: fb.serverTimestamp() }
+      );
+      kevinLogUndo({ action: 'updateShoutout', id: shoutoutId, uid, previous: current });
+      return 'Removed object from ' + positionId + ' on shoutout "' + shoutout.name + '".';
+    } catch(e) { return 'Error removing object: ' + e.message; }
   }
 
   return 'Unknown tool: ' + toolName;
@@ -4260,7 +4436,7 @@ function AidaOptionsSheet({ shoutout, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUT DETAIL
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveToFolder }) {
+function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, onCompose, folders, onMoveToFolder }) {
   const [showAidaOptions, setShowAidaOptions] = useState(false);
   const [chartGenerating, setChartGenerating] = useState(false);
 
@@ -4321,9 +4497,16 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, folders, onMoveTo
         )}
 
         <div className="detail-actions">
-          {/* Primary action — top right */}
           <button className="btn btn-primary" onClick={onEdit}>
             <Ico.Edit/> Edit
+          </button>
+          <button className="btn btn-tonal" onClick={onCompose}
+            title="Open the composition workspace">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 3v18"/>
+            </svg>
+            Compose
           </button>
         </div>
 
@@ -5379,6 +5562,642 @@ function SignInScreen({ onSignIn, error }) {
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════
+   COMPOSE SHEET
+   Full-screen composition UI — word, border, colour, objects.
+   Entry point: "Compose" button in ShoutoutDetail.
+   Saves placedObjects (and all existing fields) back to Firestore
+   via the same onSave handler as ShoutoutForm.
+═══════════════════════════════════════════════════════════════════ */
+
+// Position definitions for the 8 placement zones
+const COMPOSE_POSITIONS = [
+  {id:'topLeft',    label:'Top left',    isCorner:true,  maxW:9,  maxH:9},
+  {id:'top',        label:'Top',         isCorner:false, maxW:41, maxH:9},
+  {id:'topRight',   label:'Top right',   isCorner:true,  maxW:9,  maxH:9},
+  {id:'left',       label:'Left',        isCorner:false, maxW:9,  maxH:41},
+  {id:'centre',     label:'',            isCorner:false, maxW:0,  maxH:0},
+  {id:'right',      label:'Right',       isCorner:false, maxW:9,  maxH:41},
+  {id:'bottomLeft', label:'Bottom left', isCorner:true,  maxW:9,  maxH:9},
+  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:41, maxH:9},
+  {id:'bottomRight',label:'Bottom right',isCorner:true,  maxW:9,  maxH:9},
+];
+
+// Render a small compound preview canvas for a layered object
+// Uses actual thread colours from the threads array
+function objectPreviewCanvas(obj, size, threads) {
+  const cv = document.createElement('canvas');
+  cv.width = size; cv.height = size;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#F0E6D3';
+  ctx.fillRect(0, 0, size, size);
+  if (!obj || !obj.layers || !obj.layers[0]) return cv;
+  const ph = obj.layers[0].pattern.length;
+  const pw = obj.layers[0].pattern[0] ? obj.layers[0].pattern[0].length : 0;
+  if (!ph || !pw) return cv;
+  const cell = Math.min(size / Math.max(ph, pw), size);
+  const offX = Math.floor((size - pw * cell) / 2);
+  const offY = Math.floor((size - ph * cell) / 2);
+  const pad  = cell * 0.1;
+  const lw   = Math.max(cell * 0.22, 0.5);
+  // Build compound — last layer wins per cell
+  const compound = [];
+  for (let r = 0; r < ph; r++) { compound.push([]); for (let c = 0; c < pw; c++) compound[r].push(null); }
+  obj.layers.forEach(function(layer) {
+    const kind = layer.colorSlot === 'secondary' ? 'D'
+               : layer.colorSlot === 'accent'    ? 'E'
+               : layer.colorSlot === 'border3'   ? 'H'
+               : layer.colorSlot === 'accent1'   ? 'J'
+               : layer.colorSlot === 'accent2'   ? 'L' : 'T';
+    (layer.pattern || []).forEach(function(rs, dr) {
+      const row = typeof rs === 'string' ? rs : rs.join('');
+      row.split('').forEach(function(ch, dc) {
+        if (ch === '1' && dr < ph && dc < pw) compound[dr][dc] = kind;
+      });
+    });
+  });
+  compound.forEach(function(row, r) {
+    row.forEach(function(kind, c) {
+      if (!kind) return;
+      const colour = stitchColor(kind, threads);
+      if (!colour) return;
+      const x = offX + c * cell;
+      const y = offY + r * cell;
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(x + pad, y + pad);
+      ctx.lineTo(x + cell - pad, y + cell - pad);
+      ctx.moveTo(x + cell - pad, y + pad);
+      ctx.lineTo(x + pad, y + cell - pad);
+      ctx.stroke();
+    });
+  });
+  return cv;
+}
+
+// Position grid cell component
+function PosCell({ pos, placed, threads, onClick, onClear }) {
+  const canvasRef = useRef(null);
+
+  useEffect(function() {
+    if (!placed || !canvasRef.current) return;
+    const cv = objectPreviewCanvas(placed, 56, threads);
+    const el = canvasRef.current;
+    el.width = cv.width; el.height = cv.height;
+    el.getContext('2d').drawImage(cv, 0, 0);
+  }, [placed, threads]);
+
+  if (pos.id === 'centre') {
+    return (
+      <div className="pos-wrap">
+        <div className="pos-cell centre">
+          <span style={{fontSize:9, color:'#ccc'}}>word</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pos-wrap">
+      <div className={'pos-cell' + (placed ? ' occupied' : '')} onClick={onClick}>
+        {placed
+          ? <>
+              <canvas ref={canvasRef} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+              <button className="pos-cell-clear"
+                onClick={function(e) { e.stopPropagation(); onClear(); }}
+                title="Remove object">
+                &#x2715;
+              </button>
+            </>
+          : <span className="pos-cell-plus">+</span>
+        }
+      </div>
+      {pos.label && <div className="pos-label">{pos.label}</div>}
+    </div>
+  );
+}
+
+// Object picker sheet — slides in to show the object library for a position
+function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear, onClose }) {
+  return (
+    <div className="obj-picker-overlay open"
+      onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="obj-picker-sheet">
+        <div className="obj-picker-header">
+          <span className="obj-picker-title">
+            Place object — {position.label}
+          </span>
+          <button className="btn-icon" onClick={onClose}><Ico.Close/></button>
+        </div>
+        <div className="obj-picker-hint">
+          Max {position.maxW} wide &times; {position.maxH} tall stitches
+        </div>
+        <div className="obj-list">
+          {objects.length === 0 && (
+            <div style={{gridColumn:'1/-1',fontSize:12,color:'var(--grey)',padding:'8px 0'}}>
+              No objects in your library yet. Create some in the Objects tab.
+            </div>
+          )}
+          {objects.map(function(obj) {
+            const ph = obj.layers && obj.layers[0] ? obj.layers[0].pattern.length : (obj.pattern ? obj.pattern.length : 0);
+            const pw = obj.layers && obj.layers[0] && obj.layers[0].pattern[0]
+              ? obj.layers[0].pattern[0].length
+              : (obj.pattern && obj.pattern[0] ? obj.pattern[0].length : 0);
+            const fits = pw <= position.maxW && ph <= position.maxH;
+            // Normalise legacy (pattern-only) objects to layers format for preview
+            const normObj = obj.layers ? obj : { ...obj, layers: [{ colorSlot: 'primary', pattern: obj.pattern || [] }] };
+            const cv = objectPreviewCanvas(normObj, 64, threads);
+            const layerCount = normObj.layers.length;
+            return (
+              <div key={obj.id}
+                className={'obj-card' + (!fits ? ' disabled' : '')}
+                title={!fits ? 'Too large for this position' : ''}
+                onClick={fits ? function() { onSelect(normObj); } : undefined}>
+                <canvas width={64} height={64} ref={function(el) {
+                  if (el) { el.width = cv.width; el.height = cv.height; el.getContext('2d').drawImage(cv, 0, 0); }
+                }}/>
+                <div className="obj-card-name">{obj.name}</div>
+                <div className="obj-card-slots">
+                  {layerCount === 1 ? '1 colour slot' : layerCount + ' colour slots'}
+                  {!fits && <span> &middot; too large</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {placed && (
+          <div className="obj-picker-clear">
+            <button onClick={onClear}>Remove object from this position</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main ComposeSheet component
+function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
+  // ── State — initialise from existing shoutout ──
+  const isEdit = !!initial;
+  const initName = (initial && initial.lines && initial.lines.length > 1)
+    ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
+    : (initial ? initial.name : '');
+
+  const [name,         setName]         = useState(initName);
+  const [stitchesW,    setStitchesW]    = useState(initial ? initial.stitchesW : 94);
+  const [stitchesH,    setStitchesH]    = useState(initial ? initial.stitchesH : 94);
+  const [hoopW,        setHoopW]        = useState(initial ? initial.hoopW : 280);
+  const [hoopH,        setHoopH]        = useState(initial ? initial.hoopH : 250);
+  const [notes,        setNotes]        = useState(initial ? initial.notes : '');
+  const [borderId,     setBorderId]     = useState(initial ? initial.borderId : '');
+  const [borderName,   setBorderName]   = useState(initial ? initial.borderName : '');
+  const [threads,      setThreads]      = useState(
+    initial && initial.threads && initial.threads.length > 0 ? initial.threads : DEFAULT_THREADS
+  );
+  const [threadLengths,setThreadLengths]= useState(initial && initial.threadLengths ? initial.threadLengths : []);
+  const [strands,      setStrands]      = useState(initial && initial.strands ? initial.strands : 2);
+  const [textScale,    setTextScale]    = useState(initial && initial.textScale ? initial.textScale : 0);
+  const [lineScales,   setLineScales]   = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
+  const [placedObjects,setPlacedObjects]= useState(initial && initial.placedObjects ? initial.placedObjects : {});
+  const [activeTab,    setActiveTab]    = useState('word');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pickerPos,    setPickerPos]    = useState(null); // position id open in obj picker
+  const [calculating,  setCalculating]  = useState(false);
+  const [errors,       setErrors]       = useState({});
+
+  const MAX_LINES = 4;
+  const parsedLines = name.split('\n').slice(0, MAX_LINES).map(function(text, i) {
+    return { text: text, scale: lineScales[i] || 0 };
+  });
+  const isMultiRow = name.includes('\n') && parsedLines.length > 1;
+
+  // ── Canvas ref and render ──
+  const canvasContainerRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // Resolve border spec for rendering
+  const activeBorder = useMemo(function() {
+    return borders.find(function(b) { return b.id === borderId; }) || null;
+  }, [borders, borderId]);
+
+  const activeBorderSpec = useMemo(function() {
+    if (!activeBorder) return null;
+    return activeBorder.spec || BORDER_SPECS[activeBorder.style] || null;
+  }, [activeBorder]);
+
+  // Render the canvas whenever state changes
+  useEffect(function() {
+    const canvas = canvasRef.current;
+    const container = canvasContainerRef.current;
+    if (!canvas || !container) return;
+
+    const avail = Math.min(container.clientWidth - 40, container.clientHeight - 48);
+    const px = Math.max(160, Math.min(avail, 560));
+    canvas.width  = px;
+    canvas.height = px;
+    canvas.style.width  = px + 'px';
+    canvas.style.height = px + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F0E6D3';
+    ctx.fillRect(0, 0, px, px);
+
+    const cols = +stitchesW || 94;
+    const rows = +stitchesH || 94;
+
+    const grid = isMultiRow
+      ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2)
+      : buildGrid(name.replace(/\n/g, ' '), cols, rows, activeBorderSpec, textScale, 2, placedObjects);
+
+    const actualCols = grid[0] ? grid[0].length : cols;
+    const actualRows = grid.length || rows;
+    const cell = px / actualCols;
+    const pad  = cell * 0.1;
+    const lw   = Math.max(cell * 0.24, 0.5);
+
+    grid.forEach(function(rowArr, row) {
+      rowArr.forEach(function(kind, col) {
+        if (kind === ' ') return;
+        const c = stitchColor(kind, threads);
+        if (!c) return;
+        const x = col * cell, y = row * cell;
+        ctx.strokeStyle = c; ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(x + pad, y + pad); ctx.lineTo(x + cell - pad, y + cell - pad);
+        ctx.moveTo(x + cell - pad, y + pad); ctx.lineTo(x + pad, y + cell - pad);
+        ctx.stroke();
+      });
+    });
+
+    // Minor grid lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 0.3;
+    for (let i = 0; i <= actualCols; i++) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
+    for (let i = 0; i <= actualRows; i++) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.5;
+    for (let i = 0; i <= actualCols; i+=10) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
+    for (let i = 0; i <= actualRows; i+=10) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
+    ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(0, 0, px, px);
+
+  }, [name, stitchesW, stitchesH, borderId, threads, textScale, lineScales, placedObjects, activeBorderSpec, isMultiRow]);
+
+  // Resize observer to refit canvas when panel resizes
+  useEffect(function() {
+    if (!canvasContainerRef.current) return;
+    const ro = new ResizeObserver(function() {
+      // Trigger re-render by forcing a tiny state change won't work cleanly —
+      // instead we call the canvas render inline via the existing useEffect dep
+      // The ResizeObserver just ensures the effect reruns on resize
+    });
+    ro.observe(canvasContainerRef.current);
+    return function() { ro.disconnect(); };
+  }, []);
+
+  // ── Thread helpers ──
+  function updateThread(i, u) { setThreads(function(p) { return p.map(function(t, idx) { return idx === i ? u : t; }); }); }
+  function removeThread(i)    { setThreads(function(p) { return p.filter(function(_, idx) { return idx !== i; }); }); }
+  function addThread()        {
+    if (threads.length >= 6) return;
+    setThreads(function(p) { return [...p, {id:Date.now(), name:'', dmc:'', hex:'#666666', usage:''}]; });
+  }
+  function setLineScale(i, val) {
+    setLineScales(function(prev) { const next = [...prev]; next[i] = val; return next; });
+  }
+
+  function handleRecalculate() {
+    if (!name.trim() || !borderId) return;
+    setCalculating(true);
+    setTimeout(function() {
+      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
+      setThreadLengths(lengths);
+      setCalculating(false);
+    }, 0);
+  }
+
+  // ── Save ──
+  function handleSave() {
+    const fields = {
+      name, stitchesW: +stitchesW, stitchesH: +stitchesH,
+      hoopW: +hoopW, hoopH: +hoopH, notes, borderId, borderName,
+      threads, textScale, strands, lineScales,
+      lines: isMultiRow ? parsedLines : null,
+      placedObjects,
+    };
+    const errs = validateShoutout(fields);
+    setErrors(errs);
+    if (hasErrors(errs)) {
+      setActiveTab('word');
+      return;
+    }
+    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
+    setThreadLengths(lengths);
+    onSave({ ...fields, threadLengths: lengths });
+  }
+
+  // ── Position grid helpers ──
+  function openPicker(posId) { setPickerPos(posId); }
+  function closePicker()     { setPickerPos(null); }
+  function placeObject(posId, obj) {
+    setPlacedObjects(function(prev) { return { ...prev, [posId]: obj }; });
+    setPickerPos(null);
+  }
+  function clearPosition(posId) {
+    setPlacedObjects(function(prev) {
+      const next = { ...prev };
+      delete next[posId];
+      return next;
+    });
+    setPickerPos(null);
+  }
+
+  const activePosition = pickerPos ? COMPOSE_POSITIONS.find(function(p) { return p.id === pickerPos; }) : null;
+
+  // ── Render ──
+  return (
+    <div className="sheet-fullscreen">
+
+      {/* Top bar */}
+      <div className="compose-topbar">
+        <button className="btn-icon" onClick={onClose} title="Close composition">
+          <Ico.Close/>
+        </button>
+        <span className="compose-topbar-title">
+          {isEdit ? 'Compose' : 'New shoutout'}
+          {name.trim() && <span className="compose-topbar-word"> — {name.replace(/\n/g,' ')}</span>}
+        </span>
+        <div className="compose-actions">
+          {hasErrors(errors) && (
+            <span style={{fontSize:11, color:'var(--coral)'}}>Fix errors before saving</span>
+          )}
+          <button className="btn btn-outlined btn-sm" onClick={onClose}>Cancel</button>
+          <button className="btn btn-coral btn-sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create shoutout'}
+          </button>
+        </div>
+      </div>
+
+      {/* Canvas work area */}
+      <div className="compose-canvas-area" ref={canvasContainerRef}>
+        <div className="compose-canvas-wrap">
+          <canvas ref={canvasRef}
+            style={{borderRadius:6, border:'1.5px solid var(--black)', display:'block'}}/>
+          <div className="compose-canvas-label">
+            {(+stitchesW || 94)} &times; {(+stitchesH || 94)} stitches
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel */}
+      <div className="compose-panel">
+        <div className="compose-tabs">
+          {['word','border','colour','objects'].map(function(tab) {
+            const labels = {word:'Word', border:'Border', colour:'Colour', objects:'Objects'};
+            return (
+              <button key={tab}
+                className={'compose-tab' + (activeTab === tab ? ' active' : '')}
+                onClick={function() { setActiveTab(tab); }}>
+                {labels[tab]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="compose-panel-body">
+
+          {/* ── Word tab ── */}
+          {activeTab === 'word' && (
+            <>
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label className="form-label">Word or phrase</label>
+                  {isMultiRow && <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>}
+                </div>
+                <textarea
+                  className={'form-input form-textarea-word' + (errors.name ? ' error' : '')}
+                  placeholder={'e.g. GOAL\nPress Enter for multiple lines'}
+                  value={name}
+                  rows={Math.max(2, parsedLines.length + 1)}
+                  onChange={function(e) {
+                    const ls = e.target.value.split('\n');
+                    if (ls.length <= MAX_LINES) setName(e.target.value);
+                  }}
+                  onKeyDown={function(e) {
+                    if (e.key === 'Enter' && name.split('\n').length >= MAX_LINES) e.preventDefault();
+                  }}
+                  autoFocus
+                />
+                {errors.name && <div className="form-error">{errors.name}</div>}
+                {isMultiRow && (
+                  <div className="multirow-scales">
+                    {parsedLines.map(function(line, i) {
+                      return (
+                        <div key={i} className="multirow-scale-row">
+                          <span className="multirow-line-label">
+                            {line.text.trim()
+                              ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length>18?'…':'') + '"'
+                              : 'Line '+(i+1)}
+                          </span>
+                          <div className="size-toggle">
+                            {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
+                              return (
+                                <button key={opt.label}
+                                  className={'size-btn' + ((lineScales[i]||0)===opt.value?' active':'')}
+                                  style={{padding:'3px 10px',fontSize:11}}
+                                  onClick={function() { setLineScale(i, opt.value); }}>
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {!isMultiRow && (
+                <div className="form-group">
+                  <label className="form-label">Text size</label>
+                  <div className="size-toggle">
+                    {[{label:'Small',value:1},{label:'Normal',value:0},{label:'Large',value:3}].map(function(opt) {
+                      return (
+                        <button key={opt.label}
+                          className={'size-btn' + (textScale === opt.value ? ' active' : '')}
+                          onClick={function() { setTextScale(opt.value); }}>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="form-hint">
+                    {textScale === 0 ? 'Auto — best fit for the word'
+                     : textScale === 1 ? 'Small — fits longer words'
+                     : 'Large — bold impact for short words'}
+                  </div>
+                </div>
+              )}
+
+              {/* Settings — collapsible */}
+              <button className="compose-settings-toggle"
+                onClick={function() { setSettingsOpen(function(v) { return !v; }); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings {settingsOpen ? '▲' : '▼'}
+              </button>
+
+              {settingsOpen && (
+                <div className="compose-settings-body">
+                  <div className="form-group">
+                    <label className="form-label">Stitch count</label>
+                    <div className="form-row">
+                      <div>
+                        <input type="number" className={'form-input'+(errors.stitchesW?' error':'')}
+                          value={stitchesW} onChange={function(e){setStitchesW(e.target.value);}}/>
+                        <div className={errors.stitchesW?'form-error':'form-hint'}>{errors.stitchesW||'Width'}</div>
+                      </div>
+                      <div>
+                        <input type="number" className={'form-input'+(errors.stitchesH?' error':'')}
+                          value={stitchesH} onChange={function(e){setStitchesH(e.target.value);}}/>
+                        <div className={errors.stitchesH?'form-error':'form-hint'}>{errors.stitchesH||'Height'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Hoop size (mm)</label>
+                    <div className="form-row">
+                      <div>
+                        <input type="number" className={'form-input'+(errors.hoopW?' error':'')}
+                          value={hoopW} onChange={function(e){setHoopW(e.target.value);}}/>
+                        <div className={errors.hoopW?'form-error':'form-hint'}>{errors.hoopW||'Width'}</div>
+                      </div>
+                      <div>
+                        <input type="number" className={'form-input'+(errors.hoopH?' error':'')}
+                          value={hoopH} onChange={function(e){setHoopH(e.target.value);}}/>
+                        <div className={errors.hoopH?'form-error':'form-hint'}>{errors.hoopH||'Height'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Notes</label>
+                    <textarea className="form-textarea" placeholder="Any notes…"
+                      value={notes} onChange={function(e){setNotes(e.target.value);}}/>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Border tab ── */}
+          {activeTab === 'border' && (
+            <>
+              <div className="form-group">
+                {errors.borderId && <div className="form-error" style={{marginBottom:8}}>{errors.borderId}</div>}
+                <BorderPicker borders={borders} selected={borderId}
+                  onSelect={function(id,nm) { setBorderId(id); setBorderName(nm); }}/>
+              </div>
+            </>
+          )}
+
+          {/* ── Colour tab ── */}
+          {activeTab === 'colour' && (
+            <>
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label className="form-label">Threads</label>
+                  <div style={{display:'flex', alignItems:'center', gap:8}}>
+                    <div className="size-toggle" style={{fontSize:11}}>
+                      {[1,2,3].map(function(n) {
+                        return (
+                          <button key={n}
+                            className={'size-btn' + (strands === n ? ' active' : '')}
+                            style={{padding:'4px 10px', fontSize:11}}
+                            onClick={function() { setStrands(n); }}
+                            title={n + ' strand' + (n>1?'s':'')}>
+                            {n}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <span style={{fontSize:11, color:'var(--grey)'}}>strands</span>
+                    <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
+                      disabled={calculating || !name.trim() || !borderId}>
+                      {calculating ? 'Calculating…' : 'Recalculate'}
+                    </button>
+                  </div>
+                </div>
+                <Threditor
+                  threads={threads}
+                  threadLengths={threadLengths}
+                  onChange={updateThread}
+                  onRemove={removeThread}
+                />
+                {threads.length < 6 && (
+                  <button className="add-thread-btn" onClick={addThread}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Add thread
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── Objects tab ── */}
+          {activeTab === 'objects' && (
+            <>
+              <div className="form-group">
+                <div className="form-hint" style={{marginBottom:10}}>
+                  Tap a position to place an object. Layer colours follow your thread palette.
+                </div>
+                <div className="pos-grid">
+                  {COMPOSE_POSITIONS.map(function(pos) {
+                    return (
+                      <PosCell key={pos.id}
+                        pos={pos}
+                        placed={placedObjects[pos.id] || null}
+                        threads={threads}
+                        onClick={pos.id !== 'centre' ? function() { openPicker(pos.id); } : undefined}
+                        onClear={function() { clearPosition(pos.id); }}
+                      />
+                    );
+                  })}
+                </div>
+                {Object.keys(placedObjects).length > 0 && (
+                  <button className="btn btn-ghost btn-sm"
+                    style={{color:'var(--coral)', fontSize:11, marginTop:4}}
+                    onClick={function() { setPlacedObjects({}); }}>
+                    Clear all positions
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+        </div>
+      </div>
+
+      {/* Object picker overlay */}
+      {pickerPos && activePosition && (
+        <ObjPickerSheet
+          position={activePosition}
+          objects={objects}
+          threads={threads}
+          placed={placedObjects[pickerPos] || null}
+          onSelect={function(obj) { placeObject(pickerPos, obj); }}
+          onClear={function() { clearPosition(pickerPos); }}
+          onClose={closePicker}
+        />
+      )}
+
+    </div>
+  );
+}
+
 /* ---- src/screens.js ---- */
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
@@ -5835,6 +6654,7 @@ function App() {
   const [objects,       setObjects]       = useState([]);
   const [selObject,     setSelObject]     = useState(null);
   const [editObject,    setEditObject]    = useState(null);
+  const [composeShoutout, setComposeShoutout] = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
@@ -6091,6 +6911,36 @@ function App() {
   }
   async function handleSignOut() { await fb.signOut(fb.auth); }
 
+  // ── Save from ComposeSheet ──
+  async function saveCompose(data) {
+    setSaving(true);
+    try {
+      const border = borders.find(function(b) { return b.id === data.borderId; });
+      const borderSpec = (border && border.spec) ? border.spec
+                       : (BORDER_SPECS[border && border.style] || null);
+      const fullData = {
+        ...data,
+        borderStyle: border ? border.style : 'british',
+        borderSpec:  borderSpec,
+      };
+      if (composeShoutout && composeShoutout !== 'new') {
+        await fb.updateDoc(
+          fb.doc(fb.db,'users',authUser.uid,'shoutouts',composeShoutout.id),
+          {...fullData, updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Shoutout updated');
+      } else {
+        await fb.addDoc(
+          fb.collection(fb.db,'users',authUser.uid,'shoutouts'),
+          {...fullData, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
+        );
+        showToast('Shoutout created');
+      }
+      setComposeShoutout(null); setSelShoutout(null);
+    } catch(e) { showToast('Something went wrong — try again'); }
+    finally { setSaving(false); }
+  }
+
   // ── Save shoutout ──
   async function saveShoutout(data) {
     setSaving(true);
@@ -6316,6 +7166,7 @@ function App() {
         <ShoutoutDetail shoutout={selShoutout}
           onClose={function() { setSelShoutout(null); }}
           onEdit={function() { setEditShoutout(selShoutout); }}
+          onCompose={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
           onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
           folders={shoutoutFolders}
           onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
@@ -6356,6 +7207,15 @@ function App() {
           initial={editObject === 'new' ? null : editObject}
           onSave={saveObject}
           onClose={function() { setEditObject(null); }}
+          saving={saving}/>
+      )}
+      {composeShoutout && (
+        <ComposeSheet
+          initial={composeShoutout === 'new' ? null : composeShoutout}
+          borders={borders}
+          objects={objects}
+          onSave={saveCompose}
+          onClose={function() { setComposeShoutout(null); }}
           saving={saving}/>
       )}
       {confirmDel && (
