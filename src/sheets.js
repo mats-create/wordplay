@@ -1387,6 +1387,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
   const [placedObjects,setPlacedObjects]= useState(initial && initial.placedObjects ? initial.placedObjects : {});
   const [activeTab,    setActiveTab]    = useState('word');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dmcPickerIndex, setDmcPickerIndex] = useState(null);
   const [pickerPos,    setPickerPos]    = useState(null); // position id open in obj picker
   const [calculating,  setCalculating]  = useState(false);
   const [errors,       setErrors]       = useState({});
@@ -1540,6 +1541,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
 
   // ── Render ──
   return (
+    <>
     <div className="sheet-fullscreen">
 
       {/* Top bar */}
@@ -1754,12 +1756,48 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
                     </button>
                   </div>
                 </div>
-                <Threditor
-                  threads={threads}
-                  threadLengths={threadLengths}
-                  onChange={updateThread}
-                  onRemove={removeThread}
-                />
+                <div className="threditor">
+                  {threads.map(function(t, i) {
+                    const slot = THREAD_SLOTS[i] || null;
+                    const lengthEntry = threadLengths && threadLengths[i];
+                    const cm = lengthEntry ? lengthEntry.cm : null;
+                    const isLightSwatch = t.hex === '#FFFFFF' || t.hex === '#FFFFF0' || t.hex === '#FFF8B0' || t.hex === '#F5F5F5';
+                    return (
+                      <div key={t.id || i} className="threditor-slot">
+                        <button
+                          className="threditor-swatch threditor-swatch-btn"
+                          style={{
+                            background: t.hex,
+                            border: isLightSwatch ? '1.5px solid var(--lgrey)' : '1.5px solid transparent',
+                            cursor: 'pointer'
+                          }}
+                          onClick={function() { setDmcPickerIndex(i); }}
+                          title="Pick DMC colour"
+                        />
+                        <div className="threditor-info">
+                          {slot && (
+                            <div className="threditor-slot-label">
+                              <span className="threditor-slot-name">{slot.label}</span>
+                              <span className="threditor-slot-hint">{slot.hint}</span>
+                            </div>
+                          )}
+                          <div className="threditor-colour-name">{t.name || <span className="threditor-empty">No name</span>}</div>
+                          <div className="threditor-dmc">{t.dmc || <span className="threditor-empty">No DMC code</span>}</div>
+                        </div>
+                        <div className="threditor-right">
+                          {cm != null && <div className="threditor-length">{'~' + cm + ' cm'}</div>}
+                          {threads.length > 1 && (
+                            <button className="thread-remove" onClick={function() { removeThread(i); }} title="Remove thread">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 {threads.length < 6 && (
                   <button className="add-thread-btn" onClick={addThread}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -1806,19 +1844,33 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
         </div>
       </div>
 
-      {/* Object picker overlay */}
-      {pickerPos && activePosition && (
-        <ObjPickerSheet
-          position={activePosition}
-          objects={objects}
-          threads={threads}
-          placed={placedObjects[pickerPos] || null}
-          onSelect={function(obj) { placeObject(pickerPos, obj); }}
-          onClear={function() { clearPosition(pickerPos); }}
-          onClose={closePicker}
-        />
-      )}
-
     </div>
+
+    {/* DMC picker — rendered outside sheet-fullscreen to escape fixed positioning context */}
+    {dmcPickerIndex !== null && (
+      <DmcPickerSheet
+        currentHex={threads[dmcPickerIndex] ? threads[dmcPickerIndex].hex : '#000000'}
+        onSelect={function(c) {
+          const t = threads[dmcPickerIndex];
+          updateThread(dmcPickerIndex, {...t, hex: c.hex, dmc: 'DMC ' + c.dmc, name: t.name || c.name});
+          setDmcPickerIndex(null);
+        }}
+        onClose={function() { setDmcPickerIndex(null); }}
+      />
+    )}
+
+    {/* Object picker — also outside sheet-fullscreen for the same reason */}
+    {pickerPos && activePosition && (
+      <ObjPickerSheet
+        position={activePosition}
+        objects={objects}
+        threads={threads}
+        placed={placedObjects[pickerPos] || null}
+        onSelect={function(obj) { placeObject(pickerPos, obj); }}
+        onClear={function() { clearPosition(pickerPos); }}
+        onClose={closePicker}
+      />
+    )}
+    </>
   );
 }
