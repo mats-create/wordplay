@@ -1363,34 +1363,33 @@ function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear,
 
 // Main ComposeSheet component
 function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
-  // ── State — initialise from existing shoutout ──
   const isEdit = !!initial;
   const initName = (initial && initial.lines && initial.lines.length > 1)
     ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
     : (initial ? initial.name : '');
 
-  const [name,         setName]         = useState(initName);
-  const [stitchesW,    setStitchesW]    = useState(initial ? initial.stitchesW : 94);
-  const [stitchesH,    setStitchesH]    = useState(initial ? initial.stitchesH : 94);
-  const [hoopW,        setHoopW]        = useState(initial ? initial.hoopW : 280);
-  const [hoopH,        setHoopH]        = useState(initial ? initial.hoopH : 250);
-  const [notes,        setNotes]        = useState(initial ? initial.notes : '');
-  const [borderId,     setBorderId]     = useState(initial ? initial.borderId : '');
-  const [borderName,   setBorderName]   = useState(initial ? initial.borderName : '');
-  const [threads,      setThreads]      = useState(
+  const [name,          setName]          = useState(initName);
+  const [stitchesW,     setStitchesW]     = useState(initial ? initial.stitchesW : 94);
+  const [stitchesH,     setStitchesH]     = useState(initial ? initial.stitchesH : 94);
+  const [hoopW,         setHoopW]         = useState(initial ? initial.hoopW : 280);
+  const [hoopH,         setHoopH]         = useState(initial ? initial.hoopH : 250);
+  const [notes,         setNotes]         = useState(initial ? initial.notes : '');
+  const [borderId,      setBorderId]      = useState(initial ? initial.borderId : '');
+  const [borderName,    setBorderName]    = useState(initial ? initial.borderName : '');
+  const [threads,       setThreads]       = useState(
     initial && initial.threads && initial.threads.length > 0 ? initial.threads : DEFAULT_THREADS
   );
-  const [threadLengths,setThreadLengths]= useState(initial && initial.threadLengths ? initial.threadLengths : []);
-  const [strands,      setStrands]      = useState(initial && initial.strands ? initial.strands : 2);
-  const [textScale,    setTextScale]    = useState(initial && initial.textScale ? initial.textScale : 0);
-  const [lineScales,   setLineScales]   = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
-  const [placedObjects,setPlacedObjects]= useState(initial && initial.placedObjects ? initial.placedObjects : {});
-  const [activeTab,    setActiveTab]    = useState('word');
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [dmcPickerIndex, setDmcPickerIndex] = useState(null);
-  const [pickerPos,    setPickerPos]    = useState(null); // position id open in obj picker
-  const [calculating,  setCalculating]  = useState(false);
-  const [errors,       setErrors]       = useState({});
+  const [threadLengths, setThreadLengths] = useState(initial && initial.threadLengths ? initial.threadLengths : []);
+  const [strands,       setStrands]       = useState(initial && initial.strands ? initial.strands : 2);
+  const [textScale,     setTextScale]     = useState(initial && initial.textScale ? initial.textScale : 0);
+  const [lineScales,    setLineScales]    = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
+  const [placedObjects, setPlacedObjects] = useState(initial && initial.placedObjects ? initial.placedObjects : {});
+  const [activeTab,     setActiveTab]     = useState('word');
+  const [settingsOpen,  setSettingsOpen]  = useState(false);
+  const [pickerPos,     setPickerPos]     = useState(null);
+  const [dmcPickerIdx,  setDmcPickerIdx]  = useState(null);
+  const [calculating,   setCalculating]   = useState(false);
+  const [errors,        setErrors]        = useState({});
 
   const MAX_LINES = 4;
   const parsedLines = name.split('\n').slice(0, MAX_LINES).map(function(text, i) {
@@ -1398,50 +1397,34 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
   });
   const isMultiRow = name.includes('\n') && parsedLines.length > 1;
 
-  // ── Canvas ref and render ──
+  const activeBorder = borders.find(function(b) { return b.id === borderId; }) || null;
+  const activeBorderSpec = activeBorder
+    ? (activeBorder.spec || BORDER_SPECS[activeBorder.style] || null)
+    : null;
+
   const canvasContainerRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Resolve border spec for rendering
-  const activeBorder = useMemo(function() {
-    return borders.find(function(b) { return b.id === borderId; }) || null;
-  }, [borders, borderId]);
-
-  const activeBorderSpec = useMemo(function() {
-    if (!activeBorder) return null;
-    return activeBorder.spec || BORDER_SPECS[activeBorder.style] || null;
-  }, [activeBorder]);
-
-  // Render the canvas whenever state changes
   useEffect(function() {
     const canvas = canvasRef.current;
     const container = canvasContainerRef.current;
     if (!canvas || !container) return;
-
     const avail = Math.min(container.clientWidth - 40, container.clientHeight - 48);
     const px = Math.max(160, Math.min(avail, 560));
-    canvas.width  = px;
-    canvas.height = px;
-    canvas.style.width  = px + 'px';
-    canvas.style.height = px + 'px';
-
+    canvas.width = px; canvas.height = px;
+    canvas.style.width = px + 'px'; canvas.style.height = px + 'px';
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#F0E6D3';
-    ctx.fillRect(0, 0, px, px);
-
+    ctx.fillStyle = '#F0E6D3'; ctx.fillRect(0, 0, px, px);
     const cols = +stitchesW || 94;
     const rows = +stitchesH || 94;
-
     const grid = isMultiRow
       ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2)
       : buildGrid(name.replace(/\n/g, ' '), cols, rows, activeBorderSpec, textScale, 2, placedObjects);
-
     const actualCols = grid[0] ? grid[0].length : cols;
     const actualRows = grid.length || rows;
     const cell = px / actualCols;
-    const pad  = cell * 0.1;
-    const lw   = Math.max(cell * 0.24, 0.5);
-
+    const pad = cell * 0.1;
+    const lw = Math.max(cell * 0.24, 0.5);
     grid.forEach(function(rowArr, row) {
       rowArr.forEach(function(kind, col) {
         if (kind === ' ') return;
@@ -1455,365 +1438,335 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
         ctx.stroke();
       });
     });
-
-    // Minor grid lines
     ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 0.3;
-    for (let i = 0; i <= actualCols; i++) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
-    for (let i = 0; i <= actualRows; i++) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
+    for (var i = 0; i <= actualCols; i++) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
+    for (var i = 0; i <= actualRows; i++) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
     ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.5;
-    for (let i = 0; i <= actualCols; i+=10) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
-    for (let i = 0; i <= actualRows; i+=10) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
-    ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 1.5;
-    ctx.strokeRect(0, 0, px, px);
+    for (var i = 0; i <= actualCols; i+=10) { ctx.beginPath(); ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,px); ctx.stroke(); }
+    for (var i = 0; i <= actualRows; i+=10) { ctx.beginPath(); ctx.moveTo(0,i*cell); ctx.lineTo(px,i*cell); ctx.stroke(); }
+    ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, px, px);
+  }, [name, stitchesW, stitchesH, borderId, threads, textScale, lineScales, placedObjects, isMultiRow, activeBorderSpec]);
 
-  }, [name, stitchesW, stitchesH, borderId, threads, textScale, lineScales, placedObjects, activeBorderSpec, isMultiRow]);
-
-  // Resize observer to refit canvas when panel resizes
-  useEffect(function() {
-    if (!canvasContainerRef.current) return;
-    const ro = new ResizeObserver(function() {
-      // Trigger re-render by forcing a tiny state change won't work cleanly —
-      // instead we call the canvas render inline via the existing useEffect dep
-      // The ResizeObserver just ensures the effect reruns on resize
-    });
-    ro.observe(canvasContainerRef.current);
-    return function() { ro.disconnect(); };
-  }, []);
-
-  // ── Thread helpers ──
-  function updateThread(i, u) { setThreads(function(p) { return p.map(function(t, idx) { return idx === i ? u : t; }); }); }
-  function removeThread(i)    { setThreads(function(p) { return p.filter(function(_, idx) { return idx !== i; }); }); }
-  function addThread()        {
+  function updateThread(i, u) {
+    setThreads(function(p) { return p.map(function(t, idx) { return idx === i ? u : t; }); });
+  }
+  function removeThread(i) {
+    setThreads(function(p) { return p.filter(function(_, idx) { return idx !== i; }); });
+  }
+  function addThread() {
     if (threads.length >= 6) return;
     setThreads(function(p) { return [...p, {id:Date.now(), name:'', dmc:'', hex:'#666666', usage:''}]; });
   }
   function setLineScale(i, val) {
-    setLineScales(function(prev) { const next = [...prev]; next[i] = val; return next; });
+    setLineScales(function(prev) { var next = [...prev]; next[i] = val; return next; });
   }
-
   function handleRecalculate() {
     if (!name.trim() || !borderId) return;
     setCalculating(true);
     setTimeout(function() {
-      const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
+      var lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
       setThreadLengths(lengths);
       setCalculating(false);
     }, 0);
   }
-
-  // ── Save ──
   function handleSave() {
-    const fields = {
-      name, stitchesW: +stitchesW, stitchesH: +stitchesH,
-      hoopW: +hoopW, hoopH: +hoopH, notes, borderId, borderName,
-      threads, textScale, strands, lineScales,
-      lines: isMultiRow ? parsedLines : null,
-      placedObjects,
+    var fields = {
+      name: name, stitchesW: +stitchesW, stitchesH: +stitchesH,
+      hoopW: +hoopW, hoopH: +hoopH, notes: notes,
+      borderId: borderId, borderName: borderName,
+      threads: threads, textScale: textScale, strands: strands,
+      lineScales: lineScales, lines: isMultiRow ? parsedLines : null,
+      placedObjects: placedObjects,
     };
-    const errs = validateShoutout(fields);
+    var errs = validateShoutout(fields);
     setErrors(errs);
-    if (hasErrors(errs)) {
-      setActiveTab('word');
-      return;
-    }
-    const lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
+    if (hasErrors(errs)) { setActiveTab('word'); return; }
+    var lengths = calculateThreadLengths(name, +stitchesW, +stitchesH, activeBorderSpec, threads, textScale, strands);
     setThreadLengths(lengths);
-    onSave({ ...fields, threadLengths: lengths });
+    onSave(Object.assign({}, fields, {threadLengths: lengths}));
   }
-
-  // ── Position grid helpers ──
-  function openPicker(posId) { setPickerPos(posId); }
-  function closePicker()     { setPickerPos(null); }
+  function openObjPicker(posId) { setPickerPos(posId); }
+  function closeObjPicker() { setPickerPos(null); }
   function placeObject(posId, obj) {
-    setPlacedObjects(function(prev) { return { ...prev, [posId]: obj }; });
+    setPlacedObjects(function(prev) { return Object.assign({}, prev, {[posId]: obj}); });
     setPickerPos(null);
   }
   function clearPosition(posId) {
-    setPlacedObjects(function(prev) {
-      const next = { ...prev };
-      delete next[posId];
-      return next;
-    });
+    setPlacedObjects(function(prev) { var next = Object.assign({}, prev); delete next[posId]; return next; });
     setPickerPos(null);
   }
 
-  const activePosition = pickerPos ? COMPOSE_POSITIONS.find(function(p) { return p.id === pickerPos; }) : null;
+  var activePosition = pickerPos ? COMPOSE_POSITIONS.find(function(p) { return p.id === pickerPos; }) : null;
 
-  // ── Render ──
   return (
-    <>
-    <div className="sheet-fullscreen">
+    <div>
+      <div className="sheet-fullscreen">
 
-      {/* Top bar */}
-      <div className="compose-topbar">
-        <button className="btn-icon" onClick={onClose} title="Close composition">
-          <Ico.Close/>
-        </button>
-        <span className="compose-topbar-title">
-          {isEdit ? 'Compose' : 'New shoutout'}
-          {name.trim() && <span className="compose-topbar-word"> — {name.replace(/\n/g,' ')}</span>}
-        </span>
-        <div className="compose-actions">
-          {hasErrors(errors) && (
-            <span style={{fontSize:11, color:'var(--coral)'}}>Fix errors before saving</span>
-          )}
-          <button className="btn btn-outlined btn-sm" onClick={onClose}>Cancel</button>
-          <button className="btn btn-coral btn-sm" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create shoutout'}
+        <div className="compose-topbar">
+          <button className="btn-icon" onClick={onClose} title="Close">
+            <Ico.Close/>
           </button>
-        </div>
-      </div>
-
-      {/* Canvas work area */}
-      <div className="compose-canvas-area" ref={canvasContainerRef}>
-        <div className="compose-canvas-wrap">
-          <canvas ref={canvasRef}
-            style={{borderRadius:6, border:'1.5px solid var(--black)', display:'block'}}/>
-          <div className="compose-canvas-label">
-            {(+stitchesW || 94)} &times; {(+stitchesH || 94)} stitches
+          <span className="compose-topbar-title">
+            {isEdit ? 'Compose' : 'New shoutout'}
+            {name.trim() && (
+              <span className="compose-topbar-word"> — {name.replace(/\n/g,' ')}</span>
+            )}
+          </span>
+          <div className="compose-actions">
+            {hasErrors(errors) && (
+              <span style={{fontSize:11, color:'var(--coral)'}}>Fix errors first</span>
+            )}
+            <button className="btn btn-outlined btn-sm" onClick={onClose}>Cancel</button>
+            <button className="btn btn-coral btn-sm" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create shoutout'}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Right panel */}
-      <div className="compose-panel">
-        <div className="compose-tabs">
-          {['word','border','colour','objects'].map(function(tab) {
-            const labels = {word:'Word', border:'Border', colour:'Colour', objects:'Objects'};
-            return (
-              <button key={tab}
-                className={'compose-tab' + (activeTab === tab ? ' active' : '')}
-                onClick={function() { setActiveTab(tab); }}>
-                {labels[tab]}
-              </button>
-            );
-          })}
+        <div className="compose-canvas-area" ref={canvasContainerRef}>
+          <div className="compose-canvas-wrap">
+            <canvas ref={canvasRef}
+              style={{borderRadius:6, border:'1.5px solid var(--black)', display:'block'}}/>
+            <div className="compose-canvas-label">
+              {(+stitchesW||94)} x {(+stitchesH||94)} stitches
+            </div>
+          </div>
         </div>
 
-        <div className="compose-panel-body">
+        <div className="compose-panel">
+          <div className="compose-tabs">
+            {['word','border','colour','objects'].map(function(tab) {
+              var labels = {word:'Word', border:'Border', colour:'Colour', objects:'Objects'};
+              return (
+                <button key={tab}
+                  className={'compose-tab' + (activeTab === tab ? ' active' : '')}
+                  onClick={function() { setActiveTab(tab); }}>
+                  {labels[tab]}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* ── Word tab ── */}
-          {activeTab === 'word' && (
-            <>
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label className="form-label">Word or phrase</label>
-                  {isMultiRow && <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>}
+          <div className="compose-panel-body">
+
+            {activeTab === 'word' && (
+              <div>
+                <div className="form-group">
+                  <div className="form-label-row">
+                    <label className="form-label">Word or phrase</label>
+                    {isMultiRow && (
+                      <span className="multirow-count">{parsedLines.length}/{MAX_LINES} lines</span>
+                    )}
+                  </div>
+                  <textarea
+                    className={'form-input form-textarea-word' + (errors.name ? ' error' : '')}
+                    placeholder="e.g. GOAL"
+                    value={name}
+                    rows={Math.max(2, parsedLines.length + 1)}
+                    onChange={function(e) {
+                      if (e.target.value.split('\n').length <= MAX_LINES) setName(e.target.value);
+                    }}
+                    onKeyDown={function(e) {
+                      if (e.key === 'Enter' && name.split('\n').length >= MAX_LINES) e.preventDefault();
+                    }}
+                    autoFocus
+                  />
+                  {errors.name && <div className="form-error">{errors.name}</div>}
+                  {isMultiRow && (
+                    <div className="multirow-scales">
+                      {parsedLines.map(function(line, i) {
+                        return (
+                          <div key={i} className="multirow-scale-row">
+                            <span className="multirow-line-label">
+                              {line.text.trim()
+                                ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length>18?'...':'') + '"'
+                                : 'Line '+(i+1)}
+                            </span>
+                            <div className="size-toggle">
+                              {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
+                                return (
+                                  <button key={opt.label}
+                                    className={'size-btn' + ((lineScales[i]||0)===opt.value?' active':'')}
+                                    style={{padding:'3px 10px',fontSize:11}}
+                                    onClick={function() { setLineScale(i, opt.value); }}>
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <textarea
-                  className={'form-input form-textarea-word' + (errors.name ? ' error' : '')}
-                  placeholder={'e.g. GOAL\nPress Enter for multiple lines'}
-                  value={name}
-                  rows={Math.max(2, parsedLines.length + 1)}
-                  onChange={function(e) {
-                    const ls = e.target.value.split('\n');
-                    if (ls.length <= MAX_LINES) setName(e.target.value);
-                  }}
-                  onKeyDown={function(e) {
-                    if (e.key === 'Enter' && name.split('\n').length >= MAX_LINES) e.preventDefault();
-                  }}
-                  autoFocus
-                />
-                {errors.name && <div className="form-error">{errors.name}</div>}
-                {isMultiRow && (
-                  <div className="multirow-scales">
-                    {parsedLines.map(function(line, i) {
+
+                {!isMultiRow && (
+                  <div className="form-group">
+                    <label className="form-label">Text size</label>
+                    <div className="size-toggle">
+                      {[{label:'Small',value:1},{label:'Normal',value:0},{label:'Large',value:3}].map(function(opt) {
+                        return (
+                          <button key={opt.label}
+                            className={'size-btn' + (textScale === opt.value ? ' active' : '')}
+                            onClick={function() { setTextScale(opt.value); }}>
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <button className="compose-settings-toggle"
+                  onClick={function() { setSettingsOpen(function(v) { return !v; }); }}>
+                  Settings {settingsOpen ? '▲' : '▼'}
+                </button>
+                {settingsOpen && (
+                  <div className="compose-settings-body">
+                    <div className="form-group">
+                      <label className="form-label">Stitch count</label>
+                      <div className="form-row">
+                        <div>
+                          <input type="number" className="form-input" value={stitchesW}
+                            onChange={function(e){setStitchesW(e.target.value);}}/>
+                          <div className="form-hint">Width</div>
+                        </div>
+                        <div>
+                          <input type="number" className="form-input" value={stitchesH}
+                            onChange={function(e){setStitchesH(e.target.value);}}/>
+                          <div className="form-hint">Height</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Hoop size (mm)</label>
+                      <div className="form-row">
+                        <div>
+                          <input type="number" className="form-input" value={hoopW}
+                            onChange={function(e){setHoopW(e.target.value);}}/>
+                          <div className="form-hint">Width</div>
+                        </div>
+                        <div>
+                          <input type="number" className="form-input" value={hoopH}
+                            onChange={function(e){setHoopH(e.target.value);}}/>
+                          <div className="form-hint">Height</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Notes</label>
+                      <textarea className="form-textarea" placeholder="Any notes…"
+                        value={notes} onChange={function(e){setNotes(e.target.value);}}/>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'border' && (
+              <div>
+                {errors.borderId && (
+                  <div className="form-error" style={{marginBottom:8}}>{errors.borderId}</div>
+                )}
+                <BorderPicker borders={borders} selected={borderId}
+                  onSelect={function(id,nm) { setBorderId(id); setBorderName(nm); }}/>
+              </div>
+            )}
+
+            {activeTab === 'colour' && (
+              <div>
+                <div className="form-group">
+                  <div className="form-label-row">
+                    <label className="form-label">Threads</label>
+                    <div style={{display:'flex', alignItems:'center', gap:8}}>
+                      <div className="size-toggle">
+                        {[1,2,3].map(function(n) {
+                          return (
+                            <button key={n}
+                              className={'size-btn' + (strands === n ? ' active' : '')}
+                              style={{padding:'4px 10px', fontSize:11}}
+                              onClick={function() { setStrands(n); }}>
+                              {n}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span style={{fontSize:11, color:'var(--grey)'}}>strands</span>
+                      <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
+                        disabled={calculating || !name.trim() || !borderId}>
+                        {calculating ? 'Calculating…' : 'Recalculate'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="threditor">
+                    {threads.map(function(t, i) {
+                      var slot = THREAD_SLOTS[i] || null;
+                      var lengthEntry = threadLengths && threadLengths[i];
+                      var cm = lengthEntry ? lengthEntry.cm : null;
+                      var lightBorder = t.hex === '#FFFFFF' || t.hex === '#F5F5F5' || t.hex === '#F0E6D3';
                       return (
-                        <div key={i} className="multirow-scale-row">
-                          <span className="multirow-line-label">
-                            {line.text.trim()
-                              ? '"' + line.text.trim().slice(0,18) + (line.text.trim().length>18?'…':'') + '"'
-                              : 'Line '+(i+1)}
-                          </span>
-                          <div className="size-toggle">
-                            {[{label:'S',value:1},{label:'N',value:0},{label:'L',value:3}].map(function(opt) {
-                              return (
-                                <button key={opt.label}
-                                  className={'size-btn' + ((lineScales[i]||0)===opt.value?' active':'')}
-                                  style={{padding:'3px 10px',fontSize:11}}
-                                  onClick={function() { setLineScale(i, opt.value); }}>
-                                  {opt.label}
-                                </button>
-                              );
-                            })}
+                        <div key={t.id || i} className="threditor-slot">
+                          <button
+                            className="threditor-swatch threditor-swatch-btn"
+                            style={{
+                              background: t.hex,
+                              border: lightBorder ? '1.5px solid var(--lgrey)' : '1.5px solid transparent',
+                              cursor: 'pointer'
+                            }}
+                            onClick={function() { setDmcPickerIdx(i); }}
+                            title="Pick DMC colour"
+                          />
+                          <div className="threditor-info">
+                            {slot && (
+                              <div className="threditor-slot-label">
+                                <span className="threditor-slot-name">{slot.label}</span>
+                                <span className="threditor-slot-hint">{slot.hint}</span>
+                              </div>
+                            )}
+                            <div className="threditor-colour-name">
+                              {t.name || <span className="threditor-empty">No name</span>}
+                            </div>
+                            <div className="threditor-dmc">
+                              {t.dmc || <span className="threditor-empty">No DMC code</span>}
+                            </div>
+                          </div>
+                          <div className="threditor-right">
+                            {cm != null && (
+                              <div className="threditor-length">{'~' + cm + ' cm'}</div>
+                            )}
+                            {threads.length > 1 && (
+                              <button className="thread-remove"
+                                onClick={function() { removeThread(i); }}
+                                title="Remove thread">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"/>
+                                  <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                )}
-              </div>
-
-              {!isMultiRow && (
-                <div className="form-group">
-                  <label className="form-label">Text size</label>
-                  <div className="size-toggle">
-                    {[{label:'Small',value:1},{label:'Normal',value:0},{label:'Large',value:3}].map(function(opt) {
-                      return (
-                        <button key={opt.label}
-                          className={'size-btn' + (textScale === opt.value ? ' active' : '')}
-                          onClick={function() { setTextScale(opt.value); }}>
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="form-hint">
-                    {textScale === 0 ? 'Auto — best fit for the word'
-                     : textScale === 1 ? 'Small — fits longer words'
-                     : 'Large — bold impact for short words'}
-                  </div>
-                </div>
-              )}
-
-              {/* Settings — collapsible */}
-              <button className="compose-settings-toggle"
-                onClick={function() { setSettingsOpen(function(v) { return !v; }); }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-                Settings {settingsOpen ? '▲' : '▼'}
-              </button>
-
-              {settingsOpen && (
-                <div className="compose-settings-body">
-                  <div className="form-group">
-                    <label className="form-label">Stitch count</label>
-                    <div className="form-row">
-                      <div>
-                        <input type="number" className={'form-input'+(errors.stitchesW?' error':'')}
-                          value={stitchesW} onChange={function(e){setStitchesW(e.target.value);}}/>
-                        <div className={errors.stitchesW?'form-error':'form-hint'}>{errors.stitchesW||'Width'}</div>
-                      </div>
-                      <div>
-                        <input type="number" className={'form-input'+(errors.stitchesH?' error':'')}
-                          value={stitchesH} onChange={function(e){setStitchesH(e.target.value);}}/>
-                        <div className={errors.stitchesH?'form-error':'form-hint'}>{errors.stitchesH||'Height'}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Hoop size (mm)</label>
-                    <div className="form-row">
-                      <div>
-                        <input type="number" className={'form-input'+(errors.hoopW?' error':'')}
-                          value={hoopW} onChange={function(e){setHoopW(e.target.value);}}/>
-                        <div className={errors.hoopW?'form-error':'form-hint'}>{errors.hoopW||'Width'}</div>
-                      </div>
-                      <div>
-                        <input type="number" className={'form-input'+(errors.hoopH?' error':'')}
-                          value={hoopH} onChange={function(e){setHoopH(e.target.value);}}/>
-                        <div className={errors.hoopH?'form-error':'form-hint'}>{errors.hoopH||'Height'}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Notes</label>
-                    <textarea className="form-textarea" placeholder="Any notes…"
-                      value={notes} onChange={function(e){setNotes(e.target.value);}}/>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── Border tab ── */}
-          {activeTab === 'border' && (
-            <>
-              <div className="form-group">
-                {errors.borderId && <div className="form-error" style={{marginBottom:8}}>{errors.borderId}</div>}
-                <BorderPicker borders={borders} selected={borderId}
-                  onSelect={function(id,nm) { setBorderId(id); setBorderName(nm); }}/>
-              </div>
-            </>
-          )}
-
-          {/* ── Colour tab ── */}
-          {activeTab === 'colour' && (
-            <>
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label className="form-label">Threads</label>
-                  <div style={{display:'flex', alignItems:'center', gap:8}}>
-                    <div className="size-toggle" style={{fontSize:11}}>
-                      {[1,2,3].map(function(n) {
-                        return (
-                          <button key={n}
-                            className={'size-btn' + (strands === n ? ' active' : '')}
-                            style={{padding:'4px 10px', fontSize:11}}
-                            onClick={function() { setStrands(n); }}
-                            title={n + ' strand' + (n>1?'s':'')}>
-                            {n}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <span style={{fontSize:11, color:'var(--grey)'}}>strands</span>
-                    <button className="btn btn-ghost btn-sm" onClick={handleRecalculate}
-                      disabled={calculating || !name.trim() || !borderId}>
-                      {calculating ? 'Calculating…' : 'Recalculate'}
+                  {threads.length < 6 && (
+                    <button className="add-thread-btn" onClick={addThread}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                      </svg>
+                      Add thread
                     </button>
-                  </div>
+                  )}
                 </div>
-                <div className="threditor">
-                  {threads.map(function(t, i) {
-                    const slot = THREAD_SLOTS[i] || null;
-                    const lengthEntry = threadLengths && threadLengths[i];
-                    const cm = lengthEntry ? lengthEntry.cm : null;
-                    const isLightSwatch = t.hex === '#FFFFFF' || t.hex === '#FFFFF0' || t.hex === '#FFF8B0' || t.hex === '#F5F5F5';
-                    return (
-                      <div key={t.id || i} className="threditor-slot">
-                        <button
-                          className="threditor-swatch threditor-swatch-btn"
-                          style={{
-                            background: t.hex,
-                            border: isLightSwatch ? '1.5px solid var(--lgrey)' : '1.5px solid transparent',
-                            cursor: 'pointer'
-                          }}
-                          onClick={function() { setDmcPickerIndex(i); }}
-                          title="Pick DMC colour"
-                        />
-                        <div className="threditor-info">
-                          {slot && (
-                            <div className="threditor-slot-label">
-                              <span className="threditor-slot-name">{slot.label}</span>
-                              <span className="threditor-slot-hint">{slot.hint}</span>
-                            </div>
-                          )}
-                          <div className="threditor-colour-name">{t.name || <span className="threditor-empty">No name</span>}</div>
-                          <div className="threditor-dmc">{t.dmc || <span className="threditor-empty">No DMC code</span>}</div>
-                        </div>
-                        <div className="threditor-right">
-                          {cm != null && <div className="threditor-length">{'~' + cm + ' cm'}</div>}
-                          {threads.length > 1 && (
-                            <button className="thread-remove" onClick={function() { removeThread(i); }} title="Remove thread">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {threads.length < 6 && (
-                  <button className="add-thread-btn" onClick={addThread}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                    Add thread
-                  </button>
-                )}
               </div>
-            </>
-          )}
+            )}
 
-          {/* ── Objects tab ── */}
-          {activeTab === 'objects' && (
-            <>
-              <div className="form-group">
+            {activeTab === 'objects' && (
+              <div>
                 <div className="form-hint" style={{marginBottom:10}}>
                   Tap a position to place an object. Layer colours follow your thread palette.
                 </div>
@@ -1824,7 +1777,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
                         pos={pos}
                         placed={placedObjects[pos.id] || null}
                         threads={threads}
-                        onClick={pos.id !== 'centre' ? function() { openPicker(pos.id); } : undefined}
+                        onClick={pos.id !== 'centre' ? function() { openObjPicker(pos.id); } : undefined}
                         onClear={function() { clearPosition(pos.id); }}
                       />
                     );
@@ -1838,39 +1791,39 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
                   </button>
                 )}
               </div>
-            </>
-          )}
+            )}
 
+          </div>
         </div>
+
       </div>
 
+      {dmcPickerIdx !== null && (
+        <DmcPickerSheet
+          currentHex={threads[dmcPickerIdx] ? threads[dmcPickerIdx].hex : '#000000'}
+          onSelect={function(c) {
+            updateThread(dmcPickerIdx, Object.assign({}, threads[dmcPickerIdx], {
+              hex: c.hex, dmc: 'DMC ' + c.dmc,
+              name: (threads[dmcPickerIdx] && threads[dmcPickerIdx].name) || c.name
+            }));
+            setDmcPickerIdx(null);
+          }}
+          onClose={function() { setDmcPickerIdx(null); }}
+        />
+      )}
+
+      {pickerPos && activePosition && (
+        <ObjPickerSheet
+          position={activePosition}
+          objects={objects}
+          threads={threads}
+          placed={placedObjects[pickerPos] || null}
+          onSelect={function(obj) { placeObject(pickerPos, obj); }}
+          onClear={function() { clearPosition(pickerPos); }}
+          onClose={closeObjPicker}
+        />
+      )}
+
     </div>
-
-    {/* DMC picker — rendered outside sheet-fullscreen to escape fixed positioning context */}
-    {dmcPickerIndex !== null && (
-      <DmcPickerSheet
-        currentHex={threads[dmcPickerIndex] ? threads[dmcPickerIndex].hex : '#000000'}
-        onSelect={function(c) {
-          const t = threads[dmcPickerIndex];
-          updateThread(dmcPickerIndex, {...t, hex: c.hex, dmc: 'DMC ' + c.dmc, name: t.name || c.name});
-          setDmcPickerIndex(null);
-        }}
-        onClose={function() { setDmcPickerIndex(null); }}
-      />
-    )}
-
-    {/* Object picker — also outside sheet-fullscreen for the same reason */}
-    {pickerPos && activePosition && (
-      <ObjPickerSheet
-        position={activePosition}
-        objects={objects}
-        threads={threads}
-        placed={placedObjects[pickerPos] || null}
-        onSelect={function(obj) { placeObject(pickerPos, obj); }}
-        onClear={function() { clearPosition(pickerPos); }}
-        onClose={closePicker}
-      />
-    )}
-    </>
   );
 }
