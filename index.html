@@ -433,6 +433,12 @@ html, body, #root {
 /* ── Border picker ── */
 .border-picker { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .border-picker::-webkit-scrollbar { height: 3px; }
+
+/* Border picker inside compose panel — grid not scroll row */
+.compose-panel .border-picker {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px; overflow-x: visible; padding-bottom: 0;
+}
 .border-option {
   flex-shrink: 0; width: 88px; cursor: pointer;
   border: 2px solid var(--lgrey); border-radius: var(--radius-sm);
@@ -5913,7 +5919,28 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
   function openObjPicker(posId) { setPickerPos(posId); }
   function closeObjPicker() { setPickerPos(null); }
   function placeObject(posId, obj) {
-    setPlacedObjects(function(prev) { return Object.assign({}, prev, {[posId]: obj}); });
+    // Normalise to plain layers format so canvas renders immediately
+    // and Firestore serialisation works cleanly
+    const layers = obj.layers
+      ? obj.layers.map(function(l) {
+          return {
+            colorSlot: l.colorSlot || 'primary',
+            pattern: (l.pattern || []).map(function(r) {
+              return typeof r === 'string' ? r : r.join('');
+            }),
+          };
+        })
+      : [{ colorSlot: 'primary', pattern: (obj.pattern || []).map(function(r) {
+          return typeof r === 'string' ? r : r.join('');
+        }) }];
+    const normObj = {
+      id: obj.id || posId,
+      name: obj.name || '',
+      width: obj.width || (layers[0] && layers[0].pattern[0] ? layers[0].pattern[0].length : 0),
+      height: obj.height || (layers[0] ? layers[0].pattern.length : 0),
+      layers: layers,
+    };
+    setPlacedObjects(function(prev) { return Object.assign({}, prev, {[posId]: normObj}); });
     setPickerPos(null);
   }
   function clearPosition(posId) {
@@ -6973,8 +7000,40 @@ function App() {
       const border = borders.find(function(b) { return b.id === data.borderId; });
       const borderSpec = (border && border.spec) ? border.spec
                        : (BORDER_SPECS[border && border.style] || null);
+
+      // Serialise placedObjects — strip any non-plain fields Firestore can't store
+      // (getters, undefined values, Firestore timestamps nested inside objects)
+      const safePlacedObjects = {};
+      if (data.placedObjects) {
+        Object.keys(data.placedObjects).forEach(function(posId) {
+          const obj = data.placedObjects[posId];
+          if (!obj) return;
+          // Normalise to plain layers format
+          const layers = obj.layers
+            ? obj.layers.map(function(l) {
+                return {
+                  colorSlot: l.colorSlot || 'primary',
+                  pattern: (l.pattern || []).map(function(r) {
+                    return typeof r === 'string' ? r : r.join('');
+                  }),
+                };
+              })
+            : [{ colorSlot: 'primary', pattern: (obj.pattern || []).map(function(r) {
+                return typeof r === 'string' ? r : r.join('');
+              }) }];
+          safePlacedObjects[posId] = {
+            id: obj.id || posId,
+            name: obj.name || '',
+            width: obj.width || (layers[0] && layers[0].pattern[0] ? layers[0].pattern[0].length : 0),
+            height: obj.height || (layers[0] ? layers[0].pattern.length : 0),
+            layers: layers,
+          };
+        });
+      }
+
       const fullData = {
         ...data,
+        placedObjects: safePlacedObjects,
         borderStyle: border ? border.style : 'british',
         borderSpec:  borderSpec,
       };
@@ -6992,7 +7051,10 @@ function App() {
         showToast('Shoutout created');
       }
       setComposeShoutout(null); setSelShoutout(null);
-    } catch(e) { showToast('Something went wrong — try again'); }
+    } catch(e) {
+      console.error('saveCompose error:', e);
+      showToast('Save failed: ' + e.message);
+    }
     finally { setSaving(false); }
   }
 
