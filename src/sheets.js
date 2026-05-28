@@ -1419,7 +1419,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
     const cols = +stitchesW || 94;
     const rows = +stitchesH || 94;
     const grid = isMultiRow
-      ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2)
+      ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2, placedObjects)
       : buildGrid(name.replace(/\n/g, ' '), cols, rows, activeBorderSpec, textScale, 2, placedObjects);
     const actualCols = grid[0] ? grid[0].length : cols;
     const actualRows = grid.length || rows;
