@@ -543,6 +543,7 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 /* Topbar — flex child, no positioning */
@@ -1137,18 +1138,15 @@ html, body, #root {
 /* ═══════════════════════════════════════════════════════════════════
    COMPOSE SHEET
 ═══════════════════════════════════════════════════════════════════ */
+.compose-root {
+  position: absolute; inset: 0; z-index: 10;
+}
 .sheet-fullscreen {
   position: absolute; inset: 0;
   background: var(--offwht);
   display: grid;
   grid-template-columns: 1fr 340px;
   grid-template-rows: 48px 1fr;
-  overflow: hidden;
-  z-index: 10;
-}
-/* app-main must be relative so ComposeSheet positions within it */
-.app-main:has(.sheet-fullscreen) {
-  position: relative;
   overflow: hidden;
 }
 

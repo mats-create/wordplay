@@ -1,4 +1,4 @@
-function buildGrid(word, cols, rows, borderStyle, scale, gap) {
+function buildGrid(word, cols, rows, borderStyle, scale, gap, placedObjects) {
   // scale=0 means auto; gap defaults to 1 (will be scaled internally)
   const GAP_BASE = (gap != null && gap > 0) ? gap : 1;
   cols  = cols  || 94;
@@ -19,6 +19,44 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap) {
     : (BORDER_SPECS[borderStyle] || BORDER_SPECS['minimal']);
 
   renderBorderSpec(spec, N, setCell);
+
+  // ── Placed objects ──
+  if (placedObjects && typeof placedObjects === 'object') {
+    const borderDepthPO = (spec && spec.layers) ? spec.layers.length : 2;
+    const insetPO = (spec && spec.cornerInset) ? spec.cornerInset : borderDepthPO + 2;
+    const CSKPO = {primary:'T',secondary:'D',accent:'E',border3:'H',accent1:'J',accent2:'L'};
+    function forceCell(r, c, kind) {
+      if (r >= 0 && r < rows && c >= 0 && c < cols) grid[r][c] = kind;
+    }
+    Object.keys(placedObjects).forEach(function(posId) {
+      const obj = placedObjects[posId];
+      if (!obj) return;
+      const layers = obj.layers ? obj.layers : [{colorSlot:'primary', pattern: obj.pattern||[]}];
+      if (!layers.length || !layers[0].pattern || !layers[0].pattern.length) return;
+      const ph = layers[0].pattern.length;
+      const firstRow = typeof layers[0].pattern[0]==='string' ? layers[0].pattern[0] : layers[0].pattern[0].join('');
+      const pw = firstRow.length;
+      let sr, sc;
+      if      (posId==='topLeft')     { sr=insetPO;             sc=insetPO; }
+      else if (posId==='topRight')    { sr=insetPO;             sc=cols-insetPO-pw; }
+      else if (posId==='bottomLeft')  { sr=rows-insetPO-ph;     sc=insetPO; }
+      else if (posId==='bottomRight') { sr=rows-insetPO-ph;     sc=cols-insetPO-pw; }
+      else if (posId==='top')         { sr=insetPO;             sc=Math.floor((cols-pw)/2); }
+      else if (posId==='bottom')      { sr=rows-insetPO-ph;     sc=Math.floor((cols-pw)/2); }
+      else if (posId==='left')        { sr=Math.floor((rows-ph)/2); sc=insetPO; }
+      else if (posId==='right')       { sr=Math.floor((rows-ph)/2); sc=cols-insetPO-pw; }
+      else return;
+      layers.forEach(function(layer) {
+        const kind = CSKPO[layer.colorSlot] || 'F';
+        (layer.pattern||[]).forEach(function(rowData, dr) {
+          const rs = typeof rowData==='string' ? rowData : rowData.join('');
+          rs.split('').forEach(function(ch, dc) {
+            if (ch==='1') forceCell(sr+dr, sc+dc, kind);
+          });
+        });
+      });
+    });
+  }
 
   // ── Text ──
   if (!word || !word.trim()) return grid;
@@ -417,7 +455,7 @@ function calculateThreadLengths(word, cols, rows, borderStyle, threads, textScal
 /* ═══════════════════════════════════════════════════════════════════
    CANVAS COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale, lines }) {
+function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, className, textScale, lines, placedObjects }) {
   const canvasRef = useRef(null);
   cols = cols||110; rows = rows||110;
 
@@ -433,8 +471,8 @@ function CrossStitchCanvas({ word, cols, rows, borderStyle, threads, size, class
 
     // Use multi-row builder if lines provided, otherwise single-word builder
     const grid = lines && lines.length > 0
-      ? buildGridMulti(lines, cols, rows, borderStyle, 2)
-      : buildGrid(word, cols, rows, borderStyle, textScale || 0, 2);
+      ? buildGridMulti(lines, cols, rows, borderStyle, 2, placedObjects)
+      : buildGrid(word, cols, rows, borderStyle, textScale || 0, 2, placedObjects);
 
     // Use actual grid dimensions (may differ if buildGridMulti auto-expanded)
     const actualCols = grid[0] ? grid[0].length : cols;

@@ -1520,7 +1520,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
   var activePosition = pickerPos ? COMPOSE_POSITIONS.find(function(p) { return p.id === pickerPos; }) : null;
 
   return (
-    <div>
+    <div className="compose-root">
       <div className="sheet-fullscreen">
 
         <div className="compose-topbar">
