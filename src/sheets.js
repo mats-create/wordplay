@@ -613,8 +613,8 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 ═══════════════════════════════════════════════════════════════════ */
 
 // Max dimensions based on British Classic border limits
-const OBJECT_MAX_W = 41; // top/bottom side motif max width
-const OBJECT_MAX_H = 11; // corner motif max height (enlarged)
+const OBJECT_MAX_W = 42; // top/bottom side motif max width
+const OBJECT_MAX_H = 12; // corner motif max height
 const OBJECT_DEFAULT_W = 9;
 const OBJECT_DEFAULT_H = 9;
 const EDITOR_CELL = 32; // px per stitch cell in editor
@@ -1199,13 +1199,13 @@ function SignInScreen({ onSignIn, error }) {
 // Position definitions for the 8 placement zones
 const COMPOSE_POSITIONS = [
   {id:'topLeft',    label:'Top left',    isCorner:true,  maxW:9,  maxH:9},
-  {id:'top',        label:'Top',         isCorner:false, maxW:41, maxH:9},
+  {id:'top',        label:'Top',         isCorner:false, maxW:42, maxH:12},
   {id:'topRight',   label:'Top right',   isCorner:true,  maxW:9,  maxH:9},
-  {id:'left',       label:'Left',        isCorner:false, maxW:9,  maxH:41},
+  {id:'left',       label:'Left',        isCorner:false, maxW:12, maxH:42},
   {id:'centre',     label:'',            isCorner:false, maxW:0,  maxH:0},
-  {id:'right',      label:'Right',       isCorner:false, maxW:9,  maxH:41},
+  {id:'right',      label:'Right',       isCorner:false, maxW:12, maxH:42},
   {id:'bottomLeft', label:'Bottom left', isCorner:true,  maxW:9,  maxH:9},
-  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:41, maxH:9},
+  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:42, maxH:12},
   {id:'bottomRight',label:'Bottom right',isCorner:true,  maxW:9,  maxH:9},
 ];
 
@@ -1566,7 +1566,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
 
         <div className="compose-panel">
           <div className="compose-tabs">
-            {['word','border','colour','objects'].map(function(tab) {
+            {['word','border','objects','colour'].map(function(tab) {
               var labels = {word:'Word', border:'Border', colour:'Colour', objects:'Objects'};
               return (
                 <button key={tab}
@@ -1835,7 +1835,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
           onSelect={function(c) {
             updateThread(dmcPickerIdx, Object.assign({}, threads[dmcPickerIdx], {
               hex: c.hex, dmc: 'DMC ' + c.dmc,
-              name: (threads[dmcPickerIdx] && threads[dmcPickerIdx].name) || c.name
+              name: c.name
             }));
             setDmcPickerIdx(null);
           }}
