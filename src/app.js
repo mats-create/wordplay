@@ -516,7 +516,9 @@ function App() {
             objects={objects}
             onSave={saveCompose}
             onClose={function() { setComposeShoutout(null); }}
-            saving={saving}/>
+            saving={saving}
+            kevinVisible={kevinVisible}
+            onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
         )}
       </div>
 

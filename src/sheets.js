@@ -99,6 +99,7 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, onCompose, folder
             borderStyle={bs} threads={shoutout.threads}
             textScale={shoutout.textScale||0}
             lines={shoutout.lines||null}
+            placedObjects={shoutout.placedObjects||null}
             size={550}/>
         </div>
 
@@ -612,8 +613,8 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }) {
 ═══════════════════════════════════════════════════════════════════ */
 
 // Max dimensions based on British Classic border limits
-const OBJECT_MAX_W = 42; // top/bottom side motif max width
-const OBJECT_MAX_H = 12; // corner motif max height
+const OBJECT_MAX_W = 41; // top/bottom side motif max width
+const OBJECT_MAX_H = 11; // corner motif max height (enlarged)
 const OBJECT_DEFAULT_W = 9;
 const OBJECT_DEFAULT_H = 9;
 const EDITOR_CELL = 32; // px per stitch cell in editor
@@ -1198,13 +1199,13 @@ function SignInScreen({ onSignIn, error }) {
 // Position definitions for the 8 placement zones
 const COMPOSE_POSITIONS = [
   {id:'topLeft',    label:'Top left',    isCorner:true,  maxW:9,  maxH:9},
-  {id:'top',        label:'Top',         isCorner:false, maxW:42, maxH:12},
+  {id:'top',        label:'Top',         isCorner:false, maxW:41, maxH:9},
   {id:'topRight',   label:'Top right',   isCorner:true,  maxW:9,  maxH:9},
-  {id:'left',       label:'Left',        isCorner:false, maxW:12, maxH:42},
+  {id:'left',       label:'Left',        isCorner:false, maxW:9,  maxH:41},
   {id:'centre',     label:'',            isCorner:false, maxW:0,  maxH:0},
-  {id:'right',      label:'Right',       isCorner:false, maxW:12, maxH:42},
+  {id:'right',      label:'Right',       isCorner:false, maxW:9,  maxH:41},
   {id:'bottomLeft', label:'Bottom left', isCorner:true,  maxW:9,  maxH:9},
-  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:42, maxH:12},
+  {id:'bottom',     label:'Bottom',      isCorner:false, maxW:41, maxH:9},
   {id:'bottomRight',label:'Bottom right',isCorner:true,  maxW:9,  maxH:9},
 ];
 
@@ -1362,7 +1363,7 @@ function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear,
 }
 
 // Main ComposeSheet component
-function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
+function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevinVisible, onToggleKevin }) {
   const isEdit = !!initial;
   const initName = (initial && initial.lines && initial.lines.length > 1)
     ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
@@ -1418,7 +1419,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
     const cols = +stitchesW || 94;
     const rows = +stitchesH || 94;
     const grid = isMultiRow
-      ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2, placedObjects)
+      ? buildGridMulti(parsedLines, cols, rows, activeBorderSpec, 2)
       : buildGrid(name.replace(/\n/g, ' '), cols, rows, activeBorderSpec, textScale, 2, placedObjects);
     const actualCols = grid[0] ? grid[0].length : cols;
     const actualRows = grid.length || rows;
@@ -1520,7 +1521,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
   var activePosition = pickerPos ? COMPOSE_POSITIONS.find(function(p) { return p.id === pickerPos; }) : null;
 
   return (
-    <div className="compose-root">
+    <div>
       <div className="sheet-fullscreen">
 
         <div className="compose-topbar">
@@ -1534,6 +1535,15 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
             )}
           </span>
           <div className="compose-actions">
+            {onToggleKevin && (
+              <button
+                className={'btn btn-ghost btn-sm' + (kevinVisible ? ' active' : '')}
+                onClick={onToggleKevin}
+                title={kevinVisible ? 'Hide Kevin' : 'Open Kevin'}
+                style={{fontWeight:700, letterSpacing:'0.3px'}}>
+                CK
+              </button>
+            )}
             {hasErrors(errors) && (
               <span style={{fontSize:11, color:'var(--coral)'}}>Fix errors first</span>
             )}
@@ -1556,7 +1566,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
 
         <div className="compose-panel">
           <div className="compose-tabs">
-            {['word','border','objects','colour'].map(function(tab) {
+            {['word','border','colour','objects'].map(function(tab) {
               var labels = {word:'Word', border:'Border', colour:'Colour', objects:'Objects'};
               return (
                 <button key={tab}
@@ -1825,7 +1835,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving }) {
           onSelect={function(c) {
             updateThread(dmcPickerIdx, Object.assign({}, threads[dmcPickerIdx], {
               hex: c.hex, dmc: 'DMC ' + c.dmc,
-              name: c.name
+              name: (threads[dmcPickerIdx] && threads[dmcPickerIdx].name) || c.name
             }));
             setDmcPickerIdx(null);
           }}
