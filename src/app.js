@@ -287,8 +287,36 @@ function App() {
       const border = borders.find(function(b) { return b.id === data.borderId; });
       const borderSpec = (border && border.spec) ? border.spec
                        : (BORDER_SPECS[border && border.style] || null);
+      // Serialise placedObjects to plain format Firestore can store
+      const safePlacedObjects = {};
+      if (data.placedObjects) {
+        Object.keys(data.placedObjects).forEach(function(posId) {
+          const obj = data.placedObjects[posId];
+          if (!obj) return;
+          const layers = obj.layers
+            ? obj.layers.map(function(l) {
+                return {
+                  colorSlot: l.colorSlot || 'primary',
+                  pattern: (l.pattern || []).map(function(r) {
+                    return typeof r === 'string' ? r : r.join('');
+                  }),
+                };
+              })
+            : [{ colorSlot: 'primary', pattern: (obj.pattern || []).map(function(r) {
+                return typeof r === 'string' ? r : r.join('');
+              }) }];
+          safePlacedObjects[posId] = {
+            id: obj.id || posId,
+            name: obj.name || '',
+            width: obj.width || (layers[0] && layers[0].pattern[0] ? layers[0].pattern[0].length : 0),
+            height: obj.height || (layers[0] ? layers[0].pattern.length : 0),
+            layers: layers,
+          };
+        });
+      }
       const fullData = {
         ...data,
+        placedObjects: safePlacedObjects,
         borderStyle: border ? border.style : 'british',
         borderSpec:  borderSpec,
       };
@@ -306,7 +334,10 @@ function App() {
         showToast('Shoutout created');
       }
       setComposeShoutout(null); setSelShoutout(null);
-    } catch(e) { showToast('Something went wrong — try again'); }
+    } catch(e) {
+      console.error('saveCompose error:', e);
+      showToast('Save failed: ' + e.message);
+    }
     finally { setSaving(false); }
   }
 
@@ -487,7 +518,7 @@ function App() {
             <button className="fab-mobile"
               title={tab==='shoutouts' ? 'New shoutout' : tab==='borders' ? 'New border' : 'New object'}
               onClick={function() {
-                if (tab === 'shoutouts') setEditShoutout('new');
+                if (tab === 'shoutouts') setComposeShoutout('new');
                 else if (tab === 'borders') setEditBorder('new');
                 else setEditObject('new');
               }}>
@@ -501,7 +532,7 @@ function App() {
           <button className="fab"
             title={tab==='shoutouts' ? 'New shoutout' : tab==='borders' ? 'New border' : 'New object'}
             onClick={function() {
-              if (tab === 'shoutouts') setEditShoutout('new');
+              if (tab === 'shoutouts') setComposeShoutout('new');
               else if (tab === 'borders') setEditBorder('new');
               else setEditObject('new');
             }}>
