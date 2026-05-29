@@ -48,7 +48,7 @@ function FolderPill({ name, active, count, onClick, onRename, onDelete }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -126,6 +126,11 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
                 className={'card' + (isSelected ? ' card-selected' : '')}
                 onClick={function() { select(s); }}>
                 {s.folder && <div className="card-folder-tag">{s.folder}</div>}
+                {s.locked && (
+                  <div className="card-locked-badge">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                )}
                 <div className="card-select-ring">
                   {isSelected && (
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -142,7 +147,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
                   lines={s.lines||null}
                   placedObjects={s.placedObjects||null}
                   className="canvas-thumb"/>
-                <div className="card-title">{s.name}</div>
+                <div className="card-title">{s.designName || s.name}</div>
                 <div className="card-sub">
                   {s.stitchesW}x{s.stitchesH} stitches · {s.hoopW}x{s.hoopH}mm
                   {s.borderName && <span> · {s.borderName}</span>}
@@ -178,7 +183,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
                 })}
               </div>
               <div className="sel-toolbar-info">
-                <div className="sel-toolbar-name">{selected.name}</div>
+                <div className="sel-toolbar-name">{selected.designName || selected.name}</div>
                 <div className="sel-toolbar-sub">
                   {selected.stitchesW}x{selected.stitchesH}
                   {selected.borderName ? ' · '+selected.borderName : ''}
@@ -193,14 +198,13 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
               </button>
             </div>
             <div className="sel-toolbar-actions">
-              <button className="sel-btn sel-btn-primary"
+              <button className={'sel-btn sel-btn-primary' + (selected.locked ? ' sel-btn-locked' : '')}
                 onClick={function() { onCompose(selected); deselect(); }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/>
-                  <path d="M3 9h18M9 3v18"/>
-                </svg>
-                Compose
+                {selected.locked
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+                }
+                {selected.locked ? 'Locked' : 'Compose'}
               </button>
 
               <div style={{position:'relative'}}>
@@ -265,6 +269,16 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
               </div>
 
               <div style={{flex:1}}/>
+
+              <button className="sel-btn"
+                onClick={function() { onToggleLock(selected); }}
+                title={selected.locked ? 'Unlock design' : 'Lock design'}>
+                {selected.locked
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                }
+                {selected.locked ? 'Unlock' : 'Lock'}
+              </button>
 
               <button className="sel-btn sel-btn-danger"
                 onClick={function() { onDelete(selected); }}>

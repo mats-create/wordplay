@@ -96,6 +96,8 @@ Layered objects: objects can have multiple colour layers instead of a single pat
 
 Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. All 8 positions accept objects up to 42×42 stitches — the canvas is the visual guide for overlap or fit issues.
 
+Lock system: shoutouts can be locked (locked: true) to prevent accidental edits. Before calling updateShoutout, deleteShoutout, placeObject, or removeObject on a locked shoutout, you must ask the user for permission first with a simple yes/no question like "That design is locked — unlock it to make changes?". If they say yes, call updateShoutout with locked: false first, then proceed. You can lock or unlock items directly when asked ("lock GOAL", "unlock all my borders"). Never silently edit a locked item.
+
 Folders: shoutouts, borders and objects can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.
 
 UI flow: tapping a card in the library selects it and reveals an action toolbar at the bottom of the screen. From there the user can Compose (open the full composition workspace), move to a folder, export PDFs, or delete. There are no detail sheets — the card thumbnail shows the full design. When the user says they want to edit or open a shoutout, they mean opening it in Compose.`;
@@ -139,7 +141,7 @@ const KEVIN_TOOLS = [
   },
   {
     name: 'updateShoutout',
-    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change.',
+    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change. Accepts: name, designName, locked, borderId, borderName, threads, notes, placedObjects and other shoutout fields.',
     input_schema: {
       type: 'object',
       properties: {
@@ -364,7 +366,10 @@ async function executeKevinTool(toolName, toolInput, appData) {
           }).join(', ')
         : 'none';
       return {
-        id: s.id, name: s.name,
+        id: s.id,
+        name: s.designName || s.name,
+        word: s.name,
+        locked: s.locked || false,
         stitches: s.stitchesW + 'x' + s.stitchesH,
         hoop: s.hoopW + 'x' + s.hoopH + 'mm',
         border: s.borderName || 'none',

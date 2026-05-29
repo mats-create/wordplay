@@ -340,6 +340,18 @@ function App() {
 
   // ── Save shoutout ──
 
+  // ── Toggle lock ──
+  async function handleToggleLock(item) {
+    try {
+      const newLocked = !item.locked;
+      await fb.updateDoc(
+        fb.doc(fb.db, 'users', authUser.uid, 'shoutouts', item.id),
+        { locked: newLocked, updatedAt: fb.serverTimestamp() }
+      );
+      showToast(newLocked ? 'Design locked' : 'Design unlocked');
+    } catch(e) { showToast('Could not update lock: ' + e.message); }
+  }
+
   // ── Save border ──
   async function saveBorder(data) {
     setSaving(true);
@@ -419,6 +431,7 @@ function App() {
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
               tmCache={tmCache}
               onCompose={function(s) { setComposeShoutout(s); }}
+              onToggleLock={handleToggleLock}
               onExportChart={function(s) {
                 setTimeout(function() { generateChartPDF(s); }, 50);
               }}

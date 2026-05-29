@@ -1367,6 +1367,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
     : (initial ? initial.name : '');
 
   const [name,          setName]          = useState(initName);
+  const [designName,    setDesignName]    = useState(initial ? (initial.designName || '') : '');
   const [stitchesW,     setStitchesW]     = useState(initial ? initial.stitchesW : 94);
   const [stitchesH,     setStitchesH]     = useState(initial ? initial.stitchesH : 94);
   const [hoopW,         setHoopW]         = useState(initial ? initial.hoopW : 280);
@@ -1469,7 +1470,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   }
   function handleSave() {
     var fields = {
-      name: name, stitchesW: +stitchesW, stitchesH: +stitchesH,
+      name: name, designName: designName.trim() || '', stitchesW: +stitchesW, stitchesH: +stitchesH,
       hoopW: +hoopW, hoopH: +hoopH, notes: notes,
       borderId: borderId, borderName: borderName,
       threads: threads, textScale: textScale, strands: strands,
@@ -1527,8 +1528,8 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
           </button>
           <span className="compose-topbar-title">
             {isEdit ? 'Compose' : 'New shoutout'}
-            {name.trim() && (
-              <span className="compose-topbar-word"> — {name.replace(/\n/g,' ')}</span>
+            {(designName.trim() || name.trim()) && (
+              <span className="compose-topbar-word"> — {designName.trim() || name.replace(/\n/g,' ')}</span>
             )}
           </span>
           <div className="compose-actions">
@@ -1627,6 +1628,18 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                       })}
                     </div>
                   )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Design name
+                    <span className="form-label-optional"> — optional</span>
+                  </label>
+                  <input className="form-input"
+                    placeholder={name.replace(/\n/g,' ').trim() || 'e.g. The Panenka'}
+                    value={designName}
+                    onChange={function(e) { setDesignName(e.target.value); }}/>
+                  <div className="form-hint">How this design is identified in your library. Defaults to the word if left blank.</div>
                 </div>
 
                 {!isMultiRow && (

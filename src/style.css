@@ -1441,3 +1441,19 @@ html, body, #root {
 .folder-pill-menu-item + .folder-pill-menu-item { border-top: 1px solid var(--lgrey); }
 .folder-pill-menu-danger { color: var(--coral); }
 .folder-pill-menu-danger:hover { background: #fff0ed; }
+
+/* ── Design name label optional ── */
+.form-label-optional { font-weight: 400; color: var(--grey); font-size: 11px; }
+
+/* ── Locked card badge ── */
+.card-locked-badge {
+  position: absolute; top: 8px; left: 8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(26,26,26,0.65); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2;
+}
+.sel-btn-locked {
+  background: var(--grey); border-color: var(--grey);
+}
+.sel-btn-locked:hover { background: #555; border-color: #555; }
