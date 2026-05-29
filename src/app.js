@@ -4,8 +4,7 @@ function App() {
   const [tab,         setTab]         = useState('shoutouts');
   const [shoutouts,   setShoutouts]   = useState([]);
   const [borders,     setBorders]     = useState([]);
-  const [selShoutout, setSelShoutout] = useState(null);
-  const [selBorder,   setSelBorder]   = useState(null);
+  const [aidaShoutout, setAidaShoutout] = useState(null);
   const [editBorder,  setEditBorder]  = useState(null);
   const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
@@ -20,7 +19,6 @@ function App() {
   const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
   const [activeObjectFolder,   setActiveObjectFolder]   = useState(null);
   const [objects,       setObjects]       = useState([]);
-  const [selObject,     setSelObject]     = useState(null);
   const [editObject,    setEditObject]    = useState(null);
   const [composeShoutout, setComposeShoutout] = useState(null);
   const fb = window.__firebase;
@@ -265,7 +263,7 @@ function App() {
         );
         showToast('Object created');
       }
-      setEditObject(null); setSelObject(null);
+      setEditObject(null);
     } catch(e) { showToast('Something went wrong — try again'); }
     finally { setSaving(false); }
   }
@@ -332,7 +330,7 @@ function App() {
         );
         showToast('Shoutout created');
       }
-      setComposeShoutout(null); setSelShoutout(null);
+      setComposeShoutout(null);
     } catch(e) {
       console.error('saveCompose error:', e);
       showToast('Save failed: ' + e.message);
@@ -365,7 +363,7 @@ function App() {
         );
         showToast('Border created');
       }
-      setEditBorder(null); setSelBorder(null);
+      setEditBorder(null);
     } catch(e) { showToast('Border save failed: ' + e.message); }
     finally { setSaving(false); }
   }
@@ -379,12 +377,12 @@ function App() {
         showToast('Shoutout deleted'); setSelShoutout(null);
       } else if (confirmDel.type==='object') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'objects',confirmDel.id));
-        showToast('Object deleted'); setSelObject(null);
+        showToast('Object deleted');
       } else {
         const border = borders.find(function(b) { return b.id === confirmDel.id; });
         if (border && border.builtIn) { showToast('Cannot delete built-in borders'); setConfirmDel(null); return; }
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'borders',confirmDel.id));
-        showToast('Border deleted'); setSelBorder(null);
+        showToast('Border deleted');
       }
       setConfirmDel(null);
     } catch(e) { showToast('Delete failed — try again'); }
@@ -420,7 +418,13 @@ function App() {
           {tab === 'shoutouts' && (
             <ShoutoutsScreen shoutouts={shoutouts} borders={borders}
               tmCache={tmCache}
-              onSelect={function(s) { setSelShoutout(s); }}
+              onCompose={function(s) { setComposeShoutout(s); }}
+              onExportChart={function(s) {
+                setTimeout(function() { generateChartPDF(s); }, 50);
+              }}
+              onExportAida={function(s) { setAidaShoutout(s); }}
+              onDelete={function(s) { setConfirmDel({type:'shoutout', id:s.id}); }}
+              onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               folders={shoutoutFolders}
               activeFolder={activeShoutoutFolder}
               onFolderChange={setActiveShoutoutFolder}
@@ -430,7 +434,9 @@ function App() {
           )}
           {tab === 'borders' && (
             <BordersScreen borders={borders}
-              onSelect={function(b) { setSelBorder(b); }}
+              onEdit={function(b) { setEditBorder(b); }}
+              onDelete={function(b) { setConfirmDel({type:'border', id:b.id}); }}
+              onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               folders={borderFolders}
               activeFolder={activeBorderFolder}
               onFolderChange={setActiveBorderFolder}
@@ -440,7 +446,9 @@ function App() {
           )}
           {tab === 'objects' && (
             <ObjectsScreen objects={objects}
-              onSelect={function(o) { setSelObject(o); }}
+              onEdit={function(o) { setEditObject(o); }}
+              onDelete={function(o) { setConfirmDel({type:'object', id:o.id}); }}
+              onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               folders={objectFolders}
               activeFolder={activeObjectFolder}
               onFolderChange={setActiveObjectFolder}
@@ -539,24 +547,9 @@ function App() {
       </div>
 
       {/* ── Modals ── */}
-      {selShoutout && !composeShoutout && (
-        <ShoutoutDetail shoutout={selShoutout}
-          onClose={function() { setSelShoutout(null); }}
-          onEdit={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
-          onCompose={function() { setComposeShoutout(selShoutout); setSelShoutout(null); }}
-          onDelete={function() { setConfirmDel({type:'shoutout',id:selShoutout.id}); }}
-          folders={shoutoutFolders}
-          onMoveToFolder={function(folder) { handleMoveToFolder('shoutout', selShoutout.id, folder); }}/>
-      )}
 
-      {selBorder && !editBorder && (
-        <BorderDetail border={selBorder}
-          onClose={function() { setSelBorder(null); }}
-          onEdit={function() { setEditBorder(selBorder); }}
-          onDelete={function() { setConfirmDel({type:'border',id:selBorder.id}); }}
-          folders={borderFolders}
-          onMoveToFolder={function(folder) { handleMoveToFolder('border', selBorder.id, folder); }}/>
-      )}
+
+
       {editBorder && (
         <BorderForm
           initial={editBorder==='new' ? null : editBorder}
@@ -564,20 +557,17 @@ function App() {
           onClose={function() { setEditBorder(null); }}
           saving={saving}/>
       )}
-      {selObject && !editObject && (
-        <ObjectDetail object={selObject}
-          onClose={function() { setSelObject(null); }}
-          onEdit={function() { setEditObject(selObject); }}
-          onDelete={function() { setConfirmDel({type:'object',id:selObject.id}); }}
-          folders={objectFolders}
-          onMoveToFolder={function(folder) { handleMoveToFolder('object', selObject.id, folder); }}/>
-      )}
+
       {editObject && (
         <ObjectEditor
           initial={editObject === 'new' ? null : editObject}
           onSave={saveObject}
           onClose={function() { setEditObject(null); }}
           saving={saving}/>
+      )}
+      {aidaShoutout && (
+        <AidaOptionsSheet shoutout={aidaShoutout}
+          onClose={function() { setAidaShoutout(null); }}/>
       )}
       {confirmDel && (
         <ConfirmDialog

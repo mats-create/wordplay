@@ -1293,3 +1293,117 @@ html, body, #root {
 .compose-actions {
   display: flex; align-items: center; gap: 8px; justify-content: flex-end;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CARD SELECTION
+═══════════════════════════════════════════════════════════════════ */
+.card-selected {
+  border-color: var(--black);
+  box-shadow: 0 0 0 2px var(--black);
+  transform: translateY(-1px);
+}
+.card-select-ring {
+  position: absolute; top: 8px; right: 8px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.8);
+  background: rgba(0,0,0,0.18);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2; transition: background .15s, border-color .15s;
+  pointer-events: none;
+}
+.card-selected .card-select-ring {
+  background: var(--black);
+  border-color: var(--black);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SELECTION TOOLBAR
+═══════════════════════════════════════════════════════════════════ */
+.sel-toolbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--white);
+  border-top: 1.5px solid var(--black);
+  z-index: 80;
+  box-shadow: 0 -4px 24px rgba(0,0,0,.1);
+  animation: toolbar-slide-up .2s cubic-bezier(.4,0,.2,1);
+}
+@keyframes toolbar-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sel-toolbar-inner {
+  max-width: 1200px; margin: 0 auto;
+  padding: 10px 16px 16px;
+}
+.sel-toolbar-label {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--lgrey);
+}
+.sel-toolbar-swatches { display: flex; gap: 3px; flex-shrink: 0; }
+.sel-swatch-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.08);
+}
+.sel-toolbar-info { flex: 1; min-width: 0; }
+.sel-toolbar-name {
+  font-size: 13px; font-weight: 700; color: var(--black);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sel-toolbar-sub { font-size: 11px; color: var(--grey); }
+.sel-toolbar-close {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: none; background: var(--offwht);
+  cursor: pointer; color: var(--grey);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.sel-toolbar-close:hover { background: var(--lgrey); color: var(--black); }
+.sel-toolbar-actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.sel-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px;
+  border: 1.5px solid var(--lgrey); background: var(--white);
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--black); cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.sel-btn:hover { border-color: var(--black); background: var(--offwht); }
+.sel-btn-primary {
+  background: var(--black); border-color: var(--black); color: var(--white);
+}
+.sel-btn-primary:hover { background: #333; border-color: #333; }
+.sel-btn-danger { color: var(--coral); }
+.sel-btn-danger:hover { border-color: var(--coral); background: #fff0ed; }
+
+/* Dropdown from toolbar */
+.sel-dropdown {
+  position: absolute; bottom: calc(100% + 6px); left: 0;
+  min-width: 180px;
+  background: var(--white); border: 1.5px solid var(--black);
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,.14);
+  z-index: 200;
+}
+.sel-dropdown-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; font-size: 12px; font-weight: 500;
+  color: var(--black); cursor: pointer;
+  border: none; background: none; font-family: inherit;
+  width: 100%; text-align: left; transition: background .1s;
+}
+.sel-dropdown-item:hover { background: var(--offwht); }
+.sel-dropdown-item + .sel-dropdown-item { border-top: 1px solid var(--lgrey); }
+.sel-dropdown-active { color: var(--green); font-weight: 700; }
+
+/* Pad screen content when toolbar is visible */
+.screen { padding-bottom: 0; }
+
+/* Mobile adjustments */
+@media (max-width: 560px) {
+  .sel-toolbar-inner { padding: 8px 12px 20px; }
+  .sel-btn { padding: 8px 10px; font-size: 11px; }
+  .sel-toolbar-name { font-size: 12px; }
+}
