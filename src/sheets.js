@@ -276,11 +276,17 @@ const TRAIT_OPTIONS = ['diagonal-check','corner-footballs','goal-posts','shot-ar
 
 // Helper: get a representative hex colour for a slot name (for tile cell preview)
 function threadColorForSlot(slotName) {
+  // Use same greyscale as LAYER_SLOT_GREYS / BORDER_GREY_THREADS
+  // so border layer editor is consistent with object editor
   const map = {
-    'primary':'#1A1A1A','secondary':'#4A6741','accent':'#CC3300',
-    'border3':'#2255AA','accent1':'#AA8800','accent2':'#AA3388',
+    'primary':  '#111111',
+    'secondary':'#404040',
+    'accent':   '#707070',
+    'border3':  '#999999',
+    'accent1':  '#C0C0C0',
+    'accent2':  '#E4E4E4',
   };
-  return map[slotName] || '#1A1A1A';
+  return map[slotName] || '#111111';
 }
 
 function BorderForm({ initial, onSave, onClose, saving }) {
@@ -438,8 +444,18 @@ function BorderForm({ initial, onSave, onClose, saving }) {
                 const muted = li >= maxLayers;
                 const tile = layer.tile || '00000000';
                 const locked = borderWeight === 2;
+                if (muted) {
+                  return (
+                    <div key={li} className="tile-layer-row layer-muted">
+                      <span className="tile-layer-num">{li+1}</span>
+                      <div className="tile-layer-inactive">
+                        Not used — max {maxLayers} active layers for this border weight
+                      </div>
+                    </div>
+                  );
+                }
                 return (
-                  <div key={li} className={'tile-layer-row' + (muted ? ' layer-muted' : '')}>
+                  <div key={li} className="tile-layer-row">
                     <span className="tile-layer-num">{li+1}</span>
                     <div className="tile-editor-cells">
                       {Array.from({length: TILE_SIZE}).map(function(_, ci) {
@@ -450,12 +466,15 @@ function BorderForm({ initial, onSave, onClose, saving }) {
                             className={'tile-edit-cell' + (on ? ' on' : '') + (locked || muted ? ' locked' : '')}
                             style={{background: on ? col : ''}}
                             onClick={function() { if (!locked && !muted) toggleTile(li, ci); }}>
-                            {on && (
-                              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
-                                <line x1="2" y1="2" x2="14" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                                <line x1="14" y1="2" x2="2" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                              </svg>
-                            )}
+                            {on && (function() {
+                              var mk = markColour(col);
+                              return (
+                                <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                                  <line x1="2" y1="2" x2="14" y2="14" stroke={mk} strokeWidth="2" strokeLinecap="round"/>
+                                  <line x1="14" y1="2" x2="2" y2="14" stroke={mk} strokeWidth="2" strokeLinecap="round"/>
+                                </svg>
+                              );
+                            })()}
                           </div>
                         );
                       })}

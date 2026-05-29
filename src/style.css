@@ -1131,6 +1131,10 @@ html, body, #root {
 .tile-edit-cell.on { border-color: transparent; }
 .tile-edit-cell.locked { cursor: default; opacity: 0.5; }
 .tile-layer-color { margin-left: 4px; }
+.tile-layer-inactive {
+  font-size: 10px; color: var(--lgrey); font-style: italic;
+  padding: 4px 8px; flex: 1;
+}
 .tile-color-select {
   font-family: inherit; font-size: 11px;
   padding: 4px 6px; border-radius: var(--radius-sm);
