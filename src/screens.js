@@ -70,7 +70,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
           <p>Tap + to create your first shoutout.</p>
         </div>
       ) : (
-        <div className="card-grid" style={selected ? {paddingBottom: 130} : {}}>
+        <div className="card-grid">
           {filtered.map(function(s) {
             const tm = tmCache && tmCache[s.name];
             const isSelected = selected && selected.id === s.id;
@@ -302,7 +302,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
           <p>{query ? 'No borders match your search.' : 'No borders yet.'}</p>
         </div>
       ) : (
-        <div className="card-grid" style={selected ? {paddingBottom: 130} : {}}>
+        <div className="card-grid">
           {filtered.map(function(b) {
             const isSelected = selected && selected.id === b.id;
             const spec = b.spec || BORDER_SPECS[b.style] || BORDER_SPECS['minimal'];
@@ -488,7 +488,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
           <p>Tap + to create a motif object, or ask Claude-Kevin to generate one from an image.</p>
         </div>
       ) : (
-        <div className="card-grid" style={selected ? {paddingBottom: 130} : {}}>
+        <div className="card-grid">
           {filtered.map(function(o) {
             const isSelected = selected && selected.id === o.id;
             return (
