@@ -159,7 +159,10 @@ html, body, #root {
 }
 /* Shift FAB left of Kevin panel when it's open */
 @media (min-width: 768px) {
-  .app-layout:has(.app-kevin.kevin-visible) .fab {
+  .app-main:has(.sel-toolbar) .fab {
+  bottom: 130px;
+}
+.app-layout:has(.app-kevin.kevin-visible) .fab {
     right: calc(360px + 24px);
   }
 }
@@ -578,6 +581,7 @@ html, body, #root {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  position: relative;
 }
 
 /* Bottom nav — mobile only */
@@ -1320,13 +1324,14 @@ html, body, #root {
    SELECTION TOOLBAR
 ═══════════════════════════════════════════════════════════════════ */
 .sel-toolbar {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  position: absolute; bottom: 0; left: 0; right: 0;
   background: var(--white);
   border-top: 1.5px solid var(--black);
-  z-index: 80;
+  z-index: 20;
   box-shadow: 0 -4px 24px rgba(0,0,0,.1);
   animation: toolbar-slide-up .2s cubic-bezier(.4,0,.2,1);
 }
+/* app-main needs position:relative already set — toolbar anchors within it */
 @keyframes toolbar-slide-up {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }

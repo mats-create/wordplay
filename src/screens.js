@@ -36,6 +36,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
   }, [shoutouts]);
 
   return (
+    <>
     <div className="screen">
       {/* Folder bar */}
       <div className="folder-bar">
@@ -117,10 +118,11 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
           })}
         </div>
       )}
+    </div>
 
-      {/* Selection toolbar */}
-      {selected && (
-        <div className="sel-toolbar">
+    {/* Selection toolbar — anchored to screen-wrap, not constrained by screen max-width */}
+    {selected && (
+      <div className="sel-toolbar">
           <div className="sel-toolbar-inner">
             <div className="sel-toolbar-label">
               <div className="sel-toolbar-swatches">
@@ -231,7 +233,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -269,6 +271,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
   }, [borders]);
 
   return (
+    <>
     <div className="screen">
       <div className="folder-bar">
         <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
@@ -337,8 +340,9 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
         </div>
       )}
 
-      {selected && (
-        <div className="sel-toolbar">
+    </div>
+    {selected && (
+      <div className="sel-toolbar">
           <div className="sel-toolbar-inner">
             <div className="sel-toolbar-label">
               <div className="sel-toolbar-info">
@@ -452,6 +456,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
   }, [objects]);
 
   return (
+    <>
     <div className="screen">
       <div className="folder-bar">
         <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
@@ -511,8 +516,9 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
         </div>
       )}
 
-      {selected && (
-        <div className="sel-toolbar">
+    </div>
+    {selected && (
+      <div className="sel-toolbar">
           <div className="sel-toolbar-inner">
             <div className="sel-toolbar-label">
               <div className="sel-toolbar-info">
