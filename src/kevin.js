@@ -90,13 +90,15 @@ Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger,
 
 Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
 
-Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 41 wide, max 11 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
+Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 42 wide, max 12 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
 Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{colorSlot, pattern[]}] instead of a top-level pattern field. Each layer's colorSlot maps to a thread slot (primary/secondary/accent/border3/accent1/accent2), so the object renders in the actual thread colours of whichever shoutout uses it. Max 4 layers per object. Use createObject/updateObject with the layers field to create or update layered objects.
 
 Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. All 8 positions accept objects up to 42×42 stitches — the canvas is the visual guide for overlap or fit issues.
 
-Folders: shoutouts and borders can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.`;
+Folders: shoutouts, borders and objects can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.
+
+UI flow: tapping a card in the library selects it and reveals an action toolbar at the bottom of the screen. From there the user can Compose (open the full composition workspace), move to a folder, export PDFs, or delete. There are no detail sheets — the card thumbnail shows the full design. When the user says they want to edit or open a shoutout, they mean opening it in Compose.`;
 }
 
 // ── Kevin tool definitions ────────────────────────────────────────────────────

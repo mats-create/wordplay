@@ -1,4 +1,51 @@
 /* ═══════════════════════════════════════════════════════════════════
+   FOLDER PILL — with rename/delete menu
+═══════════════════════════════════════════════════════════════════ */
+function FolderPill({ name, active, count, onClick, onRename, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function handleRename(e) {
+    e.stopPropagation();
+    setMenuOpen(false);
+    const newName = prompt('Rename folder:', name);
+    if (newName && newName.trim() && newName.trim() !== name) {
+      onRename(name, newName.trim());
+    }
+  }
+
+  function handleDelete(e) {
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (window.confirm('Delete folder "' + name + '"? Items in this folder will become unfiled.')) {
+      onDelete(name);
+    }
+  }
+
+  return (
+    <div className="folder-pill-wrap">
+      <button className={'folder-pill' + (active ? ' active' : '')} onClick={onClick}>
+        {name} ({count})
+      </button>
+      <button className="folder-pill-menu-btn"
+        onClick={function(e) { e.stopPropagation(); setMenuOpen(function(v) { return !v; }); }}
+        title="Rename or delete folder">
+        &#xB7;&#xB7;&#xB7;
+      </button>
+      {menuOpen && (
+        <div className="folder-pill-menu">
+          <button className="folder-pill-menu-item" onClick={handleRename}>
+            Rename
+          </button>
+          <button className="folder-pill-menu-item folder-pill-menu-danger" onClick={handleDelete}>
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
 function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
@@ -45,10 +92,10 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
         {folders.map(function(f) {
           const count = shoutouts.filter(function(s) { return s.folder === f; }).length;
           return (
-            <button key={f} className={'folder-pill' + (activeFolder===f?' active':'')}
-              onClick={function() { onFolderChange(f); }}>
-              {f} ({count})
-            </button>
+            <FolderPill key={f} name={f} count={count} active={activeFolder===f}
+              onClick={function() { onFolderChange(f); }}
+              onRename={function(old, nw) { onFolderRename('shoutouts', old, nw); }}
+              onDelete={function(n) { onFolderDelete('shoutouts', n); }}/>
           );
         })}
         <button className="folder-pill folder-pill-add"
@@ -279,10 +326,10 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
         {folders.map(function(f) {
           const count = borders.filter(function(b) { return b.folder === f; }).length;
           return (
-            <button key={f} className={'folder-pill' + (activeFolder===f?' active':'')}
-              onClick={function() { onFolderChange(f); }}>
-              {f} ({count})
-            </button>
+            <FolderPill key={f} name={f} count={count} active={activeFolder===f}
+              onClick={function() { onFolderChange(f); }}
+              onRename={function(old, nw) { onFolderRename('borders', old, nw); }}
+              onDelete={function(n) { onFolderDelete('borders', n); }}/>
           );
         })}
         <button className="folder-pill folder-pill-add"
@@ -464,10 +511,10 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
         {(folders||[]).map(function(f) {
           const count = objects.filter(function(o) { return o.folder === f; }).length;
           return (
-            <button key={f} className={'folder-pill' + (activeFolder===f?' active':'')}
-              onClick={function() { onFolderChange(f); }}>
-              {f} ({count})
-            </button>
+            <FolderPill key={f} name={f} count={count} active={activeFolder===f}
+              onClick={function() { onFolderChange(f); }}
+              onRename={function(old, nw) { onFolderRename('objects', old, nw); }}
+              onDelete={function(n) { onFolderDelete('objects', n); }}/>
           );
         })}
         <button className="folder-pill folder-pill-add"
