@@ -53,6 +53,12 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
   const [selected, setSelected] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
+  const [lockedMsg,  setLockedMsg]  = useState(false);
+
+  function showLockedMessage() {
+    setLockedMsg(true);
+    setTimeout(function() { setLockedMsg(false); }, 3000);
+  }
 
   const filtered = useMemo(function() {
     var list = shoutouts;
@@ -198,13 +204,25 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
               </button>
             </div>
             <div className="sel-toolbar-actions">
+              {lockedMsg && (
+                <div className="sel-locked-msg">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Design is locked. Click Unlock to open for editing.
+                </div>
+              )}
               <button className={'sel-btn sel-btn-primary' + (selected.locked ? ' sel-btn-locked' : '')}
-                onClick={function() { onCompose(selected); deselect(); }}>
+                onClick={function() {
+                  if (selected.locked) {
+                    showLockedMessage();
+                  } else {
+                    onCompose(selected); deselect();
+                  }
+                }}>
                 {selected.locked
                   ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
                 }
-                {selected.locked ? 'Locked' : 'Compose'}
+                Compose
               </button>
 
               <div style={{position:'relative'}}>

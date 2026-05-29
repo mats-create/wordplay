@@ -1457,3 +1457,12 @@ html, body, #root {
   background: var(--grey); border-color: var(--grey);
 }
 .sel-btn-locked:hover { background: #555; border-color: #555; }
+
+/* ── Locked message in toolbar ── */
+.sel-locked-msg {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 8px;
+  background: #fff0ed; border: 1px solid #f5c0b0;
+  color: var(--coral); font-size: 12px; font-weight: 500;
+  animation: toolbar-slide-up .15s ease;
+}
