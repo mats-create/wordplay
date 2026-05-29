@@ -88,7 +88,7 @@ Corner motif sizes: Standard 9x9 cornerInset 7, Enlarged 11x11 cornerInset 8. li
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.${context.compose ? (
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida (104x104 stitches, 2 strands) or 11-count Aida (82x82 stitches, 3 strands). 14-count is the default.${context.compose ? (
   '\n\nCompose mode — current design: ' +
   'word="' + (context.compose.word || '').replace(/\n/g,' ') + '"' +
   (context.compose.designName ? ' | design name="' + context.compose.designName + '"' : '') +
@@ -151,7 +151,7 @@ const KEVIN_TOOLS = [
   },
   {
     name: 'updateShoutout',
-    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change. Accepts: name, designName, locked, borderId, borderName, threads, notes, placedObjects and other shoutout fields.',
+    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change. Accepts: name, designName, locked, borderId, borderName, threads, notes, placedObjects, aidaCount (11 or 14), stitchesW, stitchesH, strands and other shoutout fields.',
     input_schema: {
       type: 'object',
       properties: {

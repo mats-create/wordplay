@@ -1418,6 +1418,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   );
   const [threadLengths, setThreadLengths] = useState(initial && initial.threadLengths ? initial.threadLengths : []);
   const [strands,       setStrands]       = useState(initial && initial.strands ? initial.strands : 2);
+  const [aidaCount,     setAidaCount]     = useState(initial && initial.aidaCount ? initial.aidaCount : 14);
   const [textScale,     setTextScale]     = useState(initial && initial.textScale ? initial.textScale : 0);
   const [lineScales,    setLineScales]    = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
   const [placedObjects, setPlacedObjects] = useState(initial && initial.placedObjects ? initial.placedObjects : {});
@@ -1522,7 +1523,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   }
   function handleSave() {
     var fields = {
-      name: name, designName: designName.trim() || '', stitchesW: +stitchesW, stitchesH: +stitchesH,
+      name: name, designName: designName.trim() || '', aidaCount: aidaCount, stitchesW: +stitchesW, stitchesH: +stitchesH,
       hoopW: +hoopW, hoopH: +hoopH, notes: notes,
       borderId: borderId, borderName: borderName,
       threads: threads, textScale: textScale, strands: strands,
@@ -1717,6 +1718,30 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                 </button>
                 {settingsOpen && (
                   <div className="compose-settings-body">
+                    <div className="form-group">
+                      <label className="form-label">Aida count</label>
+                      <div className="size-toggle">
+                        {[{count:14, stitches:104, strands:2}, {count:11, stitches:82, strands:3}].map(function(opt) {
+                          return (
+                            <button key={opt.count}
+                              className={'size-btn' + (aidaCount === opt.count ? ' active' : '')}
+                              onClick={function() {
+                                setAidaCount(opt.count);
+                                setStrands(opt.strands);
+                                setStitchesW(opt.stitches);
+                                setStitchesH(opt.stitches);
+                              }}>
+                              {opt.count}-count
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="form-hint">
+                        {aidaCount === 14
+                          ? '14-count · 104 stitches · 2 strands — standard'
+                          : '11-count · 82 stitches · 3 strands — bolder, easier to stitch'}
+                      </div>
+                    </div>
                     <div className="form-group">
                       <label className="form-label">Stitch count</label>
                       <div className="form-row">
