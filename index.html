@@ -4611,6 +4611,22 @@ function ShoutoutDetail({ shoutout, onEdit, onDelete, onClose, onCompose, folder
    BORDER FORM
 ═══════════════════════════════════════════════════════════════════ */
 // Corner crop preview for BorderForm — renders top-left ~24x24 area enlarged
+
+/* ═══════════════════════════════════════════════════════════════════
+   BORDER GREY THREADS
+   Neutral greyscale palette for colour-agnostic border previews.
+   Mirrors LAYER_SLOT_GREYS — distinguishable without implying
+   actual thread colours. Actual colours come from the shoutout.
+═══════════════════════════════════════════════════════════════════ */
+const BORDER_GREY_THREADS = [
+  {id:1, name:'Slot 1', dmc:'', hex:'#111111'},
+  {id:2, name:'Slot 2', dmc:'', hex:'#404040'},
+  {id:3, name:'Slot 3', dmc:'', hex:'#707070'},
+  {id:4, name:'Slot 4', dmc:'', hex:'#999999'},
+  {id:5, name:'Slot 5', dmc:'', hex:'#C0C0C0'},
+  {id:6, name:'Slot 6', dmc:'', hex:'#E4E4E4'},
+];
+
 function BorderCornerPreview({ layers, borderWeight, cornerFill, initSpec }) {
   const canvasRef = useRef(null);
   const CROP = 24; // stitches to show
@@ -4652,7 +4668,7 @@ function BorderCornerPreview({ layers, borderWeight, cornerFill, initSpec }) {
       for (let c = 0; c < CROP; c++) {
         const kind = grid[r][c];
         if (kind === ' ') continue;
-        const col = stitchColor(kind, DEFAULT_THREADS);
+        const col = stitchColor(kind, BORDER_GREY_THREADS);
         const x = c * cell, y = r * cell;
         ctx.strokeStyle = col; ctx.lineWidth = lw;
         ctx.beginPath();
@@ -4969,7 +4985,10 @@ function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFold
         <div className="detail-section">
           <div className="detail-section-label">Preview</div>
           <CrossStitchCanvas word="ABC" cols={94} rows={94}
-            borderStyle={border.spec || border.style} threads={DEFAULT_THREADS} size={400}/>
+            borderStyle={border.spec || border.style} threads={BORDER_GREY_THREADS} size={400}/>
+          <div className="form-hint" style={{marginTop:6}}>
+            Shown in neutral greys — actual colours depend on the shoutout this border is used in.
+          </div>
         </div>
 
         {border.description && (
@@ -6698,7 +6717,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
                 <div className="canvas-thumb border-preview-thumb">
                   <CrossStitchCanvas word="ABC" cols={94} rows={94}
                     borderStyle={spec} size={220}
-                    threads={DEFAULT_THREADS} className="canvas-thumb"/>
+                    threads={BORDER_GREY_THREADS} className="canvas-thumb"/>
                 </div>
                 <div className="card-title">{b.name}</div>
                 {b.description && <div className="card-desc">{b.description}</div>}
