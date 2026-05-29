@@ -402,7 +402,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
                 <div className="canvas-thumb border-preview-thumb">
                   <CrossStitchCanvas word="ABC" cols={94} rows={94}
                     borderStyle={spec} size={220}
-                    threads={DEFAULT_THREADS} className="canvas-thumb"/>
+                    threads={BORDER_GREY_THREADS} className="canvas-thumb"/>
                 </div>
                 <div className="card-title">{b.name}</div>
                 {b.description && <div className="card-desc">{b.description}</div>}
