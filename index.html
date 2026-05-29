@@ -218,7 +218,10 @@ html, body, #root {
 }
 /* Shift FAB left of Kevin panel when it's open */
 @media (min-width: 768px) {
-  .app-layout:has(.app-kevin.kevin-visible) .fab {
+  .app-main:has(.sel-toolbar) .fab {
+  bottom: 130px;
+}
+.app-layout:has(.app-kevin.kevin-visible) .fab {
     right: calc(360px + 24px);
   }
 }
@@ -637,6 +640,7 @@ html, body, #root {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  position: relative;
 }
 
 /* Bottom nav — mobile only */
@@ -1379,13 +1383,14 @@ html, body, #root {
    SELECTION TOOLBAR
 ═══════════════════════════════════════════════════════════════════ */
 .sel-toolbar {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  position: absolute; bottom: 0; left: 0; right: 0;
   background: var(--white);
   border-top: 1.5px solid var(--black);
-  z-index: 80;
+  z-index: 20;
   box-shadow: 0 -4px 24px rgba(0,0,0,.1);
   animation: toolbar-slide-up .2s cubic-bezier(.4,0,.2,1);
 }
+/* app-main needs position:relative already set — toolbar anchors within it */
 @keyframes toolbar-slide-up {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
@@ -6253,6 +6258,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
   }, [shoutouts]);
 
   return (
+    <>
     <div className="screen">
       {/* Folder bar */}
       <div className="folder-bar">
@@ -6334,10 +6340,11 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
           })}
         </div>
       )}
+    </div>
 
-      {/* Selection toolbar */}
-      {selected && (
-        <div className="sel-toolbar">
+    {/* Selection toolbar — anchored to screen-wrap, not constrained by screen max-width */}
+    {selected && (
+      <div className="sel-toolbar">
           <div className="sel-toolbar-inner">
             <div className="sel-toolbar-label">
               <div className="sel-toolbar-swatches">
@@ -6448,7 +6455,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -6486,6 +6493,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
   }, [borders]);
 
   return (
+    <>
     <div className="screen">
       <div className="folder-bar">
         <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
@@ -6554,8 +6562,9 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
         </div>
       )}
 
-      {selected && (
-        <div className="sel-toolbar">
+    </div>
+    {selected && (
+      <div className="sel-toolbar">
           <div className="sel-toolbar-inner">
             <div className="sel-toolbar-label">
               <div className="sel-toolbar-info">
@@ -6669,6 +6678,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
   }, [objects]);
 
   return (
+    <>
     <div className="screen">
       <div className="folder-bar">
         <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
@@ -6728,8 +6738,9 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
         </div>
       )}
 
-      {selected && (
-        <div className="sel-toolbar">
+    </div>
+    {selected && (
+      <div className="sel-toolbar">
           <div className="sel-toolbar-inner">
             <div className="sel-toolbar-label">
               <div className="sel-toolbar-info">
