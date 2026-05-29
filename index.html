@@ -1852,7 +1852,17 @@ Corner motif sizes: Standard 9x9 cornerInset 7, Enlarged 11x11 cornerInset 8. li
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.${context.compose ? (
+  '\n\nCompose mode — current design: ' +
+  'word="' + (context.compose.word || '').replace(/\n/g,' ') + '"' +
+  (context.compose.designName ? ' | design name="' + context.compose.designName + '"' : '') +
+  ' | border=' + (context.compose.borderName || 'none') +
+  ' | threads=' + (context.compose.threads || []).map(function(t){return t.name+'('+t.dmc+')'}).join(', ') +
+  ' | placed objects=' + (Object.keys(context.compose.placedObjects||{}).length > 0
+    ? Object.keys(context.compose.placedObjects).map(function(pos){return pos+':'+((context.compose.placedObjects[pos]||{}).name||'?')}).join(', ')
+    : 'none') +
+  (context.compose.isNew ? ' | new design' : ' | editing existing')
+) : ''}
 
 Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 42 wide, max 12 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
@@ -2589,6 +2599,12 @@ const KEVIN_SUGGESTIONS = {
     "Describe a Nordic border I could add",
     "How do thread colours work in the designs?",
   ],
+  compose: [
+    "What objects would work well with this design?",
+    "Suggest a thread colour palette",
+    "Which border suits this word?",
+    "Place a football motif in the corners",
+  ],
 };
 
 function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
@@ -2627,16 +2643,20 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
       return;
     }
     const count = context.shoutoutCount;
-    const welcome = count === 0
-      ? "Right then. Library's empty — let's fix that. Tell me what you're after: a shoutout word, a football moment, a language. I'll sort the rest."
-      : count + ' shoutout' + (count > 1 ? 's' : '') + ' in. What are we working on — new words, border ideas, or something else?';
+    const inCompose = context.tab === 'compose';
+    const welcome = inCompose
+      ? "I can see what you're working on. Ask me about thread colours, object placements, border choices — whatever you need."
+      : count === 0
+        ? "Right then. Library's empty — let's fix that. Tell me what you're after: a shoutout word, a football moment, a language. I'll sort the rest."
+        : count + ' shoutout' + (count > 1 ? 's' : '') + ' in. What are we working on — new words, border ideas, or something else?';
     setMessages([{ role: 'kevin', text: welcome }]);
   }, []);
 
   function newConversation() {
     const count = context.shoutoutCount;
-    const welcome = count === 0
-      ? "Fresh start. What are we making?"
+    const inCompose = context.tab === 'compose';
+    const welcome = inCompose
+      ? "Fresh start. I can see your current design — what do you need?"
       : "New conversation. " + count + " shoutout" + (count > 1 ? 's' : '') + " in the library. What's next?";
     setMessages([{ role: 'kevin', text: welcome }]);
   }
@@ -5803,7 +5823,7 @@ function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear,
 }
 
 // Main ComposeSheet component
-function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevinVisible, onToggleKevin }) {
+function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevinVisible, onToggleKevin, onStateChange }) {
   const isEdit = !!initial;
   const initName = (initial && initial.lines && initial.lines.length > 1)
     ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
@@ -5840,6 +5860,20 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   const isMultiRow = name.includes('\n') && parsedLines.length > 1;
 
   const activeBorder = borders.find(function(b) { return b.id === borderId; }) || null;
+
+  // Report live compose state to Kevin whenever it changes
+  useEffect(function() {
+    if (typeof onStateChange !== 'function') return;
+    onStateChange({
+      word: name,
+      designName: designName,
+      borderId: borderId,
+      borderName: activeBorder ? activeBorder.name : '',
+      threads: threads,
+      placedObjects: placedObjects,
+      isNew: !initial,
+    });
+  }, [name, designName, borderId, threads, placedObjects]);
   const activeBorderSpec = activeBorder
     ? (activeBorder.spec || BORDER_SPECS[activeBorder.style] || null)
     : null;
@@ -7063,22 +7097,24 @@ function App() {
   const [objects,       setObjects]       = useState([]);
   const [editObject,    setEditObject]    = useState(null);
   const [composeShoutout, setComposeShoutout] = useState(null);
+  const [composeContext,  setComposeContext]  = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
   const kevinContext = useMemo(function() {
     return {
-      tab,
+      tab: composeShoutout ? 'compose' : tab,
       shoutoutCount: shoutouts.length,
-      shoutoutNames: shoutouts.map(function(s) { return s.name; }).join(', ') || 'none',
+      shoutoutNames: shoutouts.map(function(s) { return s.designName || s.name; }).join(', ') || 'none',
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
       shoutoutFolders: shoutoutFolders.join(', ') || 'none',
       borderFolders: borderFolders.join(', ') || 'none',
       objectFolders: objectFolders.join(', ') || 'none',
       objectCount: objects.length,
       objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
+      compose: composeContext,
     };
-  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
+  }, [tab, composeShoutout, composeContext, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -7574,10 +7610,11 @@ function App() {
             borders={borders}
             objects={objects}
             onSave={saveCompose}
-            onClose={function() { setComposeShoutout(null); }}
+            onClose={function() { setComposeShoutout(null); setComposeContext(null); }}
             saving={saving}
             kevinVisible={kevinVisible}
-            onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
+            onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}
+            onStateChange={setComposeContext}/>
         )}
       </div>
 
