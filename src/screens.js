@@ -418,7 +418,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -590,7 +590,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
