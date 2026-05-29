@@ -21,22 +21,24 @@ function App() {
   const [objects,       setObjects]       = useState([]);
   const [editObject,    setEditObject]    = useState(null);
   const [composeShoutout, setComposeShoutout] = useState(null);
+  const [composeContext,  setComposeContext]  = useState(null);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state
   const kevinContext = useMemo(function() {
     return {
-      tab,
+      tab: composeShoutout ? 'compose' : tab,
       shoutoutCount: shoutouts.length,
-      shoutoutNames: shoutouts.map(function(s) { return s.name; }).join(', ') || 'none',
+      shoutoutNames: shoutouts.map(function(s) { return s.designName || s.name; }).join(', ') || 'none',
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
       shoutoutFolders: shoutoutFolders.join(', ') || 'none',
       borderFolders: borderFolders.join(', ') || 'none',
       objectFolders: objectFolders.join(', ') || 'none',
       objectCount: objects.length,
       objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
+      compose: composeContext,
     };
-  }, [tab, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
+  }, [tab, composeShoutout, composeContext, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -532,10 +534,11 @@ function App() {
             borders={borders}
             objects={objects}
             onSave={saveCompose}
-            onClose={function() { setComposeShoutout(null); }}
+            onClose={function() { setComposeShoutout(null); setComposeContext(null); }}
             saving={saving}
             kevinVisible={kevinVisible}
-            onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}/>
+            onToggleKevin={function() { setKevinVisible(function(v) { return !v; }); }}
+            onStateChange={setComposeContext}/>
         )}
       </div>
 

@@ -14,6 +14,12 @@ const KEVIN_SUGGESTIONS = {
     "Describe a Nordic border I could add",
     "How do thread colours work in the designs?",
   ],
+  compose: [
+    "What objects would work well with this design?",
+    "Suggest a thread colour palette",
+    "Which border suits this word?",
+    "Place a football motif in the corners",
+  ],
 };
 
 function KevinChat({ onClose, context, uid, appData, messages: extMessages, setMessages: setExtMessages }) {
@@ -52,16 +58,20 @@ function KevinChat({ onClose, context, uid, appData, messages: extMessages, setM
       return;
     }
     const count = context.shoutoutCount;
-    const welcome = count === 0
-      ? "Right then. Library's empty — let's fix that. Tell me what you're after: a shoutout word, a football moment, a language. I'll sort the rest."
-      : count + ' shoutout' + (count > 1 ? 's' : '') + ' in. What are we working on — new words, border ideas, or something else?';
+    const inCompose = context.tab === 'compose';
+    const welcome = inCompose
+      ? "I can see what you're working on. Ask me about thread colours, object placements, border choices — whatever you need."
+      : count === 0
+        ? "Right then. Library's empty — let's fix that. Tell me what you're after: a shoutout word, a football moment, a language. I'll sort the rest."
+        : count + ' shoutout' + (count > 1 ? 's' : '') + ' in. What are we working on — new words, border ideas, or something else?';
     setMessages([{ role: 'kevin', text: welcome }]);
   }, []);
 
   function newConversation() {
     const count = context.shoutoutCount;
-    const welcome = count === 0
-      ? "Fresh start. What are we making?"
+    const inCompose = context.tab === 'compose';
+    const welcome = inCompose
+      ? "Fresh start. I can see your current design — what do you need?"
       : "New conversation. " + count + " shoutout" + (count > 1 ? 's' : '') + " in the library. What's next?";
     setMessages([{ role: 'kevin', text: welcome }]);
   }

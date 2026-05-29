@@ -1379,7 +1379,7 @@ function ObjPickerSheet({ position, objects, threads, placed, onSelect, onClear,
 }
 
 // Main ComposeSheet component
-function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevinVisible, onToggleKevin }) {
+function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevinVisible, onToggleKevin, onStateChange }) {
   const isEdit = !!initial;
   const initName = (initial && initial.lines && initial.lines.length > 1)
     ? initial.lines.map(function(l) { return l.text || ''; }).join('\n')
@@ -1416,6 +1416,20 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   const isMultiRow = name.includes('\n') && parsedLines.length > 1;
 
   const activeBorder = borders.find(function(b) { return b.id === borderId; }) || null;
+
+  // Report live compose state to Kevin whenever it changes
+  useEffect(function() {
+    if (typeof onStateChange !== 'function') return;
+    onStateChange({
+      word: name,
+      designName: designName,
+      borderId: borderId,
+      borderName: activeBorder ? activeBorder.name : '',
+      threads: threads,
+      placedObjects: placedObjects,
+      isNew: !initial,
+    });
+  }, [name, designName, borderId, threads, placedObjects]);
   const activeBorderSpec = activeBorder
     ? (activeBorder.spec || BORDER_SPECS[activeBorder.style] || null)
     : null;

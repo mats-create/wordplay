@@ -88,7 +88,17 @@ Corner motif sizes: Standard 9x9 cornerInset 7, Enlarged 11x11 cornerInset 8. li
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida, 94x94 stitches.${context.compose ? (
+  '\n\nCompose mode — current design: ' +
+  'word="' + (context.compose.word || '').replace(/\n/g,' ') + '"' +
+  (context.compose.designName ? ' | design name="' + context.compose.designName + '"' : '') +
+  ' | border=' + (context.compose.borderName || 'none') +
+  ' | threads=' + (context.compose.threads || []).map(function(t){return t.name+'('+t.dmc+')'}).join(', ') +
+  ' | placed objects=' + (Object.keys(context.compose.placedObjects||{}).length > 0
+    ? Object.keys(context.compose.placedObjects).map(function(pos){return pos+':'+((context.compose.placedObjects[pos]||{}).name||'?')}).join(', ')
+    : 'none') +
+  (context.compose.isNew ? ' | new design' : ' | editing existing')
+) : ''}
 
 Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 42 wide, max 12 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
