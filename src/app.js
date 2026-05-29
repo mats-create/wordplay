@@ -354,6 +354,37 @@ function App() {
     } catch(e) { showToast('Could not update lock: ' + e.message); }
   }
 
+  // ── Toggle border lock ──
+  async function handleToggleBorderLock(border) {
+    try {
+      const newLocked = !border.locked;
+      if (border.builtIn) {
+        // Copy to user collection first, then set locked state
+        const spec = border.spec || BORDER_SPECS[border.style] || null;
+        await fb.addDoc(
+          fb.collection(fb.db, 'users', authUser.uid, 'borders'), {
+            name: border.name, style: border.style,
+            description: border.description || '',
+            traits: border.traits || [],
+            spec: spec, builtIn: false,
+            locked: newLocked,
+            createdBy: authUser.uid,
+            folder: border.folder || null,
+            createdAt: fb.serverTimestamp(),
+            updatedAt: fb.serverTimestamp(),
+          }
+        );
+        showToast('"' + border.name + '" copied to your library and ' + (newLocked ? 'locked' : 'unlocked'));
+      } else {
+        await fb.updateDoc(
+          fb.doc(fb.db, 'users', authUser.uid, 'borders', border.id),
+          { locked: newLocked, updatedAt: fb.serverTimestamp() }
+        );
+        showToast(newLocked ? 'Border locked' : 'Border unlocked');
+      }
+    } catch(e) { showToast('Could not update lock: ' + e.message); }
+  }
+
   // ── Save border ──
   async function saveBorder(data) {
     setSaving(true);
@@ -361,10 +392,9 @@ function App() {
       const spec = data.spec || BORDER_SPECS[data.style] || null;
       const fullData = { ...data, spec };
       if (editBorder && editBorder !== 'new') {
-        // Update — built-ins stay in shared collection, custom go to per-user
-        const path = editBorder.builtIn
-          ? fb.doc(fb.db,'borders',editBorder.id)
-          : fb.doc(fb.db,'users',authUser.uid,'borders',editBorder.id);
+        // Update — always write to user collection
+        // (built-ins that reach here have already been copied via handleToggleBorderLock)
+        const path = fb.doc(fb.db,'users',authUser.uid,'borders',editBorder.id);
         await fb.updateDoc(path, {...fullData, updatedAt: fb.serverTimestamp()});
         showToast('Border updated');
       } else {
@@ -394,7 +424,10 @@ function App() {
         showToast('Object deleted');
       } else {
         const border = borders.find(function(b) { return b.id === confirmDel.id; });
-        if (border && border.builtIn) { showToast('Cannot delete built-in borders'); setConfirmDel(null); return; }
+        if (border && border.builtIn) {
+          showToast('Cannot delete built-in borders — unlock first to copy to your library');
+          setConfirmDel(null); return;
+        }
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'borders',confirmDel.id));
         showToast('Border deleted');
       }
@@ -451,6 +484,7 @@ function App() {
             <BordersScreen borders={borders}
               onEdit={function(b) { setEditBorder(b); }}
               onDelete={function(b) { setConfirmDel({type:'border', id:b.id}); }}
+              onToggleLock={handleToggleBorderLock}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               folders={borderFolders}
               activeFolder={activeBorderFolder}

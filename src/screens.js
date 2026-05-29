@@ -319,10 +319,16 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
 /* ═══════════════════════════════════════════════════════════════════
    BORDERS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [folderOpen, setFolderOpen] = useState(false);
+  const [lockedMsg,  setLockedMsg]  = useState(false);
+
+  function showLockedMessage() {
+    setLockedMsg(true);
+    setTimeout(function() { setLockedMsg(false); }, 3000);
+  }
 
   const filtered = useMemo(function() {
     var list = borders;
@@ -389,8 +395,12 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
               <div key={b.id}
                 className={'card' + (isSelected ? ' card-selected' : '')}
                 onClick={function() { select(b); }}>
-                {b.builtIn && <div className="card-badge"><Ico.Lock/> Built-in</div>}
-                {b.folder && !b.builtIn && <div className="card-folder-tag">{b.folder}</div>}
+                {b.folder && <div className="card-folder-tag">{b.folder}</div>}
+                {(b.locked || b.builtIn) && (
+                  <div className="card-locked-badge">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                )}
                 <div className="card-select-ring">
                   {isSelected && (
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -428,6 +438,7 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
                 <div className="sel-toolbar-name">{selected.name}</div>
                 <div className="sel-toolbar-sub">
                   {selected.builtIn ? 'Built-in border' : 'Custom border'}
+                  {(selected.locked || selected.builtIn) ? ' · Locked' : ''}
                   {selected.folder ? ' · '+selected.folder : ''}
                 </div>
               </div>
@@ -439,14 +450,25 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
               </button>
             </div>
             <div className="sel-toolbar-actions">
-              <button className="sel-btn sel-btn-primary"
-                onClick={function() { onEdit(selected); deselect(); }}>
-                <Ico.Edit/>
-                {selected.builtIn ? 'View' : 'Edit'}
+              {lockedMsg && (
+                <div className="sel-locked-msg">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Border is locked. Click Unlock to edit.
+                </div>
+              )}
+              <button className={'sel-btn sel-btn-primary' + ((selected.locked || selected.builtIn) ? ' sel-btn-locked' : '')}
+                onClick={function() {
+                  if (selected.locked || selected.builtIn) { showLockedMessage(); }
+                  else { onEdit(selected); deselect(); }
+                }}>
+                {(selected.locked || selected.builtIn)
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  : <Ico.Edit/>
+                }
+                Edit
               </button>
 
-              {!selected.builtIn && (
-                <div style={{position:'relative'}}>
+              <div style={{position:'relative'}}>
                   <button className="sel-btn"
                     onClick={function() { setFolderOpen(function(v){return !v;}); }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -477,11 +499,20 @@ function BordersScreen({ borders, onEdit, onDelete, onMoveToFolder, folders, act
                     </div>
                   )}
                 </div>
-              )}
 
               <div style={{flex:1}}/>
 
-              {!selected.builtIn && (
+              <button className="sel-btn"
+                onClick={function() { onToggleLock(selected); }}
+                title={(selected.locked || selected.builtIn) ? 'Unlock border' : 'Lock border'}>
+                {(selected.locked || selected.builtIn)
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                }
+                {(selected.locked || selected.builtIn) ? 'Unlock' : 'Lock'}
+              </button>
+
+              {!selected.builtIn && !selected.locked && (
                 <button className="sel-btn sel-btn-danger"
                   onClick={function() { onDelete(selected); }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
