@@ -289,29 +289,33 @@ const KEVIN_TOOLS = [
   },
   {
     name: 'createObject',
-    description: 'Create a new motif object and save it to the object library. Objects are reusable binary stitch patterns for use in border designs.',
+    description: 'Create a new motif object. For single-colour use pattern[]. For multi-colour use layers:[{colorSlot, pattern[]}]. Max 42 wide, 12 tall, 4 layers. colorSlot: primary|secondary|accent|border3|accent1|accent2.',
     input_schema: {
       type: 'object',
       properties: {
         name:    { type: 'string', description: 'Name for this object' },
-        pattern: { type: 'array', items: { type: 'string' }, description: 'Array of binary strings (0=empty, 1=stitch). All strings must be the same length. Max 41 wide, max 11 tall.' },
-        width:   { type: 'number', description: 'Pattern width in stitches' },
-        height:  { type: 'number', description: 'Pattern height in stitches' },
+        pattern: { type: 'array', items: { type: 'string' }, description: 'Single-colour pattern — binary strings. Use this OR layers.' },
+        layers:  { type: 'array', description: 'Multi-colour layers array. Each item: {colorSlot: string, pattern: string[]}. Max 4 layers.' },
+        width:   { type: 'number', description: 'Width in stitches (auto-detected)' },
+        height:  { type: 'number', description: 'Height in stitches (auto-detected)' },
+        folder:  { type: 'string', description: 'Optional folder name' },
       },
-      required: ['name', 'pattern']
+      required: ['name']
     }
   },
   {
     name: 'updateObject',
-    description: 'Update an existing motif object by its id.',
+    description: 'Update an existing motif object. Use pattern for single-colour or layers for multi-colour.',
     input_schema: {
       type: 'object',
       properties: {
         id:      { type: 'string', description: 'Object id from listObjects' },
         name:    { type: 'string', description: 'New name' },
-        pattern: { type: 'array', items: { type: 'string' }, description: 'New pattern array' },
+        pattern: { type: 'array', items: { type: 'string' }, description: 'New single-colour pattern' },
+        layers:  { type: 'array', description: 'New multi-colour layers. Each: {colorSlot, pattern[]}' },
         width:   { type: 'number' },
         height:  { type: 'number' },
+        folder:  { type: 'string' },
       },
       required: ['id']
     }
@@ -606,18 +610,25 @@ async function executeKevinTool(toolName, toolInput, appData) {
 
   if (toolName === 'createObject') {
     try {
-      const pattern = toolInput.pattern;
-      if (!pattern || !Array.isArray(pattern) || pattern.length === 0) return 'Error: pattern array is required.';
-      const h = pattern.length;
-      const w = pattern[0].length;
-      const data = {
-        name:    toolInput.name,
-        pattern: pattern,
-        width:   toolInput.width  || w,
-        height:  toolInput.height || h,
-        createdAt: fb.serverTimestamp(),
-        updatedAt: fb.serverTimestamp(),
-      };
+      if (!toolInput.name) return 'Error: name is required.';
+      const hasLayers = toolInput.layers && Array.isArray(toolInput.layers) && toolInput.layers.length > 0;
+      const hasPattern = toolInput.pattern && Array.isArray(toolInput.pattern) && toolInput.pattern.length > 0;
+      if (!hasLayers && !hasPattern) return 'Error: either pattern or layers is required.';
+      let data = { name: toolInput.name, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp() };
+      if (hasLayers) {
+        const ph = toolInput.layers[0].pattern.length;
+        const pw = toolInput.layers[0].pattern[0] ? toolInput.layers[0].pattern[0].length : 0;
+        data.layers = toolInput.layers;
+        data.width  = toolInput.width  || pw;
+        data.height = toolInput.height || ph;
+      } else {
+        const ph = toolInput.pattern.length;
+        const pw = toolInput.pattern[0].length;
+        data.pattern = toolInput.pattern;
+        data.width   = toolInput.width  || pw;
+        data.height  = toolInput.height || ph;
+      }
+      if (toolInput.folder) data.folder = toolInput.folder;
       const ref = await fb.addDoc(fb.collection(fb.db, 'users', uid, 'objects'), data);
       kevinLogUndo({ action: 'createObject', id: ref.id });
       return 'Object "' + toolInput.name + '" created with id: ' + ref.id;
@@ -631,9 +642,14 @@ async function executeKevinTool(toolName, toolInput, appData) {
       const current = (appData.objects || []).find(function(o) { return o.id === id; });
       const fields = Object.assign({}, toolInput);
       delete fields.id;
-      if (fields.pattern) {
+      if (fields.layers && Array.isArray(fields.layers) && fields.layers.length > 0) {
+        fields.width  = fields.layers[0].pattern[0] ? fields.layers[0].pattern[0].length : (fields.width || 9);
+        fields.height = fields.layers[0].pattern.length;
+        delete fields.pattern; // remove pattern if switching to layers
+      } else if (fields.pattern) {
         fields.width  = fields.pattern[0] ? fields.pattern[0].length : (fields.width || 9);
         fields.height = fields.pattern.length;
+        delete fields.layers; // remove layers if switching to pattern
       }
       fields.updatedAt = fb.serverTimestamp();
       await fb.updateDoc(fb.doc(fb.db, 'users', uid, 'objects', id), fields);

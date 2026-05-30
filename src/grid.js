@@ -52,6 +52,12 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap, placedObjects) {
           const rs = typeof rowData==='string' ? rowData : rowData.join('');
           rs.split('').forEach(function(ch, dc) {
             if (ch==='1') forceCell(sr+dr, sc+dc, kind);
+            else if (ch==='0') {
+              // Clear any existing border stitches in this cell
+              if (sr+dr >= 0 && sr+dr < rows && sc+dc >= 0 && sc+dc < cols) {
+                grid[sr+dr][sc+dc] = ' ';
+              }
+            }
           });
         });
       });
@@ -584,6 +590,11 @@ function buildGridMulti(lines, cols, rows, borderStyle, gap, placedObjects) {
           const rs = typeof rowData === 'string' ? rowData : rowData.join('');
           rs.split('').forEach(function(ch, dc) {
             if (ch === '1') forceCellMG(sr + dr, sc + dc, kind);
+            else if (ch === '0') {
+              if (sr+dr >= 0 && sr+dr < rows && sc+dc >= 0 && sc+dc < cols) {
+                grid[sr+dr][sc+dc] = ' ';
+              }
+            }
           });
         });
       });
