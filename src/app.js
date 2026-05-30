@@ -255,8 +255,7 @@ function App() {
   async function saveObject(data) {
     setSaving(true);
     try {
-      const fullData = {};
-      Object.keys(data).forEach(function(k) { fullData[k] = data[k] === undefined ? null : data[k]; });
+      const fullData = sanitiseForFirestore(Object.assign({}, data));
       if (editObject && editObject !== 'new') {
         await fb.updateDoc(
           fb.doc(fb.db,'users',authUser.uid,'objects',editObject.id),
@@ -273,6 +272,19 @@ function App() {
       setEditObject(null);
     } catch(e) { showToast('Could not save object: ' + e.message); }
     finally { setSaving(false); }
+  }
+
+  // ── Shared deep sanitise for Firestore writes ──
+  function sanitiseForFirestore(val) {
+    if (val === undefined) return null;
+    if (val === null) return null;
+    if (Array.isArray(val)) return val.map(sanitiseForFirestore);
+    if (typeof val === 'object' && val.constructor === Object) {
+      var out = {};
+      Object.keys(val).forEach(function(k) { out[k] = sanitiseForFirestore(val[k]); });
+      return out;
+    }
+    return val;
   }
 
   // ── Sign in/out ──
@@ -403,19 +415,16 @@ function App() {
     setSaving(true);
     try {
       const spec = data.spec || BORDER_SPECS[data.style] || null;
-      // Sanitise — Firestore rejects undefined values, replace with null
-      const raw = Object.assign({}, data, {spec: spec});
-      const fullData = {};
-      Object.keys(raw).forEach(function(k) {
-        fullData[k] = raw[k] === undefined ? null : raw[k];
-      });
+
+      // Deep sanitise — recursively replace undefined with null
+      // Firestore rejects undefined at any nesting level
+      const fullData = sanitiseForFirestore(Object.assign({}, data, {spec: spec}));
+
       if (editBorder && editBorder !== 'new') {
-        // Update — always write to user collection
         const path = fb.doc(fb.db,'users',authUser.uid,'borders',editBorder.id);
         await fb.updateDoc(path, Object.assign({}, fullData, {updatedAt: fb.serverTimestamp()}));
         showToast('Border updated');
       } else {
-        // Create — always per-user
         await fb.addDoc(
           fb.collection(fb.db,'users',authUser.uid,'borders'),
           Object.assign({}, fullData, {
