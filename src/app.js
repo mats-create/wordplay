@@ -357,9 +357,16 @@ function App() {
   // ── Toggle border lock ──
   async function handleToggleBorderLock(border) {
     try {
-      const newLocked = !border.locked;
       if (border.builtIn) {
-        // Copy to user collection first, then set locked state
+        // Check if a user copy already exists (same name, not builtIn)
+        const existingCopy = borders.find(function(b) {
+          return !b.builtIn && b.name === border.name;
+        });
+        if (existingCopy) {
+          showToast('"' + border.name + '" is already in your library — find it in your custom borders');
+          return;
+        }
+        // Copy to user collection as unlocked — ready to edit
         const spec = border.spec || BORDER_SPECS[border.style] || null;
         await fb.addDoc(
           fb.collection(fb.db, 'users', authUser.uid, 'borders'), {
@@ -367,15 +374,16 @@ function App() {
             description: border.description || '',
             traits: border.traits || [],
             spec: spec, builtIn: false,
-            locked: newLocked,
+            locked: false,
             createdBy: authUser.uid,
             folder: border.folder || null,
             createdAt: fb.serverTimestamp(),
             updatedAt: fb.serverTimestamp(),
           }
         );
-        showToast('"' + border.name + '" copied to your library and ' + (newLocked ? 'locked' : 'unlocked'));
+        showToast('"' + border.name + '" copied to your library — now editable');
       } else {
+        const newLocked = !border.locked;
         await fb.updateDoc(
           fb.doc(fb.db, 'users', authUser.uid, 'borders', border.id),
           { locked: newLocked, updatedAt: fb.serverTimestamp() }
