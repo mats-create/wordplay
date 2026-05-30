@@ -67,8 +67,11 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
     }
     if (query.trim()) {
       const q = query.trim().toLowerCase();
-      list = list.filter(function(s) { return s.name.toLowerCase().includes(q); });
+      list = list.filter(function(s) { return (s.designName||s.name).toLowerCase().includes(q); });
     }
+    list = list.slice().sort(function(a,b) {
+      return (a.designName||a.name).localeCompare(b.designName||b.name);
+    });
     return list;
   }, [shoutouts, activeFolder, query]);
 
@@ -337,6 +340,7 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
       const q = query.trim().toLowerCase();
       list = list.filter(function(b) { return b.name.toLowerCase().includes(q); });
     }
+    list = list.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
     return list;
   }, [borders, activeFolder, query]);
 
@@ -547,6 +551,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
       const q = query.trim().toLowerCase();
       list = list.filter(function(o) { return o.name.toLowerCase().includes(q); });
     }
+    list = list.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
     return list;
   }, [objects, activeFolder, query]);
 

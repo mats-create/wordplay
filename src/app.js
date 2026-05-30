@@ -208,7 +208,10 @@ function App() {
 
     function merge() {
       // Built-ins first, then custom
-      setBorders([...builtinBorders, ...customBorders]);
+      // Hide built-in borders that the user has already copied to their library
+      const customNames = new Set(customBorders.map(function(b) { return b.name.replace(' (Copy)', ''); }));
+      const visibleBuiltins = builtinBorders.filter(function(b) { return !customNames.has(b.name); });
+      setBorders([...visibleBuiltins, ...customBorders]);
     }
 
     const unsubBuiltin = fb.onSnapshot(qBuiltin, snap=>{
@@ -370,7 +373,7 @@ function App() {
         const spec = border.spec || BORDER_SPECS[border.style] || null;
         await fb.addDoc(
           fb.collection(fb.db, 'users', authUser.uid, 'borders'), {
-            name: border.name, style: border.style,
+            name: border.name + ' (Copy)', style: border.style,
             description: border.description || '',
             traits: border.traits || [],
             spec: spec, builtIn: false,
@@ -381,7 +384,7 @@ function App() {
             updatedAt: fb.serverTimestamp(),
           }
         );
-        showToast('"' + border.name + '" copied to your library — now editable');
+        showToast('"' + border.name + ' (Copy)" added to your library — ready to edit');
       } else {
         const newLocked = !border.locked;
         await fb.updateDoc(

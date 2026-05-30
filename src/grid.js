@@ -46,18 +46,21 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap, placedObjects) {
       else if (posId==='left')        { sr=Math.floor((rows-ph)/2); sc=insetPO; }
       else if (posId==='right')       { sr=Math.floor((rows-ph)/2); sc=cols-insetPO-pw; }
       else return;
+      // Clear entire bounding box first to remove any border stitches underneath
+      for (var clearR = 0; clearR < ph; clearR++) {
+        for (var clearC = 0; clearC < pw; clearC++) {
+          if (sr+clearR >= 0 && sr+clearR < rows && sc+clearC >= 0 && sc+clearC < cols) {
+            grid[sr+clearR][sc+clearC] = ' ';
+          }
+        }
+      }
+      // Now draw the object layers
       layers.forEach(function(layer) {
         const kind = CSKPO[layer.colorSlot] || 'F';
         (layer.pattern||[]).forEach(function(rowData, dr) {
           const rs = typeof rowData==='string' ? rowData : rowData.join('');
           rs.split('').forEach(function(ch, dc) {
             if (ch==='1') forceCell(sr+dr, sc+dc, kind);
-            else if (ch==='0') {
-              // Clear any existing border stitches in this cell
-              if (sr+dr >= 0 && sr+dr < rows && sc+dc >= 0 && sc+dc < cols) {
-                grid[sr+dr][sc+dc] = ' ';
-              }
-            }
           });
         });
       });
@@ -584,17 +587,21 @@ function buildGridMulti(lines, cols, rows, borderStyle, gap, placedObjects) {
       else if (posId === 'left')        { sr = Math.floor((rows - ph) / 2); sc = insetPO; }
       else if (posId === 'right')       { sr = Math.floor((rows - ph) / 2); sc = cols - insetPO - pw; }
       else return;
+      // Clear entire bounding box first
+      for (var clearR = 0; clearR < ph; clearR++) {
+        for (var clearC = 0; clearC < pw; clearC++) {
+          if (sr+clearR >= 0 && sr+clearR < rows && sc+clearC >= 0 && sc+clearC < cols) {
+            grid[sr+clearR][sc+clearC] = ' ';
+          }
+        }
+      }
+      // Draw object layers
       layers.forEach(function(layer) {
         const kind = COLOR_SLOT_KINDS_PO[layer.colorSlot] || 'F';
         (layer.pattern || []).forEach(function(rowData, dr) {
           const rs = typeof rowData === 'string' ? rowData : rowData.join('');
           rs.split('').forEach(function(ch, dc) {
             if (ch === '1') forceCellMG(sr + dr, sc + dc, kind);
-            else if (ch === '0') {
-              if (sr+dr >= 0 && sr+dr < rows && sc+dc >= 0 && sc+dc < cols) {
-                grid[sr+dr][sc+dc] = ' ';
-              }
-            }
           });
         });
       });
