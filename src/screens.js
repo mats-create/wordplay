@@ -1,3 +1,10 @@
+// Normalise item tags — handles both new (tags:[]) and legacy (folder:'') format
+function getItemTags(item) {
+  if (item.tags && item.tags.length > 0) return item.tags;
+  if (item.folder) return [item.folder];
+  return [];
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    FOLDER PILL — with rename/delete menu
 ═══════════════════════════════════════════════════════════════════ */
@@ -48,11 +55,11 @@ function FolderPill({ name, active, count, onClick, onRename, onDelete }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
-  const [folderOpen, setFolderOpen] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [lockedMsg,  setLockedMsg]  = useState(false);
   const [sortOrder,  setSortOrder]  = useState('newest');
 
@@ -63,8 +70,11 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
 
   const filtered = useMemo(function() {
     var list = shoutouts;
-    if (activeFolder) {
-      list = list.filter(function(s) { return s.folder === activeFolder; });
+    if (activeTags && activeTags.length > 0) {
+      list = list.filter(function(s) {
+        var itemTags = getItemTags(s);
+        return activeTags.some(function(t) { return itemTags.includes(t); });
+      });
     }
     if (query.trim()) {
       const q = query.trim().toLowerCase();
@@ -79,15 +89,15 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
       return tb - ta;
     });
     return list;
-  }, [shoutouts, activeFolder, query, sortOrder]);
+  }, [shoutouts, activeTags, query, sortOrder]);
 
-  const total = activeFolder ? shoutouts.filter(function(s) { return s.folder === activeFolder; }).length : shoutouts.length;
+  const total = shoutouts.length;
 
   function select(s) {
     setSelected(function(prev) { return prev && prev.id === s.id ? null : s; });
     setExportOpen(false); setFolderOpen(false);
   }
-  function deselect() { setSelected(null); setExportOpen(false); setFolderOpen(false); }
+  function deselect() { setSelected(null); setExportOpen(false); setTagPickerOpen(false); }
 
   // Keep selected in sync if shoutouts list updates
   useEffect(function() {
@@ -102,21 +112,28 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
     <div className="screen">
       {/* Folder bar */}
       <div className="folder-bar">
-        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
-          onClick={function() { onFolderChange(null); }}>All ({total})</button>
-        {folders.map(function(f) {
-          const count = shoutouts.filter(function(s) { return s.folder === f; }).length;
+        <button className={'folder-pill' + ((!activeTags || activeTags.length===0) ? ' active' : '')}
+          onClick={function() { onTagChange([]); }}>All ({total})</button>
+        {(tags||[]).map(function(t) {
+          const count = shoutouts.filter(function(s) { return getItemTags(s).includes(t); }).length;
+          const isActive = activeTags && activeTags.includes(t);
           return (
-            <FolderPill key={f} name={f} count={count} active={activeFolder===f}
-              onClick={function() { onFolderChange(f); }}
+            <FolderPill key={t} name={t} count={count} active={isActive}
+              onClick={function() {
+                if (isActive) {
+                  onTagChange((activeTags||[]).filter(function(x) { return x !== t; }));
+                } else {
+                  onTagChange([...(activeTags||[]), t]);
+                }
+              }}
               onRename={function(old, nw) { onFolderRename('shoutouts', old, nw); }}
               onDelete={function(n) { onFolderDelete('shoutouts', n); }}/>
           );
         })}
         <button className="folder-pill folder-pill-add"
           onClick={function() {
-            const name = prompt('New folder name:');
-            if (name && name.trim()) onFolderCreate(name.trim());
+            const name = prompt('New tag name:');
+            if (name && name.trim()) onTagCreate(name.trim());
           }}>+</button>
       </div>
 
@@ -146,7 +163,11 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
               <div key={s.id}
                 className={'card' + (isSelected ? ' card-selected' : '')}
                 onClick={function() { select(s); }}>
-                {s.folder && <div className="card-folder-tag">{s.folder}</div>}
+                {getItemTags(s).length > 0 && (
+                  <div className="card-tags">
+                    {getItemTags(s).map(function(t) { return <div key={t} className="card-folder-tag">{t}</div>; })}
+                  </div>
+                )}
                 {s.locked && (
                   <div className="card-locked-badge">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -208,7 +229,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
                 <div className="sel-toolbar-sub">
                   {selected.stitchesW}x{selected.stitchesH}
                   {selected.borderName ? ' · '+selected.borderName : ''}
-                  {selected.folder ? ' · '+selected.folder : ''}
+                  {getItemTags(selected).length > 0 ? ' · '+getItemTags(selected).join(', ') : ''}
                 </div>
               </div>
               <button className="sel-toolbar-close" onClick={deselect}>
@@ -242,32 +263,53 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
 
               <div style={{position:'relative'}}>
                 <button className="sel-btn"
-                  onClick={function() { setFolderOpen(function(v){return !v;}); setExportOpen(false); }}>
+                  onClick={function() { setTagPickerOpen(function(v){return !v;}); setExportOpen(false); }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                    <line x1="7" y1="7" x2="7.01" y2="7"/>
                   </svg>
-                  Folder
+                  Tags
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
-                {folderOpen && (
+                {tagPickerOpen && (
                   <div className="sel-dropdown">
-                    <button className={'sel-dropdown-item'+((!selected.folder)?' sel-dropdown-active':'')}
-                      onClick={function() { onMoveToFolder('shoutout', selected.id, null); setFolderOpen(false); }}>
-                      No folder
-                    </button>
-                    {folders.map(function(f) {
+                    {(tags||[]).length === 0 && (
+                      <div className="sel-dropdown-item" style={{color:'var(--grey)',cursor:'default'}}>
+                        No tags yet — create one with +
+                      </div>
+                    )}
+                    {(tags||[]).map(function(t) {
+                      const itemTags = getItemTags(selected);
+                      const hasTag = itemTags.includes(t);
                       return (
-                        <button key={f}
-                          className={'sel-dropdown-item'+(selected.folder===f?' sel-dropdown-active':'')}
-                          onClick={function() { onMoveToFolder('shoutout', selected.id, f); setFolderOpen(false); }}>
-                          {f}
+                        <button key={t}
+                          className={'sel-dropdown-item' + (hasTag ? ' sel-dropdown-active' : '')}
+                          onClick={function() {
+                            var newTags = hasTag
+                              ? itemTags.filter(function(x) { return x !== t; })
+                              : [...itemTags, t];
+                            onSetTags(selected.id, newTags);
+                          }}>
+                          {hasTag ? '✓ ' : ''}{t}
                         </button>
                       );
                     })}
+                    <button className="sel-dropdown-item"
+                      style={{borderTop:'1px solid var(--lgrey)', color:'var(--green)'}}
+                      onClick={function() {
+                        var name = prompt('New tag name:');
+                        if (name && name.trim()) {
+                          onTagCreate(name.trim());
+                          var newTags = [...getItemTags(selected), name.trim()];
+                          onSetTags(selected.id, newTags);
+                        }
+                      }}>
+                      + New tag
+                    </button>
                   </div>
                 )}
               </div>
@@ -334,10 +376,10 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
 /* ═══════════════════════════════════════════════════════════════════
    BORDERS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
-  const [folderOpen, setFolderOpen] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [lockedMsg,  setLockedMsg]  = useState(false);
   const [sortOrder,  setSortOrder]  = useState('newest');
 
@@ -348,7 +390,12 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
 
   const filtered = useMemo(function() {
     var list = borders;
-    if (activeFolder) list = list.filter(function(b) { return b.folder === activeFolder; });
+    if (activeTags && activeTags.length > 0) {
+      list = list.filter(function(b) {
+        var itemTags = getItemTags(b);
+        return activeTags.some(function(t) { return itemTags.includes(t); });
+      });
+    }
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter(function(b) { return b.name.toLowerCase().includes(q); });
@@ -361,15 +408,15 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
       return tb - ta;
     });
     return list;
-  }, [borders, activeFolder, query, sortOrder]);
+  }, [borders, activeTags, query, sortOrder]);
 
-  const total = activeFolder ? borders.filter(function(b) { return b.folder === activeFolder; }).length : borders.length;
+  const total = borders.length;
 
   function select(b) {
     setSelected(function(prev) { return prev && prev.id === b.id ? null : b; });
     setFolderOpen(false);
   }
-  function deselect() { setSelected(null); setFolderOpen(false); }
+  function deselect() { setSelected(null); setTagPickerOpen(false); }
 
   useEffect(function() {
     if (selected) {
@@ -382,21 +429,25 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
     <>
     <div className="screen">
       <div className="folder-bar">
-        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
-          onClick={function() { onFolderChange(null); }}>All ({total})</button>
-        {folders.map(function(f) {
-          const count = borders.filter(function(b) { return b.folder === f; }).length;
+        <button className={'folder-pill' + ((!activeTags||activeTags.length===0) ? ' active' : '')}
+          onClick={function() { onTagChange([]); }}>All ({total})</button>
+        {(tags||[]).map(function(t) {
+          const count = borders.filter(function(b) { return getItemTags(b).includes(t); }).length;
+          const isActive = activeTags && activeTags.includes(t);
           return (
-            <FolderPill key={f} name={f} count={count} active={activeFolder===f}
-              onClick={function() { onFolderChange(f); }}
+            <FolderPill key={t} name={t} count={count} active={isActive}
+              onClick={function() {
+                if (isActive) onTagChange((activeTags||[]).filter(function(x){return x!==t;}));
+                else onTagChange([...(activeTags||[]),t]);
+              }}
               onRename={function(old, nw) { onFolderRename('borders', old, nw); }}
               onDelete={function(n) { onFolderDelete('borders', n); }}/>
           );
         })}
         <button className="folder-pill folder-pill-add"
           onClick={function() {
-            const name = prompt('New folder name:');
-            if (name && name.trim()) onFolderCreate(name.trim());
+            const name = prompt('New tag name:');
+            if (name && name.trim()) onTagCreate(name.trim());
           }}>+</button>
       </div>
 
@@ -468,7 +519,7 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
                 <div className="sel-toolbar-sub">
                   {selected.builtIn ? 'Built-in border' : 'Custom border'}
                   {(selected.locked || selected.builtIn) ? ' · Locked' : ''}
-                  {selected.folder ? ' · '+selected.folder : ''}
+                  {getItemTags(selected).length > 0 ? ' · '+getItemTags(selected).join(', ') : ''}
                 </div>
               </div>
               <button className="sel-toolbar-close" onClick={deselect}>
@@ -498,36 +549,49 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
               </button>
 
               <div style={{position:'relative'}}>
-                  <button className="sel-btn"
-                    onClick={function() { setFolderOpen(function(v){return !v;}); }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    Folder
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                  </button>
-                  {folderOpen && (
-                    <div className="sel-dropdown">
-                      <button className={'sel-dropdown-item'+((!selected.folder)?' sel-dropdown-active':'')}
-                        onClick={function() { onMoveToFolder('border', selected.id, null); setFolderOpen(false); }}>
-                        No folder
-                      </button>
-                      {folders.map(function(f) {
-                        return (
-                          <button key={f}
-                            className={'sel-dropdown-item'+(selected.folder===f?' sel-dropdown-active':'')}
-                            onClick={function() { onMoveToFolder('border', selected.id, f); setFolderOpen(false); }}>
-                            {f}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                <button className="sel-btn"
+                  onClick={function() { setTagPickerOpen(function(v){return !v;}); }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                    <line x1="7" y1="7" x2="7.01" y2="7"/>
+                  </svg>
+                  Tags
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                {tagPickerOpen && (
+                  <div className="sel-dropdown">
+                    {(tags||[]).map(function(t) {
+                      const itemTags = getItemTags(selected);
+                      const hasTag = itemTags.includes(t);
+                      return (
+                        <button key={t}
+                          className={'sel-dropdown-item'+(hasTag?' sel-dropdown-active':'')}
+                          onClick={function() {
+                            var newTags = hasTag
+                              ? itemTags.filter(function(x){return x!==t;})
+                              : [...itemTags, t];
+                            onSetTags(selected.id, newTags);
+                          }}>
+                          {hasTag ? '\u2713 ' : ''}{t}
+                        </button>
+                      );
+                    })}
+                    <button className="sel-dropdown-item"
+                      style={{borderTop:'1px solid var(--lgrey)',color:'var(--green)'}}
+                      onClick={function() {
+                        var name = prompt('New tag name:');
+                        if (name && name.trim()) {
+                          onTagCreate(name.trim());
+                          onSetTags(selected.id, [...getItemTags(selected), name.trim()]);
+                        }
+                      }}>+ New tag</button>
+                  </div>
+                )}
+              </div>
 
               <div style={{flex:1}}/>
 
@@ -564,15 +628,20 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
 /* ═══════════════════════════════════════════════════════════════════
    OBJECTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, activeFolder, onFolderChange, onFolderCreate, onFolderRename, onFolderDelete }) {
+function ObjectsScreen({ objects, onEdit, onDelete, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
-  const [folderOpen, setFolderOpen] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [sortOrder,  setSortOrder]  = useState('newest');
 
   const filtered = useMemo(function() {
     var list = objects;
-    if (activeFolder) list = list.filter(function(o) { return o.folder === activeFolder; });
+    if (activeTags && activeTags.length > 0) {
+      list = list.filter(function(o) {
+        var itemTags = getItemTags(o);
+        return activeTags.some(function(t) { return itemTags.includes(t); });
+      });
+    }
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter(function(o) { return o.name.toLowerCase().includes(q); });
@@ -585,15 +654,15 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
       return tb - ta;
     });
     return list;
-  }, [objects, activeFolder, query, sortOrder]);
+  }, [objects, activeTags, query, sortOrder]);
 
-  const total = activeFolder ? objects.filter(function(o) { return o.folder === activeFolder; }).length : objects.length;
+  const total = objects.length;
 
   function select(o) {
     setSelected(function(prev) { return prev && prev.id === o.id ? null : o; });
     setFolderOpen(false);
   }
-  function deselect() { setSelected(null); setFolderOpen(false); }
+  function deselect() { setSelected(null); setTagPickerOpen(false); }
 
   useEffect(function() {
     if (selected) {
@@ -606,21 +675,25 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
     <>
     <div className="screen">
       <div className="folder-bar">
-        <button className={'folder-pill' + (!activeFolder ? ' active' : '')}
-          onClick={function() { onFolderChange(null); }}>All ({total})</button>
-        {(folders||[]).map(function(f) {
-          const count = objects.filter(function(o) { return o.folder === f; }).length;
+        <button className={'folder-pill' + ((!activeTags||activeTags.length===0) ? ' active' : '')}
+          onClick={function() { onTagChange([]); }}>All ({total})</button>
+        {(tags||[]).map(function(t) {
+          const count = objects.filter(function(o) { return getItemTags(o).includes(t); }).length;
+          const isActive = activeTags && activeTags.includes(t);
           return (
-            <FolderPill key={f} name={f} count={count} active={activeFolder===f}
-              onClick={function() { onFolderChange(f); }}
+            <FolderPill key={t} name={t} count={count} active={isActive}
+              onClick={function() {
+                if (isActive) onTagChange((activeTags||[]).filter(function(x){return x!==t;}));
+                else onTagChange([...(activeTags||[]),t]);
+              }}
               onRename={function(old, nw) { onFolderRename('objects', old, nw); }}
               onDelete={function(n) { onFolderDelete('objects', n); }}/>
           );
         })}
         <button className="folder-pill folder-pill-add"
           onClick={function() {
-            const name = prompt('New folder name:');
-            if (name && name.trim()) onFolderCreate(name.trim());
+            const name = prompt('New tag name:');
+            if (name && name.trim()) onTagCreate(name.trim());
           }}>+</button>
       </div>
 
@@ -648,7 +721,11 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
               <div key={o.id}
                 className={'card object-card' + (isSelected ? ' card-selected' : '')}
                 onClick={function() { select(o); }}>
-                {o.folder && <div className="card-folder-tag">{o.folder}</div>}
+                {getItemTags(o).length > 0 && (
+                  <div className="card-tags">
+                    {getItemTags(o).map(function(t) { return <div key={t} className="card-folder-tag">{t}</div>; })}
+                  </div>
+                )}
                 <div className="card-select-ring">
                   {isSelected && (
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -679,7 +756,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
                 <div className="sel-toolbar-sub">
                   {selected.width}x{selected.height} stitches
                   {selected.layers && selected.layers.length > 1 ? ' · '+selected.layers.length+' layers' : ''}
-                  {selected.folder ? ' · '+selected.folder : ''}
+                  {getItemTags(selected).length > 0 ? ' · '+getItemTags(selected).join(', ') : ''}
                 </div>
               </div>
               <button className="sel-toolbar-close" onClick={deselect}>
@@ -697,37 +774,50 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
 
               <div style={{position:'relative'}}>
                 <button className="sel-btn"
-                  onClick={function() { setFolderOpen(function(v){return !v;}); }}>
+                  onClick={function() { setTagPickerOpen(function(v){return !v;}); }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                    <line x1="7" y1="7" x2="7.01" y2="7"/>
                   </svg>
-                  Folder
+                  Tags
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
-                {folderOpen && (
+                {tagPickerOpen && (
                   <div className="sel-dropdown">
-                    <button className={'sel-dropdown-item'+((!selected.folder)?' sel-dropdown-active':'')}
-                      onClick={function() { onMoveToFolder('object', selected.id, null); setFolderOpen(false); }}>
-                      No folder
-                    </button>
-                    {(folders||[]).map(function(f) {
+                    {(tags||[]).map(function(t) {
+                      const itemTags = getItemTags(selected);
+                      const hasTag = itemTags.includes(t);
                       return (
-                        <button key={f}
-                          className={'sel-dropdown-item'+(selected.folder===f?' sel-dropdown-active':'')}
-                          onClick={function() { onMoveToFolder('object', selected.id, f); setFolderOpen(false); }}>
-                          {f}
+                        <button key={t}
+                          className={'sel-dropdown-item'+(hasTag?' sel-dropdown-active':'')}
+                          onClick={function() {
+                            var newTags = hasTag
+                              ? itemTags.filter(function(x){return x!==t;})
+                              : [...itemTags, t];
+                            onSetTags(selected.id, newTags);
+                          }}>
+                          {hasTag ? '✓ ' : ''}{t}
                         </button>
                       );
                     })}
+                    <button className="sel-dropdown-item"
+                      style={{borderTop:'1px solid var(--lgrey)',color:'var(--green)'}}
+                      onClick={function() {
+                        var name = prompt('New tag name:');
+                        if (name && name.trim()) {
+                          onTagCreate(name.trim());
+                          onSetTags(selected.id, [...getItemTags(selected), name.trim()]);
+                        }
+                      }}>+ New tag</button>
                   </div>
                 )}
               </div>
 
-              <div style={{flex:1}}/>
+                            <div style={{flex:1}}/>
 
               <button className="sel-btn sel-btn-danger"
                 onClick={function() { onDelete(selected); }}>

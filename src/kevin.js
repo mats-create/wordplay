@@ -88,7 +88,7 @@ Corner motif sizes: Standard 9x9 cornerInset 7, Enlarged 11x11 cornerInset 8. li
 
 Expertise: cross-stitch and border traditions (British, Scandinavian, Hardanger, Blackwork, folk); DMC threads; football vocabulary from all cultures and languages; trademark risks (flag club/competition names, generic football vocab is fine).
 
-Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout folders=${context.shoutoutFolders} | border folders=${context.borderFolders} | default hoop 280x250mm, 14-count Aida (104x104 stitches, 2 strands) or 11-count Aida (82x82 stitches, 3 strands). 14-count is the default.${context.compose ? (
+Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.shoutoutNames}) | borders=${context.borderNames} | objects=${context.objectCount} (${context.objectNames}) | shoutout tags=${context.shoutoutTags} | border tags=${context.borderTags} | object tags=${context.objectTags} | default hoop 280x250mm, 14-count Aida (104x104 stitches, 2 strands) or 11-count Aida (82x82 stitches, 3 strands). 14-count is the default.${context.compose ? (
   '\n\nCompose mode — current design: ' +
   'word="' + (context.compose.word || '').replace(/\n/g,' ') + '"' +
   (context.compose.designName ? ' | design name="' + context.compose.designName + '"' : '') +
@@ -108,7 +108,7 @@ Composition model: shoutouts now support a placedObjects field — a map of posi
 
 Lock system: shoutouts and borders can be locked (locked: true) to prevent accidental edits. Before calling updateShoutout, deleteShoutout, placeObject, or removeObject on a locked shoutout, you must ask the user for permission first with a simple yes/no question like "That design is locked — unlock it to make changes?". Same for borders — before calling updateBorder or deleteBorder on a locked border, ask permission. Built-in borders are locked by default; unlocking copies them to the user's personal library. If they say yes, the item gets unlocked first, then proceed. You can lock or unlock items directly when asked. Never silently edit a locked item.
 
-Folders: shoutouts, borders and objects can be assigned to a folder (a string tag). When creating or updating, you can set the folder field to any existing folder name, or null for unfiled. Always use an existing folder name from context unless the user asks to create a new one.
+Tags: each shoutout, border and object can have multiple tags (tags: string[]). Tags replace the old single 'folder' field. When creating or updating items, set the tags field to an array of tag names. Items can have zero, one, or many tags — e.g. tags:['WC26','Brazil']. Use existing tag names from context unless the user asks to create new ones. To add a tag to an item, read its current tags and append; to remove, filter it out. Always use updateShoutout/updateBorder/updateObject with the full new tags array.
 
 UI flow: tapping a card in the library selects it and reveals an action toolbar at the bottom of the screen. From there the user can Compose (open the full composition workspace), move to a folder, export PDFs, or delete. There are no detail sheets — the card thumbnail shows the full design. When the user says they want to edit or open a shoutout, they mean opening it in Compose.`;
 }
@@ -151,7 +151,7 @@ const KEVIN_TOOLS = [
   },
   {
     name: 'updateShoutout',
-    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change. Accepts: name, designName, locked, borderId, borderName, threads, notes, placedObjects, aidaCount (11 or 14), stitchesW, stitchesH, strands and other shoutout fields.',
+    description: 'Update an existing shoutout by its id. Use listShoutouts to find the id. Only provide fields to change. Accepts: name, designName, locked, tags (string[]), borderId, borderName, threads, notes, placedObjects, aidaCount (11 or 14), stitchesW, stitchesH, strands and other shoutout fields.',
     input_schema: {
       type: 'object',
       properties: {
@@ -298,7 +298,7 @@ const KEVIN_TOOLS = [
         layers:  { type: 'array', description: 'Multi-colour layers array. Each item: {colorSlot: string, pattern: string[]}. Max 4 layers.' },
         width:   { type: 'number', description: 'Width in stitches (auto-detected)' },
         height:  { type: 'number', description: 'Height in stitches (auto-detected)' },
-        folder:  { type: 'string', description: 'Optional folder name' },
+        tags:    { type: 'array', items: { type: 'string' }, description: 'Optional tags array e.g. ["WC26","Brazil"]' },
       },
       required: ['name']
     }
@@ -388,6 +388,7 @@ async function executeKevinTool(toolName, toolInput, appData) {
         hoop: s.hoopW + 'x' + s.hoopH + 'mm',
         border: s.borderName || 'none',
         threads: (s.threads || []).map(function(t) { return t.name + ' (' + t.dmc + ')'; }),
+        tags: (s.tags && s.tags.length ? s.tags : (s.folder ? [s.folder] : [])),
         placedObjects: placedSummary,
         notes: s.notes || '',
       };

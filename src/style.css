@@ -920,11 +920,15 @@ html, body, #root {
 .folder-add:hover { border-color: var(--coral); color: var(--coral); }
 
 /* Folder tag on card */
-.card-folder-tag {
+.card-tags {
   position: absolute; top: 8px; right: 8px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+  z-index: 2;
+}
+.card-folder-tag {
   background: var(--black); color: var(--white);
   font-size: 10px; font-weight: 500; padding: 2px 7px;
-  border-radius: 10px; opacity: 0.7;
+  border-radius: 10px; opacity: 0.75; white-space: nowrap;
 }
 
 /* Folder select in detail panel */

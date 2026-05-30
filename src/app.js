@@ -12,12 +12,12 @@ function App() {
   const [kevinVisible, setKevinVisible] = useState(function() { return window.innerWidth >= 768; });
   const [kevinMessages, setKevinMessages] = useState(null);
   const [tmCache,     setTmCache]     = useState({});
-  const [shoutoutFolders, setShoutoutFolders] = useState([]);
-  const [borderFolders,   setBorderFolders]   = useState([]);
-  const [objectFolders,   setObjectFolders]   = useState([]);
-  const [activeShoutoutFolder, setActiveShoutoutFolder] = useState(null);
-  const [activeBorderFolder,   setActiveBorderFolder]   = useState(null);
-  const [activeObjectFolder,   setActiveObjectFolder]   = useState(null);
+  const [shoutoutTags, setShoutoutTags] = useState([]);
+  const [borderTags,   setBorderTags]   = useState([]);
+  const [objectTags,   setObjectTags]   = useState([]);
+  const [activeShoutoutTags, setActiveShoutoutTags] = useState([]);
+  const [activeBorderTags,   setActiveBorderTags]   = useState([]);
+  const [activeObjectTags,   setActiveObjectTags]   = useState([]);
   const [objects,       setObjects]       = useState([]);
   const [editObject,    setEditObject]    = useState(null);
   const [composeShoutout, setComposeShoutout] = useState(null);
@@ -31,14 +31,14 @@ function App() {
       shoutoutCount: shoutouts.length,
       shoutoutNames: shoutouts.map(function(s) { return s.designName || s.name; }).join(', ') || 'none',
       borderNames: borders.map(function(b) { return b.name; }).join(', ') || 'none',
-      shoutoutFolders: shoutoutFolders.join(', ') || 'none',
-      borderFolders: borderFolders.join(', ') || 'none',
-      objectFolders: objectFolders.join(', ') || 'none',
+      shoutoutTags: shoutoutTags.join(', ') || 'none',
+      borderTags: borderTags.join(', ') || 'none',
+      objectTags: objectTags.join(', ') || 'none',
       objectCount: objects.length,
       objectNames: objects.map(function(o) { return o.name; }).join(', ') || 'none',
       compose: composeContext,
     };
-  }, [tab, composeShoutout, composeContext, shoutouts, borders, shoutoutFolders, borderFolders, objectFolders, objects]);
+  }, [tab, composeShoutout, composeContext, shoutouts, borders, shoutoutTags, borderTags, objectTags, objects]);
 
   // ── Auth ──
   useEffect(function(){
@@ -46,129 +46,191 @@ function App() {
       setAuthUser(u||null);
       if (u) {
         loadKevinKeyFromFirestore(u.uid);
-        loadFolders(u.uid);
+        loadTags(u.uid);
       } else {
         setKevinApiKey('');
-        setShoutoutFolders([]); setBorderFolders([]);
+        setShoutoutTags([]); setBorderTags([]); setObjectTags([]);
       }
     });
     return function(){ unsub(); };
   },[]);
 
   // ── Folders — load/save ──
-  async function loadFolders(uid) {
+  async function loadTags(uid) {
     try {
       const snap = await fb.getDoc(fb.doc(fb.db,'users',uid,'settings','folders'));
       if (snap.exists()) {
         const d = snap.data();
-        setShoutoutFolders(d.shoutoutFolders || []);
-        setBorderFolders(d.borderFolders || []);
-        setObjectFolders(d.objectFolders || []);
+        // Support both old (shoutoutFolders) and new (shoutoutTags) field names
+        setShoutoutTags(d.shoutoutTags || d.shoutoutFolders || []);
+        setBorderTags(d.borderTags || d.borderFolders || []);
+        setObjectTags(d.objectTags || d.objectFolders || []);
       }
-    } catch(e) { console.warn('Folder load failed:', e); }
+    } catch(e) { console.warn('Tags load failed:', e); }
   }
 
-  async function saveFolders(uid, sf, bf, of2) {
+  async function saveTags(uid, st, bt, ot) {
     try {
       await fb.setDoc(fb.doc(fb.db,'users',uid,'settings','folders'),
-        { shoutoutFolders: sf, borderFolders: bf, objectFolders: of2 || objectFolders });
-    } catch(e) { console.warn('Folder save failed:', e); }
+        { shoutoutTags: st, borderTags: bt, objectTags: ot || objectTags,
+          // Keep legacy fields for backward compat
+          shoutoutFolders: st, borderFolders: bt, objectFolders: ot || objectTags });
+    } catch(e) { console.warn('Tags save failed:', e); }
   }
 
-  function handleFolderCreate(type, name) {
+  function handleTagCreate(type, name) {
     if (type === 'shoutouts') {
-      if (shoutoutFolders.includes(name)) return;
-      const next = [...shoutoutFolders, name];
-      setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders, objectFolders);
+      if (shoutoutTags.includes(name)) return;
+      const next = [...shoutoutTags, name];
+      setShoutoutTags(next);
+      saveTags(authUser.uid, next, borderTags, objectTags);
     } else if (type === 'borders') {
-      if (borderFolders.includes(name)) return;
-      const next = [...borderFolders, name];
-      setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
+      if (borderTags.includes(name)) return;
+      const next = [...borderTags, name];
+      setBorderTags(next);
+      saveTags(authUser.uid, shoutoutTags, next, objectTags);
     } else {
-      if (objectFolders.includes(name)) return;
-      const next = [...objectFolders, name];
-      setObjectFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
+      if (objectTags.includes(name)) return;
+      const next = [...objectTags, name];
+      setObjectTags(next);
+      saveTags(authUser.uid, shoutoutTags, borderTags, next);
     }
   }
 
   async function handleFolderRename(type, oldName, newName) {
+    function replaceTag(tags, folder) {
+      var t = tags && tags.length ? tags : (folder ? [folder] : []);
+      return t.map(function(x) { return x === oldName ? newName : x; });
+    }
     if (type === 'shoutouts') {
-      const next = shoutoutFolders.map(function(f) { return f === oldName ? newName : f; });
-      setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders, objectFolders);
-      if (activeShoutoutFolder === oldName) setActiveShoutoutFolder(newName);
-      const batch = shoutouts.filter(function(s) { return s.folder === oldName; });
+      const next = shoutoutTags.map(function(f) { return f === oldName ? newName : f; });
+      setShoutoutTags(next);
+      saveTags(authUser.uid, next, borderTags, objectTags);
+      if (activeShoutoutTags.includes(oldName)) {
+        setActiveShoutoutTags(activeShoutoutTags.map(function(t) { return t === oldName ? newName : t; }));
+      }
+      const batch = shoutouts.filter(function(s) {
+        var t = s.tags && s.tags.length ? s.tags : (s.folder ? [s.folder] : []);
+        return t.includes(oldName);
+      });
       for (const s of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: newName });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id),
+          { tags: replaceTag(s.tags, s.folder), folder: null });
       }
     } else if (type === 'borders') {
-      const next = borderFolders.map(function(f) { return f === oldName ? newName : f; });
-      setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
-      if (activeBorderFolder === oldName) setActiveBorderFolder(newName);
-      const batch = borders.filter(function(b) { return b.folder === oldName && !b.builtIn; });
+      const next = borderTags.map(function(f) { return f === oldName ? newName : f; });
+      setBorderTags(next);
+      saveTags(authUser.uid, shoutoutTags, next, objectTags);
+      if (activeBorderTags.includes(oldName)) {
+        setActiveBorderTags(activeBorderTags.map(function(t) { return t === oldName ? newName : t; }));
+      }
+      const batch = borders.filter(function(b) {
+        var t = b.tags && b.tags.length ? b.tags : (b.folder ? [b.folder] : []);
+        return t.includes(oldName) && !b.builtIn;
+      });
       for (const b of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: newName });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id),
+          { tags: replaceTag(b.tags, b.folder), folder: null });
       }
     } else {
-      const next = objectFolders.map(function(f) { return f === oldName ? newName : f; });
-      setObjectFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
-      if (activeObjectFolder === oldName) setActiveObjectFolder(newName);
-      const batch = objects.filter(function(o) { return o.folder === oldName; });
+      const next = objectTags.map(function(f) { return f === oldName ? newName : f; });
+      setObjectTags(next);
+      saveTags(authUser.uid, shoutoutTags, borderTags, next);
+      if (activeObjectTags.includes(oldName)) {
+        setActiveObjectTags(activeObjectTags.map(function(t) { return t === oldName ? newName : t; }));
+      }
+      const batch = objects.filter(function(o) {
+        var t = o.tags && o.tags.length ? o.tags : (o.folder ? [o.folder] : []);
+        return t.includes(oldName);
+      });
       for (const o of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id), { folder: newName });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id),
+          { tags: replaceTag(o.tags, o.folder), folder: null });
       }
     }
   }
 
   async function handleFolderDelete(type, name) {
+    function removeTag(tags, folder) {
+      var t = tags && tags.length ? tags : (folder ? [folder] : []);
+      return t.filter(function(x) { return x !== name; });
+    }
     if (type === 'shoutouts') {
-      const next = shoutoutFolders.filter(function(f) { return f !== name; });
-      setShoutoutFolders(next);
-      saveFolders(authUser.uid, next, borderFolders, objectFolders);
-      if (activeShoutoutFolder === name) setActiveShoutoutFolder(null);
-      const batch = shoutouts.filter(function(s) { return s.folder === name; });
+      const next = shoutoutTags.filter(function(f) { return f !== name; });
+      setShoutoutTags(next);
+      saveTags(authUser.uid, next, borderTags, objectTags);
+      setActiveShoutoutTags(activeShoutoutTags.filter(function(t) { return t !== name; }));
+      const batch = shoutouts.filter(function(s) {
+        var t = s.tags && s.tags.length ? s.tags : (s.folder ? [s.folder] : []);
+        return t.includes(name);
+      });
       for (const s of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id), { folder: null });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',s.id),
+          { tags: removeTag(s.tags, s.folder), folder: null });
       }
     } else if (type === 'borders') {
-      const next = borderFolders.filter(function(f) { return f !== name; });
-      setBorderFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, next, objectFolders);
-      if (activeBorderFolder === name) setActiveBorderFolder(null);
-      const batch = borders.filter(function(b) { return b.folder === name && !b.builtIn; });
+      const next = borderTags.filter(function(f) { return f !== name; });
+      setBorderTags(next);
+      saveTags(authUser.uid, shoutoutTags, next, objectTags);
+      setActiveBorderTags(activeBorderTags.filter(function(t) { return t !== name; }));
+      const batch = borders.filter(function(b) {
+        var t = b.tags && b.tags.length ? b.tags : (b.folder ? [b.folder] : []);
+        return t.includes(name) && !b.builtIn;
+      });
       for (const b of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id), { folder: null });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',b.id),
+          { tags: removeTag(b.tags, b.folder), folder: null });
       }
     } else {
-      const next = objectFolders.filter(function(f) { return f !== name; });
-      setObjectFolders(next);
-      saveFolders(authUser.uid, shoutoutFolders, borderFolders, next);
-      if (activeObjectFolder === name) setActiveObjectFolder(null);
-      const batch = objects.filter(function(o) { return o.folder === name; });
+      const next = objectTags.filter(function(f) { return f !== name; });
+      setObjectTags(next);
+      saveTags(authUser.uid, shoutoutTags, borderTags, next);
+      setActiveObjectTags(activeObjectTags.filter(function(t) { return t !== name; }));
+      const batch = objects.filter(function(o) {
+        var t = o.tags && o.tags.length ? o.tags : (o.folder ? [o.folder] : []);
+        return t.includes(name);
+      });
       for (const o of batch) {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id), { folder: null });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',o.id),
+          { tags: removeTag(o.tags, o.folder), folder: null });
       }
     }
   }
 
-  async function handleMoveToFolder(type, itemId, folder) {
+  async function handleSetTags(type, itemId, tags) {
+    // tags is the new complete tags array for the item
     try {
       if (type === 'shoutout') {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId), { folder: folder || null });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',itemId),
+          { tags: tags, folder: null });
       } else if (type === 'border') {
         const border = borders.find(function(b) { return b.id === itemId; });
-        if (border && border.builtIn) { showToast('Cannot move built-in borders'); return; }
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',itemId), { folder: folder || null });
+        if (border && border.builtIn) { showToast('Cannot tag built-in borders — copy to library first'); return; }
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'borders',itemId),
+          { tags: tags, folder: null });
       } else {
-        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',itemId), { folder: folder || null });
+        await fb.updateDoc(fb.doc(fb.db,'users',authUser.uid,'objects',itemId),
+          { tags: tags, folder: null });
       }
-      showToast(folder ? 'Moved to ' + folder : 'Removed from folder');
-    } catch(e) { showToast('Move failed — try again'); }
+      showToast(tags.length > 0 ? 'Tags updated' : 'Tags cleared');
+    } catch(e) { showToast('Tag update failed — try again'); }
+  }
+
+  // Legacy alias — kept for any remaining callers
+  async function handleMoveToFolder(type, itemId, folder) {
+    const item = type === 'shoutout'
+      ? shoutouts.find(function(s) { return s.id === itemId; })
+      : type === 'border'
+        ? borders.find(function(b) { return b.id === itemId; })
+        : objects.find(function(o) { return o.id === itemId; });
+    const currentTags = item && item.tags && item.tags.length ? item.tags
+      : (item && item.folder ? [item.folder] : []);
+    if (!folder) {
+      // Clear all tags
+      return handleSetTags(type, itemId, []);
+    } else if (!currentTags.includes(folder)) {
+      return handleSetTags(type, itemId, [...currentTags, folder]);
+    }
   }
 
   // ── Seed built-in borders once ──
@@ -500,12 +562,13 @@ function App() {
               onExportAida={function(s) { setAidaShoutout(s); }}
               onDelete={function(s) { setConfirmDel({type:'shoutout', id:s.id}); }}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
-              folders={shoutoutFolders}
-              activeFolder={activeShoutoutFolder}
-              onFolderChange={setActiveShoutoutFolder}
-              onFolderCreate={handleFolderCreate}
+              tags={shoutoutTags}
+              activeTags={activeShoutoutTags}
+              onTagChange={setActiveShoutoutTags}
+              onTagCreate={function(name) { handleTagCreate('shoutouts', name); }}
               onFolderRename={handleFolderRename}
-              onFolderDelete={handleFolderDelete}/>
+              onFolderDelete={handleFolderDelete}
+              onSetTags={function(id, tags) { handleSetTags('shoutout', id, tags); }}/>
           )}
           {tab === 'borders' && (
             <BordersScreen borders={borders}
@@ -513,24 +576,26 @@ function App() {
               onDelete={function(b) { setConfirmDel({type:'border', id:b.id}); }}
               onToggleLock={handleToggleBorderLock}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
-              folders={borderFolders}
-              activeFolder={activeBorderFolder}
-              onFolderChange={setActiveBorderFolder}
-              onFolderCreate={handleFolderCreate}
+              tags={borderTags}
+              activeTags={activeBorderTags}
+              onTagChange={setActiveBorderTags}
+              onTagCreate={function(name) { handleTagCreate('borders', name); }}
               onFolderRename={handleFolderRename}
-              onFolderDelete={handleFolderDelete}/>
+              onFolderDelete={handleFolderDelete}
+              onSetTags={function(id, tags) { handleSetTags('border', id, tags); }}/>
           )}
           {tab === 'objects' && (
             <ObjectsScreen objects={objects}
               onEdit={function(o) { setEditObject(o); }}
               onDelete={function(o) { setConfirmDel({type:'object', id:o.id}); }}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
-              folders={objectFolders}
-              activeFolder={activeObjectFolder}
-              onFolderChange={setActiveObjectFolder}
-              onFolderCreate={handleFolderCreate}
+              tags={objectTags}
+              activeTags={activeObjectTags}
+              onTagChange={setActiveObjectTags}
+              onTagCreate={function(name) { handleTagCreate('objects', name); }}
               onFolderRename={handleFolderRename}
-              onFolderDelete={handleFolderDelete}/>
+              onFolderDelete={handleFolderDelete}
+              onSetTags={function(id, tags) { handleSetTags('object', id, tags); }}/>
           )}
         </div>
 
