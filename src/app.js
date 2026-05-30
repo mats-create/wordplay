@@ -22,6 +22,15 @@ function App() {
   const [editObject,    setEditObject]    = useState(null);
   const [composeShoutout, setComposeShoutout] = useState(null);
   const [composeContext,  setComposeContext]  = useState(null);
+
+  // Keep composeShoutout in sync with live Firestore updates
+  // so Kevin's external changes (object placements etc) flow into the Composer
+  useEffect(function() {
+    if (composeShoutout && composeShoutout !== 'new') {
+      const updated = shoutouts.find(function(s) { return s.id === composeShoutout.id; });
+      if (updated) setComposeShoutout(updated);
+    }
+  }, [shoutouts]);
   const fb = window.__firebase;
 
   // Kevin context — what Kevin knows about the current state

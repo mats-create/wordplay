@@ -1431,6 +1431,13 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   const [textScale,     setTextScale]     = useState(initial && initial.textScale ? initial.textScale : 0);
   const [lineScales,    setLineScales]    = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
   const [placedObjects, setPlacedObjects] = useState(initial && initial.placedObjects ? initial.placedObjects : {});
+
+  // Sync placedObjects when updated externally (e.g. Kevin placing objects via Firestore)
+  useEffect(function() {
+    if (initial && initial.placedObjects) {
+      setPlacedObjects(initial.placedObjects);
+    }
+  }, [initial && initial.placedObjects]);
   const [activeTab,     setActiveTab]     = useState('word');
   const [settingsOpen,  setSettingsOpen]  = useState(false);
   const [pickerPos,     setPickerPos]     = useState(null);

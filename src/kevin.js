@@ -104,6 +104,8 @@ Object library: per-user collection of reusable binary stitch patterns. Objects 
 
 Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{colorSlot, pattern[]}] instead of a top-level pattern field. Each layer's colorSlot maps to a thread slot (primary/secondary/accent/border3/accent1/accent2), so the object renders in the actual thread colours of whichever shoutout uses it. Max 4 layers per object. Use createObject/updateObject with the layers field to create or update layered objects.
 
+Pattern coordinate system: in all binary patterns (object layers, border motifs), row 0 is the TOP of the design and the last row is the BOTTOM. Column 0 is the LEFT edge and the last column is the RIGHT edge. When generating flag patterns or any design where colour order matters vertically (e.g. German flag: black top, red middle, gold bottom) or horizontally, always assign rows/columns accordingly. Example German flag (9 rows): rows 0-2 = '111111111' in black layer, rows 3-5 = '111111111' in red layer, rows 6-8 = '111111111' in gold layer. Example French flag (9 cols): cols 0-2 = blue layer, cols 3-5 = white layer, cols 6-8 = red layer.
+
 Composition model: shoutouts now support a placedObjects field — a map of position IDs to object placements. Position IDs are: topLeft, topRight, bottomLeft, bottomRight (corners), top, bottom, left, right (sides). Each placed object overrides the border's default motif at that position and renders with the shoutout's thread colours via the object's colorSlot assignments. Use placeObject to place an object at a position, removeObject to clear one. listShoutouts returns placedObjects for each shoutout so you can see what is placed where. All 8 positions accept objects up to 42×42 stitches — the canvas is the visual guide for overlap or fit issues.
 
 Lock system: shoutouts and borders can be locked (locked: true) to prevent accidental edits. Before calling updateShoutout, deleteShoutout, placeObject, or removeObject on a locked shoutout, you must ask the user for permission first with a simple yes/no question like "That design is locked — unlock it to make changes?". Same for borders — before calling updateBorder or deleteBorder on a locked border, ask permission. Built-in borders are locked by default; unlocking copies them to the user's personal library. If they say yes, the item gets unlocked first, then proceed. You can lock or unlock items directly when asked. Never silently edit a locked item.
@@ -681,13 +683,17 @@ async function executeKevinTool(toolName, toolInput, appData) {
       const obj = (appData.objects || []).find(function(o) { return o.id === objectId; });
       if (!obj) return 'Error: object not found with id: ' + objectId;
       const current = shoutout;
-      const currentPlaced = Object.assign({}, shoutout.placedObjects || {});
-      // Normalise legacy pattern-only objects to layers format before storing
+      // Use in-memory accumulator to handle multiple placements in one turn
+      // without race conditions from stale Firestore snapshots
+      if (!appData._placedAccum) appData._placedAccum = {};
+      if (!appData._placedAccum[shoutoutId]) {
+        appData._placedAccum[shoutoutId] = Object.assign({}, shoutout.placedObjects || {});
+      }
       const normObj = obj.layers ? obj : { ...obj, layers: [{ colorSlot: 'primary', pattern: obj.pattern || [] }] };
-      currentPlaced[positionId] = normObj;
+      appData._placedAccum[shoutoutId][positionId] = normObj;
       await fb.updateDoc(
         fb.doc(fb.db, 'users', uid, 'shoutouts', shoutoutId),
-        { placedObjects: currentPlaced, updatedAt: fb.serverTimestamp() }
+        { placedObjects: appData._placedAccum[shoutoutId], updatedAt: fb.serverTimestamp() }
       );
       kevinLogUndo({ action: 'updateShoutout', id: shoutoutId, uid, previous: current });
       return 'Placed "' + obj.name + '" at ' + positionId + ' on shoutout "' + shoutout.name + '".';
