@@ -54,6 +54,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
   const [exportOpen, setExportOpen] = useState(false);
   const [folderOpen, setFolderOpen] = useState(false);
   const [lockedMsg,  setLockedMsg]  = useState(false);
+  const [sortOrder,  setSortOrder]  = useState('newest');
 
   function showLockedMessage() {
     setLockedMsg(true);
@@ -70,10 +71,15 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
       list = list.filter(function(s) { return (s.designName||s.name).toLowerCase().includes(q); });
     }
     list = list.slice().sort(function(a,b) {
-      return (a.designName||a.name).localeCompare(b.designName||b.name);
+      if (sortOrder === 'nameAsc')  return (a.designName||a.name).localeCompare(b.designName||b.name);
+      if (sortOrder === 'nameDesc') return (b.designName||b.name).localeCompare(a.designName||a.name);
+      // newest first — use createdAt timestamp, fall back to id order
+      const ta = (a.createdAt && a.createdAt.seconds) ? a.createdAt.seconds : 0;
+      const tb = (b.createdAt && b.createdAt.seconds) ? b.createdAt.seconds : 0;
+      return tb - ta;
     });
     return list;
-  }, [shoutouts, activeFolder, query]);
+  }, [shoutouts, activeFolder, query, sortOrder]);
 
   const total = activeFolder ? shoutouts.filter(function(s) { return s.folder === activeFolder; }).length : shoutouts.length;
 
@@ -118,6 +124,12 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
       <div className="search-wrap">
         <input className="search-input" type="text" placeholder={'Search ' + shoutouts.length + ' shoutouts…'}
           value={query} onChange={function(e) { setQuery(e.target.value); }}/>
+        <select className="sort-select" value={sortOrder}
+          onChange={function(e) { setSortOrder(e.target.value); }}>
+          <option value="newest">Newest first</option>
+          <option value="nameAsc">Name A→Z</option>
+          <option value="nameDesc">Name Z→A</option>
+        </select>
       </div>
 
       {filtered.length === 0 ? (
@@ -327,6 +339,7 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
   const [selected, setSelected] = useState(null);
   const [folderOpen, setFolderOpen] = useState(false);
   const [lockedMsg,  setLockedMsg]  = useState(false);
+  const [sortOrder,  setSortOrder]  = useState('newest');
 
   function showLockedMessage() {
     setLockedMsg(true);
@@ -340,9 +353,15 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
       const q = query.trim().toLowerCase();
       list = list.filter(function(b) { return b.name.toLowerCase().includes(q); });
     }
-    list = list.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
+    list = list.slice().sort(function(a,b) {
+      if (sortOrder === 'nameAsc')  return a.name.localeCompare(b.name);
+      if (sortOrder === 'nameDesc') return b.name.localeCompare(a.name);
+      const ta = (a.createdAt && a.createdAt.seconds) ? a.createdAt.seconds : 0;
+      const tb = (b.createdAt && b.createdAt.seconds) ? b.createdAt.seconds : 0;
+      return tb - ta;
+    });
     return list;
-  }, [borders, activeFolder, query]);
+  }, [borders, activeFolder, query, sortOrder]);
 
   const total = activeFolder ? borders.filter(function(b) { return b.folder === activeFolder; }).length : borders.length;
 
@@ -384,6 +403,12 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onMoveToFolder
       <div className="search-wrap">
         <input className="search-input" type="text" placeholder={'Search ' + borders.length + ' borders…'}
           value={query} onChange={function(e) { setQuery(e.target.value); }}/>
+        <select className="sort-select" value={sortOrder}
+          onChange={function(e) { setSortOrder(e.target.value); }}>
+          <option value="newest">Newest first</option>
+          <option value="nameAsc">Name A→Z</option>
+          <option value="nameDesc">Name Z→A</option>
+        </select>
       </div>
 
       {filtered.length === 0 ? (
@@ -543,6 +568,7 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [folderOpen, setFolderOpen] = useState(false);
+  const [sortOrder,  setSortOrder]  = useState('newest');
 
   const filtered = useMemo(function() {
     var list = objects;
@@ -551,9 +577,15 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
       const q = query.trim().toLowerCase();
       list = list.filter(function(o) { return o.name.toLowerCase().includes(q); });
     }
-    list = list.slice().sort(function(a,b) { return a.name.localeCompare(b.name); });
+    list = list.slice().sort(function(a,b) {
+      if (sortOrder === 'nameAsc')  return a.name.localeCompare(b.name);
+      if (sortOrder === 'nameDesc') return b.name.localeCompare(a.name);
+      const ta = (a.createdAt && a.createdAt.seconds) ? a.createdAt.seconds : 0;
+      const tb = (b.createdAt && b.createdAt.seconds) ? b.createdAt.seconds : 0;
+      return tb - ta;
+    });
     return list;
-  }, [objects, activeFolder, query]);
+  }, [objects, activeFolder, query, sortOrder]);
 
   const total = activeFolder ? objects.filter(function(o) { return o.folder === activeFolder; }).length : objects.length;
 
@@ -595,6 +627,12 @@ function ObjectsScreen({ objects, onEdit, onDelete, onMoveToFolder, folders, act
       <div className="search-wrap">
         <input className="search-input" type="text" placeholder={'Search ' + objects.length + ' objects…'}
           value={query} onChange={function(e) { setQuery(e.target.value); }}/>
+        <select className="sort-select" value={sortOrder}
+          onChange={function(e) { setSortOrder(e.target.value); }}>
+          <option value="newest">Newest first</option>
+          <option value="nameAsc">Name A→Z</option>
+          <option value="nameDesc">Name Z→A</option>
+        </select>
       </div>
 
       {filtered.length === 0 ? (
