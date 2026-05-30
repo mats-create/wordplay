@@ -7562,21 +7562,23 @@ function App() {
   async function saveObject(data) {
     setSaving(true);
     try {
+      const fullData = {};
+      Object.keys(data).forEach(function(k) { fullData[k] = data[k] === undefined ? null : data[k]; });
       if (editObject && editObject !== 'new') {
         await fb.updateDoc(
           fb.doc(fb.db,'users',authUser.uid,'objects',editObject.id),
-          {...data, updatedAt: fb.serverTimestamp()}
+          Object.assign({}, fullData, {updatedAt: fb.serverTimestamp()})
         );
         showToast('Object updated');
       } else {
         await fb.addDoc(
           fb.collection(fb.db,'users',authUser.uid,'objects'),
-          {...data, createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()}
+          Object.assign({}, fullData, {createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()})
         );
         showToast('Object created');
       }
       setEditObject(null);
-    } catch(e) { showToast('Something went wrong — try again'); }
+    } catch(e) { showToast('Could not save object: ' + e.message); }
     finally { setSaving(false); }
   }
 
@@ -7708,20 +7710,25 @@ function App() {
     setSaving(true);
     try {
       const spec = data.spec || BORDER_SPECS[data.style] || null;
-      const fullData = { ...data, spec };
+      // Sanitise — Firestore rejects undefined values, replace with null
+      const raw = Object.assign({}, data, {spec: spec});
+      const fullData = {};
+      Object.keys(raw).forEach(function(k) {
+        fullData[k] = raw[k] === undefined ? null : raw[k];
+      });
       if (editBorder && editBorder !== 'new') {
         // Update — always write to user collection
-        // (built-ins that reach here have already been copied via handleToggleBorderLock)
         const path = fb.doc(fb.db,'users',authUser.uid,'borders',editBorder.id);
-        await fb.updateDoc(path, {...fullData, updatedAt: fb.serverTimestamp()});
+        await fb.updateDoc(path, Object.assign({}, fullData, {updatedAt: fb.serverTimestamp()}));
         showToast('Border updated');
       } else {
         // Create — always per-user
         await fb.addDoc(
-          fb.collection(fb.db,'users',authUser.uid,'borders'), {
-            ...fullData, builtIn: false, createdBy: authUser.uid,
+          fb.collection(fb.db,'users',authUser.uid,'borders'),
+          Object.assign({}, fullData, {
+            builtIn: false, createdBy: authUser.uid,
             createdAt: fb.serverTimestamp(), updatedAt: fb.serverTimestamp()
-          }
+          })
         );
         showToast('Border created');
       }
