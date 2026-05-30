@@ -633,13 +633,22 @@ function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFold
    CONFIRM DIALOG
 ═══════════════════════════════════════════════════════════════════ */
 function ConfirmDialog({ title, message, onConfirm, onCancel }) {
+  const [confirming, setConfirming] = useState(false);
+  function handleConfirm() {
+    if (confirming) return;
+    setConfirming(true);
+    onConfirm();
+  }
   return (
-    <div className="overlay overlay-center" onClick={e=>e.target===e.currentTarget&&onCancel()}>
+    <div className="overlay overlay-center"
+      onClick={function(e) { if (e.target===e.currentTarget && !confirming) onCancel(); }}>
       <div className="dialog">
         <h3>{title}</h3><p>{message}</p>
         <div className="dialog-actions">
-          <button className="btn btn-outlined" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-danger"   onClick={onConfirm}>Delete</button>
+          <button className="btn btn-outlined" onClick={onCancel} disabled={confirming}>Cancel</button>
+          <button className="btn btn-danger" onClick={handleConfirm} disabled={confirming}>
+            {confirming ? 'Deleting…' : 'Delete'}
+          </button>
         </div>
       </div>
     </div>

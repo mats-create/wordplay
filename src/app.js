@@ -445,7 +445,7 @@ function App() {
     try {
       if (confirmDel.type==='shoutout') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',confirmDel.id));
-        showToast('Shoutout deleted'); setSelShoutout(null);
+        showToast('Shoutout deleted');
       } else if (confirmDel.type==='object') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'objects',confirmDel.id));
         showToast('Object deleted');
@@ -459,7 +459,7 @@ function App() {
         showToast('Border deleted');
       }
       setConfirmDel(null);
-    } catch(e) { showToast('Delete failed — try again'); }
+    } catch(e) { showToast('Delete failed — try again'); setConfirmDel(null); }
   }
 
   // ── Loading ──
