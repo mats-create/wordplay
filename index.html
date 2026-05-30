@@ -5190,13 +5190,22 @@ function BorderDetail({ border, onEdit, onDelete, onClose, folders, onMoveToFold
    CONFIRM DIALOG
 ═══════════════════════════════════════════════════════════════════ */
 function ConfirmDialog({ title, message, onConfirm, onCancel }) {
+  const [confirming, setConfirming] = useState(false);
+  function handleConfirm() {
+    if (confirming) return;
+    setConfirming(true);
+    onConfirm();
+  }
   return (
-    <div className="overlay overlay-center" onClick={e=>e.target===e.currentTarget&&onCancel()}>
+    <div className="overlay overlay-center"
+      onClick={function(e) { if (e.target===e.currentTarget && !confirming) onCancel(); }}>
       <div className="dialog">
         <h3>{title}</h3><p>{message}</p>
         <div className="dialog-actions">
-          <button className="btn btn-outlined" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-danger"   onClick={onConfirm}>Delete</button>
+          <button className="btn btn-outlined" onClick={onCancel} disabled={confirming}>Cancel</button>
+          <button className="btn btn-danger" onClick={handleConfirm} disabled={confirming}>
+            {confirming ? 'Deleting…' : 'Delete'}
+          </button>
         </div>
       </div>
     </div>
@@ -7752,7 +7761,7 @@ function App() {
     try {
       if (confirmDel.type==='shoutout') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'shoutouts',confirmDel.id));
-        showToast('Shoutout deleted'); setSelShoutout(null);
+        showToast('Shoutout deleted');
       } else if (confirmDel.type==='object') {
         await fb.deleteDoc(fb.doc(fb.db,'users',authUser.uid,'objects',confirmDel.id));
         showToast('Object deleted');
@@ -7766,7 +7775,7 @@ function App() {
         showToast('Border deleted');
       }
       setConfirmDel(null);
-    } catch(e) { showToast('Delete failed — try again'); }
+    } catch(e) { showToast('Delete failed — try again'); setConfirmDel(null); }
   }
 
   // ── Loading ──
