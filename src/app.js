@@ -381,15 +381,18 @@ function App() {
           const obj = data.placedObjects[posId];
           if (!obj) return;
           const layers = obj.layers
-            ? obj.layers.map(function(l) {
+            ? obj.layers.map(function(l, li) {
+                // Normalise label — must match the key used in colorMap
+                var lbl = (l.label && l.label.trim()) ? l.label : ('Area ' + (li+1));
                 return {
                   colorSlot: l.colorSlot || 'primary',
+                  label: lbl,
                   pattern: (l.pattern || []).map(function(r) {
                     return typeof r === 'string' ? r : r.join('');
                   }),
                 };
               })
-            : [{ colorSlot: 'primary', pattern: (obj.pattern || []).map(function(r) {
+            : [{ colorSlot: 'primary', label: 'Area 1', pattern: (obj.pattern || []).map(function(r) {
                 return typeof r === 'string' ? r : r.join('');
               }) }];
           safePlacedObjects[posId] = {
@@ -398,6 +401,25 @@ function App() {
             width: obj.width || (layers[0] && layers[0].pattern[0] ? layers[0].pattern[0].length : 0),
             height: obj.height || (layers[0] ? layers[0].pattern.length : 0),
             layers: layers,
+            // Rebuild colorMap with normalised keys matching the normalised layer labels
+            colorMap: (function() {
+              var cm = {};
+              layers.forEach(function(l, li) {
+                var key = l.label; // already normalised above
+                var oldKeys = [l.label, l.colorSlot, 'Area ' + (li+1), ''];
+                var val = li; // default
+                if (obj.colorMap) {
+                  for (var ki = 0; ki < oldKeys.length; ki++) {
+                    if (oldKeys[ki] && obj.colorMap[oldKeys[ki]] !== undefined) {
+                      val = obj.colorMap[oldKeys[ki]];
+                      break;
+                    }
+                  }
+                }
+                cm[key] = val;
+              });
+              return cm;
+            })(),
           };
         });
       }

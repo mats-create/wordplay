@@ -1603,9 +1603,13 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
     // Normalise to plain layers format preserving labels
     const layers = obj.layers
       ? obj.layers.map(function(l, li) {
+          // Always ensure a non-empty trimmed label — this is the colorMap key
+          var lbl = (l.label && l.label.trim()) ? l.label.trim()
+                  : (l.colorSlot && l.colorSlot.trim()) ? l.colorSlot
+                  : ('Area ' + (li+1));
           return {
             colorSlot: l.colorSlot || 'primary',
-            label: l.label || l.colorSlot || ('Area ' + (li+1)),
+            label: lbl,
             pattern: (l.pattern || []).map(function(r) {
               return typeof r === 'string' ? r : r.join('');
             }),
@@ -1615,9 +1619,11 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
           return typeof r === 'string' ? r : r.join('');
         }) }];
     // Build default colorMap: each layer label maps to its thread index (0-based)
+    // Always normalise the label — never use undefined or empty string as key
     var defaultColorMap = {};
     layers.forEach(function(l, li) {
-      defaultColorMap[l.label] = li;
+      var key = l.label && l.label.trim() ? l.label : ('Area ' + (li+1));
+      defaultColorMap[key] = li;
     });
     const normObj = {
       id: obj.id || posId,
@@ -1981,14 +1987,15 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                             {obj.name} <span className="colormap-pos">({pos ? pos.label : posId})</span>
                           </div>
                           {obj.layers.map(function(layer, li) {
-                            var currentIdx = (obj.colorMap && obj.colorMap[layer.label] !== undefined)
-                              ? obj.colorMap[layer.label] : li;
+                            var layerKey = (layer.label && layer.label.trim()) ? layer.label : ('Area ' + (li+1));
+                            var currentIdx = (obj.colorMap && obj.colorMap[layerKey] !== undefined)
+                              ? obj.colorMap[layerKey] : li;
                             return (
                               <div key={li} className="colormap-row">
                                 <div className="colormap-swatch" style={{
                                   background: layerSlotGrey(li),
                                 }}/>
-                                <span className="colormap-label">{layer.label || ('Area '+(li+1))}</span>
+                                <span className="colormap-label">{layerKey}</span>
                                 <select className="colormap-select"
                                   value={currentIdx}
                                   onChange={function(e) {
@@ -2004,7 +2011,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                                         layers: prevObj.layers,
                                         colorMap: Object.assign({}, prevObj.colorMap || {}),
                                       };
-                                      updated.colorMap[layer.label] = newIdx;
+                                      updated.colorMap[layerKey] = newIdx;
                                       return Object.assign({}, prev, {[posId]: updated});
                                     });
                                   }}>
