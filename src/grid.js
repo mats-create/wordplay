@@ -55,8 +55,16 @@ function buildGrid(word, cols, rows, borderStyle, scale, gap, placedObjects) {
         }
       }
       // Now draw the object layers
-      layers.forEach(function(layer) {
-        const kind = CSKPO[layer.colorSlot] || 'F';
+      // colorMap: {label -> threadIndex} overrides colorSlot
+      var colorMap = obj.colorMap || null;
+      var THREAD_KINDS = ['T','D','E','H','J','L'];
+      layers.forEach(function(layer, li) {
+        var kind;
+        if (colorMap && layer.label && colorMap[layer.label] !== undefined) {
+          kind = THREAD_KINDS[colorMap[layer.label] % THREAD_KINDS.length] || 'T';
+        } else {
+          kind = CSKPO[layer.colorSlot] || THREAD_KINDS[li % THREAD_KINDS.length];
+        }
         (layer.pattern||[]).forEach(function(rowData, dr) {
           const rs = typeof rowData==='string' ? rowData : rowData.join('');
           rs.split('').forEach(function(ch, dc) {
@@ -596,8 +604,15 @@ function buildGridMulti(lines, cols, rows, borderStyle, gap, placedObjects) {
         }
       }
       // Draw object layers
-      layers.forEach(function(layer) {
-        const kind = COLOR_SLOT_KINDS_PO[layer.colorSlot] || 'F';
+      var colorMap = obj.colorMap || null;
+      var THREAD_KINDS_MG = ['T','D','E','H','J','L'];
+      layers.forEach(function(layer, li) {
+        var kind;
+        if (colorMap && layer.label && colorMap[layer.label] !== undefined) {
+          kind = THREAD_KINDS_MG[colorMap[layer.label] % THREAD_KINDS_MG.length] || 'T';
+        } else {
+          kind = COLOR_SLOT_KINDS_PO[layer.colorSlot] || THREAD_KINDS_MG[li % THREAD_KINDS_MG.length];
+        }
         (layer.pattern || []).forEach(function(rowData, dr) {
           const rs = typeof rowData === 'string' ? rowData : rowData.join('');
           rs.split('').forEach(function(ch, dc) {

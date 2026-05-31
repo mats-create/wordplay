@@ -1486,3 +1486,38 @@ html, body, #root {
   color: var(--coral); font-size: 12px; font-weight: 500;
   animation: toolbar-slide-up .15s ease;
 }
+
+/* ── Colour mapping section in Compose Objects tab ── */
+.colormap-section { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.colormap-group {
+  border: 1px solid var(--lgrey); border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.colormap-title {
+  font-size: 12px; font-weight: 600; color: var(--black);
+  margin-bottom: 8px;
+}
+.colormap-pos { font-weight: 400; color: var(--grey); font-size: 11px; }
+.colormap-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+}
+.colormap-swatch {
+  width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,.08);
+}
+.colormap-label {
+  font-size: 12px; color: var(--black); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.colormap-select {
+  font-family: inherit; font-size: 11px;
+  padding: 3px 6px; border-radius: var(--radius-sm);
+  border: 1px solid var(--lgrey); background: var(--white);
+  color: var(--black); cursor: pointer; flex-shrink: 0;
+}
+.colormap-select:hover { border-color: var(--black); }
+.colormap-thread-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,.08);
+}

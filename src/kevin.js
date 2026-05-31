@@ -102,7 +102,7 @@ Context: screen=${context.tab} | shoutouts=${context.shoutoutCount} (${context.s
 
 Object library: per-user collection of reusable binary stitch patterns. Objects have name, pattern (string[]), width, height. Max 42 wide, max 12 tall. Use listObjects/createObject/updateObject/deleteObject to manage them. When creating a border, you can use a saved object's pattern directly in cornerMotif, sideMotif, cornerOverrides, or sideOverrides — reference it by name from listObjects. When generating a pattern from an image, offer to save it as an object for reuse.
 
-Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{colorSlot, pattern[]}] instead of a top-level pattern field. Each layer's colorSlot maps to a thread slot (primary/secondary/accent/border3/accent1/accent2), so the object renders in the actual thread colours of whichever shoutout uses it. Max 4 layers per object. Use createObject/updateObject with the layers field to create or update layered objects.
+Layered objects: objects can have multiple colour layers instead of a single pattern. A layered object has layers:[{label, pattern[]}] where label is a free-form designer name (e.g. 'Background', 'Cross', 'Top stripe', 'Blue band'). Labels are semantic — they describe what the area IS, not what colour it is. Colour is assigned in Composer via a colorMap that maps each label to a thread index. Max 4 layers per object. Always give layers meaningful labels — this is what the user sees and maps to threads. Use createObject/updateObject with the layers field.
 
 Pattern coordinate system: in all binary patterns (object layers, border motifs), row 0 is the TOP of the design and the last row is the BOTTOM. Column 0 is the LEFT edge and the last column is the RIGHT edge. When generating flag patterns or any design where colour order matters vertically (e.g. German flag: black top, red middle, gold bottom) or horizontally, always assign rows/columns accordingly. Example German flag (9 rows): rows 0-2 = '111111111' in black layer, rows 3-5 = '111111111' in red layer, rows 6-8 = '111111111' in gold layer. Example French flag (9 cols): cols 0-2 = blue layer, cols 3-5 = white layer, cols 6-8 = red layer.
 
@@ -314,7 +314,7 @@ const KEVIN_TOOLS = [
         id:      { type: 'string', description: 'Object id from listObjects' },
         name:    { type: 'string', description: 'New name' },
         pattern: { type: 'array', items: { type: 'string' }, description: 'New single-colour pattern' },
-        layers:  { type: 'array', description: 'New multi-colour layers. Each: {colorSlot, pattern[]}' },
+        layers:  { type: 'array', description: 'New multi-colour layers. Each: {label: string, pattern: string[]}' },
         width:   { type: 'number' },
         height:  { type: 'number' },
         folder:  { type: 'string' },
@@ -621,7 +621,10 @@ async function executeKevinTool(toolName, toolInput, appData) {
       if (hasLayers) {
         const ph = toolInput.layers[0].pattern.length;
         const pw = toolInput.layers[0].pattern[0] ? toolInput.layers[0].pattern[0].length : 0;
-        data.layers = toolInput.layers;
+        // Ensure each layer has a label
+        data.layers = toolInput.layers.map(function(l, li) {
+          return Object.assign({ label: 'Area '+(li+1) }, l);
+        });
         data.width  = toolInput.width  || pw;
         data.height = toolInput.height || ph;
       } else {

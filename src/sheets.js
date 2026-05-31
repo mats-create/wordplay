@@ -680,8 +680,12 @@ function markColour(hex) {
 // colorSlot string -> THREAD_SLOTS index
 const COLOR_SLOT_VALUES = ['primary','secondary','accent','border3','accent1','accent2'];
 
-function layerSlotGrey(colorSlot) {
-  const i = COLOR_SLOT_VALUES.indexOf(colorSlot);
+function layerSlotGrey(colorSlotOrIndex) {
+  // Accepts either a colorSlot string (legacy) or a layer index number
+  if (typeof colorSlotOrIndex === 'number') {
+    return LAYER_SLOT_GREYS[colorSlotOrIndex % LAYER_SLOT_GREYS.length];
+  }
+  const i = COLOR_SLOT_VALUES.indexOf(colorSlotOrIndex);
   return LAYER_SLOT_GREYS[i >= 0 ? i : 0];
 }
 
@@ -721,7 +725,7 @@ function buildCompoundGrid(layers, w, h) {
       row.forEach(function(ch, c) {
         if (c >= w) return;
         if (ch === '1') {
-          result[r][c] = { colorSlot: layer.colorSlot, overlap: counts[r][c] > 1 };
+          result[r][c] = { colorSlot: layer.colorSlot, label: layer.label, layerIndex: li, overlap: counts[r][c] > 1 };
         }
       });
     });
@@ -739,11 +743,12 @@ function ObjectSlotPalette({ layers }) {
       return row.some ? row.some(function(ch) { return ch === '1'; })
                       : row.indexOf('1') >= 0;
     });
-    if (hasStitch && !seen[layer.colorSlot]) {
-      seen[layer.colorSlot] = true;
-      var slotIdx = COLOR_SLOT_VALUES.indexOf(layer.colorSlot);
+    var slotKey = layer.label || layer.colorSlot || ('layer-'+li);
+    if (hasStitch && !seen[slotKey]) {
+      seen[slotKey] = true;
+      var slotIdx = layer.label ? li : COLOR_SLOT_VALUES.indexOf(layer.colorSlot);
       var slot = THREAD_SLOTS[slotIdx >= 0 ? slotIdx : 0];
-      usedSlots.push({ colorSlot: layer.colorSlot, slot: slot, grey: LAYER_SLOT_GREYS[slotIdx >= 0 ? slotIdx : 0] });
+      usedSlots.push({ label: layer.label || (slot ? slot.label : layer.colorSlot), colorSlot: layer.colorSlot, slot: slot, grey: LAYER_SLOT_GREYS[li % LAYER_SLOT_GREYS.length] });
     }
   });
   if (usedSlots.length === 0) return null;
@@ -754,10 +759,10 @@ function ObjectSlotPalette({ layers }) {
       <div className="object-slot-palette">
         {usedSlots.map(function(entry) {
           return (
-            <div key={entry.colorSlot} className="object-slot-row">
+            <div key={entry.label} className="object-slot-row">
               <div className="object-slot-swatch" style={{background: entry.grey}}/>
               <div className="object-slot-info">
-                <span className="object-slot-name">{entry.slot ? entry.slot.label : entry.colorSlot}</span>
+                <span className="object-slot-name">{entry.label}</span>
                 <span className="object-slot-hint">{entry.slot ? entry.slot.hint : ''}</span>
               </div>
             </div>
@@ -778,17 +783,18 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   // Initialise layers — support legacy (pattern only) and new (layers array)
   const [layers, setLayers] = useState(function() {
     if (initial && initial.layers && initial.layers.length > 0) {
-      return initial.layers.map(function(l) {
+      return initial.layers.map(function(l, li) {
         return {
           colorSlot: l.colorSlot || 'primary',
+          label: l.label || l.colorSlot || ('Area ' + (li+1)),
           pattern: patternToArrays(l.pattern),
         };
       });
     }
     if (initial && initial.pattern) {
-      return [{ colorSlot: 'primary', pattern: patternToArrays(initial.pattern) }];
+      return [{ colorSlot: 'primary', label: 'Area 1', pattern: patternToArrays(initial.pattern) }];
     }
-    return [{ colorSlot: 'primary', pattern: blankPattern(OBJECT_DEFAULT_W, OBJECT_DEFAULT_H) }];
+    return [{ colorSlot: 'primary', label: 'Area 1', pattern: blankPattern(OBJECT_DEFAULT_W, OBJECT_DEFAULT_H) }];
   });
 
   const h = layers[0] && layers[0].pattern ? layers[0].pattern.length : OBJECT_DEFAULT_H;
@@ -800,7 +806,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
         if (li !== activeLayer) return layer;
         var next = layer.pattern.map(function(row) { return [...row]; });
         next[r][c] = next[r][c] === '1' ? '0' : '1';
-        return { colorSlot: layer.colorSlot, pattern: next };
+        return { colorSlot: layer.colorSlot, label: layer.label, pattern: next };
       });
     });
   }
@@ -825,8 +831,9 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   function addLayer() {
     if (layers.length >= 4) return;
     var nextSlot = COLOR_SLOT_VALUES[layers.length] || 'accent';
+    var nextLabel = 'Area ' + (layers.length + 1);
     setLayers(function(prev) {
-      return prev.concat([{ colorSlot: nextSlot, pattern: blankPattern(w, h) }]);
+      return prev.concat([{ colorSlot: nextSlot, label: nextLabel, pattern: blankPattern(w, h) }]);
     });
     setActiveLayer(layers.length);
     setViewMode('edit');
@@ -841,7 +848,15 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   function setLayerSlot(li, colorSlot) {
     setLayers(function(prev) {
       return prev.map(function(layer, i) {
-        return i === li ? { colorSlot: colorSlot, pattern: layer.pattern } : layer;
+        return i === li ? { colorSlot: colorSlot, label: layer.label, pattern: layer.pattern } : layer;
+      });
+    });
+  }
+
+  function setLayerLabel(li, label) {
+    setLayers(function(prev) {
+      return prev.map(function(layer, i) {
+        return i === li ? { colorSlot: layer.colorSlot, label: label, pattern: layer.pattern } : layer;
       });
     });
   }
@@ -849,14 +864,18 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
   function handleSave() {
     if (!name.trim()) { setNameError('Name is required'); return; }
     setNameError('');
-    const savedLayers = layers.map(function(layer) {
-      return { colorSlot: layer.colorSlot, pattern: arrayToStrings(layer.pattern) };
+    const savedLayers = layers.map(function(layer, li) {
+      return {
+        colorSlot: layer.colorSlot,
+        label: layer.label || ('Area ' + (li+1)),
+        pattern: arrayToStrings(layer.pattern),
+      };
     });
     onSave({ name: name.trim(), layers: savedLayers, width: w, height: h });
   }
 
   const compoundGrid = viewMode === 'compound' ? buildCompoundGrid(layers, w, h) : null;
-  const activeLayerGrey = layerSlotGrey(layers[activeLayer] && layers[activeLayer].colorSlot);
+  const activeLayerGrey = layerSlotGrey(activeLayer);
 
   return (
     <div className="overlay" onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
@@ -909,15 +928,14 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
             {/* Layer tab row */}
             <div className="object-layer-tabs">
               {layers.map(function(layer, li) {
-                var grey = layerSlotGrey(layer.colorSlot);
-                var slotIdx = COLOR_SLOT_VALUES.indexOf(layer.colorSlot);
-                var slotLabel = THREAD_SLOTS[slotIdx >= 0 ? slotIdx : 0] ? THREAD_SLOTS[slotIdx >= 0 ? slotIdx : 0].label : layer.colorSlot;
+                var grey = layerSlotGrey(li);
+                var lbl = layer.label || ('Area ' + (li+1));
                 return (
                   <button key={li}
                     className={'object-layer-tab' + (viewMode === 'edit' && activeLayer === li ? ' active' : '')}
                     onClick={function() { setActiveLayer(li); setViewMode('edit'); }}>
                     <span className="object-layer-dot" style={{background: grey}}/>
-                    {slotLabel}
+                    {lbl}
                   </button>
                 );
               })}
@@ -938,15 +956,14 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
             {/* Active layer controls (slot selector + remove) — edit mode only */}
             {viewMode === 'edit' && (
               <div className="object-layer-controls">
-                <label className="form-hint" style={{marginBottom:0, lineHeight:'28px'}}>Colour slot:</label>
-                <select className="tile-color-select"
-                  value={layers[activeLayer] ? layers[activeLayer].colorSlot : 'primary'}
-                  onChange={function(e) { setLayerSlot(activeLayer, e.target.value); }}>
-                  {COLOR_SLOT_VALUES.map(function(val, i) {
-                    var slot = THREAD_SLOTS[i];
-                    return <option key={val} value={val}>{slot ? slot.label : val}</option>;
-                  })}
-                </select>
+                <label className="form-hint" style={{marginBottom:0, lineHeight:'28px'}}>Layer name:</label>
+                <input
+                  className="form-input"
+                  style={{flex:1, minWidth:0, fontSize:12, padding:'4px 8px'}}
+                  placeholder={'e.g. Background, Cross, Top stripe'}
+                  value={layers[activeLayer] ? (layers[activeLayer].label || '') : ''}
+                  onChange={function(e) { setLayerLabel(activeLayer, e.target.value); }}
+                />
                 {layers.length > 1 && (
                   <button className="thread-remove" onClick={function() { removeLayer(activeLayer); }} title="Remove this layer">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -1556,26 +1573,32 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   function openObjPicker(posId) { setPickerPos(posId); }
   function closeObjPicker() { setPickerPos(null); }
   function placeObject(posId, obj) {
-    // Normalise to plain layers format so canvas renders immediately
-    // and Firestore serialisation works cleanly
+    // Normalise to plain layers format preserving labels
     const layers = obj.layers
-      ? obj.layers.map(function(l) {
+      ? obj.layers.map(function(l, li) {
           return {
             colorSlot: l.colorSlot || 'primary',
+            label: l.label || l.colorSlot || ('Area ' + (li+1)),
             pattern: (l.pattern || []).map(function(r) {
               return typeof r === 'string' ? r : r.join('');
             }),
           };
         })
-      : [{ colorSlot: 'primary', pattern: (obj.pattern || []).map(function(r) {
+      : [{ colorSlot: 'primary', label: 'Area 1', pattern: (obj.pattern || []).map(function(r) {
           return typeof r === 'string' ? r : r.join('');
         }) }];
+    // Build default colorMap: each layer label maps to its thread index (0-based)
+    var defaultColorMap = {};
+    layers.forEach(function(l, li) {
+      defaultColorMap[l.label] = li;
+    });
     const normObj = {
       id: obj.id || posId,
       name: obj.name || '',
       width: obj.width || (layers[0] && layers[0].pattern[0] ? layers[0].pattern[0].length : 0),
       height: obj.height || (layers[0] ? layers[0].pattern.length : 0),
       layers: layers,
+      colorMap: defaultColorMap,
     };
     setPlacedObjects(function(prev) { return Object.assign({}, prev, {[posId]: normObj}); });
     setPickerPos(null);
@@ -1902,7 +1925,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
             {activeTab === 'objects' && (
               <div>
                 <div className="form-hint" style={{marginBottom:10}}>
-                  Tap a position to place an object. Layer colours follow your thread palette.
+                  Tap a position to place an object. Assign colours to each layer below.
                 </div>
                 <div className="pos-grid">
                   {COMPOSE_POSITIONS.map(function(pos) {
@@ -1917,6 +1940,58 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                     );
                   })}
                 </div>
+
+                {/* Colour mapping — shown for each placed object that has layers */}
+                {Object.keys(placedObjects).length > 0 && (
+                  <div className="colormap-section">
+                    {Object.keys(placedObjects).map(function(posId) {
+                      var obj = placedObjects[posId];
+                      if (!obj || !obj.layers || obj.layers.length <= 1) return null;
+                      var pos = COMPOSE_POSITIONS.find(function(p) { return p.id === posId; });
+                      return (
+                        <div key={posId} className="colormap-group">
+                          <div className="colormap-title">
+                            {obj.name} <span className="colormap-pos">({pos ? pos.label : posId})</span>
+                          </div>
+                          {obj.layers.map(function(layer, li) {
+                            var currentIdx = (obj.colorMap && obj.colorMap[layer.label] !== undefined)
+                              ? obj.colorMap[layer.label] : li;
+                            return (
+                              <div key={li} className="colormap-row">
+                                <div className="colormap-swatch" style={{
+                                  background: layerSlotGrey(li),
+                                }}/>
+                                <span className="colormap-label">{layer.label || ('Area '+(li+1))}</span>
+                                <select className="colormap-select"
+                                  value={currentIdx}
+                                  onChange={function(e) {
+                                    var newIdx = +e.target.value;
+                                    setPlacedObjects(function(prev) {
+                                      var updated = Object.assign({}, prev[posId]);
+                                      updated.colorMap = Object.assign({}, updated.colorMap || {});
+                                      updated.colorMap[layer.label] = newIdx;
+                                      return Object.assign({}, prev, {[posId]: updated});
+                                    });
+                                  }}>
+                                  {threads.map(function(t, ti) {
+                                    return (
+                                      <option key={ti} value={ti}>
+                                        {t.name || t.dmc || ('Thread '+(ti+1))}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                                <div className="colormap-thread-dot"
+                                  style={{background: threads[currentIdx] ? threads[currentIdx].hex : '#ccc'}}/>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {Object.keys(placedObjects).length > 0 && (
                   <button className="btn btn-ghost btn-sm"
                     style={{color:'var(--coral)', fontSize:11, marginTop:4}}
