@@ -1973,7 +1973,7 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                   <div className="colormap-section">
                     {Object.keys(placedObjects).map(function(posId) {
                       var obj = placedObjects[posId];
-                      if (!obj || !obj.layers || obj.layers.length <= 1) return null;
+                      if (!obj || !obj.layers || obj.layers.length === 0) return null;
                       var pos = COMPOSE_POSITIONS.find(function(p) { return p.id === posId; });
                       return (
                         <div key={posId} className="colormap-group">
