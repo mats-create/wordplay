@@ -864,14 +864,15 @@ function ObjectsScreen({ objects, onEdit, onDelete, onCopy, onSetTags, tags, act
 function ObjectPreview({ pattern, layers, size }) {
   var normLayers;
   if (layers && layers.length > 0) {
-    normLayers = layers.map(function(l) {
+    normLayers = layers.map(function(l, li) {
       return {
         colorSlot: l.colorSlot || 'primary',
+        label: l.label || l.colorSlot || ('Area ' + (li+1)),
         pattern: l.pattern.map(function(r) { return typeof r === 'string' ? r.split('') : r; }),
       };
     });
   } else if (pattern && pattern.length > 0) {
-    normLayers = [{ colorSlot: 'primary', pattern: pattern.map(function(r) { return r.split(''); }) }];
+    normLayers = [{ colorSlot: 'primary', label: 'Area 1', pattern: pattern.map(function(r) { return r.split(''); }) }];
   } else {
     return <div className="object-preview-empty"/>;
   }

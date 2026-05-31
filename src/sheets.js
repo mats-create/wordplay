@@ -818,6 +818,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
       return prev.map(function(layer) {
         return {
           colorSlot: layer.colorSlot,
+          label: layer.label,
           pattern: Array.from({length: clampH}, function(_, r) {
             return Array.from({length: clampW}, function(_, c) {
               return (layer.pattern[r] && layer.pattern[r][c]) ? layer.pattern[r][c] : '0';
@@ -1449,11 +1450,37 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
   const [lineScales,    setLineScales]    = useState(initial && initial.lineScales ? initial.lineScales : [0,0,0,0]);
   const [placedObjects, setPlacedObjects] = useState(initial && initial.placedObjects ? initial.placedObjects : {});
 
-  // Sync placedObjects when updated externally (e.g. Kevin placing objects via Firestore)
+  // Sync placedObjects from external updates (e.g. Kevin placing objects via Firestore)
+  // Only sync when:
+  // 1. The shoutout ID changes (opened a different design)
+  // 2. Or positions were added/removed externally (Kevin placed/removed)
+  // Never overwrite colorMap changes the user is actively making
+  var initialIdRef = useRef(initial && initial.id);
   useEffect(function() {
-    if (initial && initial.placedObjects) {
-      setPlacedObjects(initial.placedObjects);
-    }
+    if (!initial || !initial.placedObjects) return;
+    var incomingId = initial.id;
+    var incomingKeys = Object.keys(initial.placedObjects).sort().join(',');
+    setPlacedObjects(function(prev) {
+      var prevKeys = Object.keys(prev).sort().join(',');
+      // Always sync if the design ID changed
+      if (initialIdRef.current !== incomingId) {
+        initialIdRef.current = incomingId;
+        return initial.placedObjects;
+      }
+      // Sync if positions were added/removed externally (Kevin)
+      if (prevKeys !== incomingKeys) {
+        // Merge: keep existing colorMaps, add new positions from incoming
+        var merged = Object.assign({}, initial.placedObjects);
+        Object.keys(prev).forEach(function(k) {
+          if (merged[k] && prev[k] && prev[k].colorMap) {
+            merged[k] = Object.assign({}, merged[k], { colorMap: prev[k].colorMap });
+          }
+        });
+        return merged;
+      }
+      // No structural change — keep local state (preserves colorMap edits)
+      return prev;
+    });
   }, [initial && initial.placedObjects]);
   const [activeTab,     setActiveTab]     = useState('word');
   const [settingsOpen,  setSettingsOpen]  = useState(false);
@@ -1967,8 +1994,16 @@ function ComposeSheet({ initial, borders, objects, onSave, onClose, saving, kevi
                                   onChange={function(e) {
                                     var newIdx = +e.target.value;
                                     setPlacedObjects(function(prev) {
-                                      var updated = Object.assign({}, prev[posId]);
-                                      updated.colorMap = Object.assign({}, updated.colorMap || {});
+                                      // Deep copy the object to avoid shared references
+                                      var prevObj = prev[posId] || {};
+                                      var updated = {
+                                        id: prevObj.id,
+                                        name: prevObj.name,
+                                        width: prevObj.width,
+                                        height: prevObj.height,
+                                        layers: prevObj.layers,
+                                        colorMap: Object.assign({}, prevObj.colorMap || {}),
+                                      };
                                       updated.colorMap[layer.label] = newIdx;
                                       return Object.assign({}, prev, {[posId]: updated});
                                     });
