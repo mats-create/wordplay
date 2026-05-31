@@ -6588,7 +6588,7 @@ function FolderPill({ name, active, count, onClick, onRename, onDelete }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
+function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onCopy, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -6876,6 +6876,13 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
                 )}
               </div>
 
+              <button className="sel-btn"
+                onClick={function() { onCopy(selected); deselect(); }}
+                title="Duplicate this design">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+
               <div style={{flex:1}}/>
 
               <button className="sel-btn"
@@ -6909,7 +6916,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
 /* ═══════════════════════════════════════════════════════════════════
    BORDERS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
+function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onCopy, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -7126,6 +7133,13 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tag
                 )}
               </div>
 
+              <button className="sel-btn"
+                onClick={function() { onCopy(selected); deselect(); }}
+                title="Duplicate this border">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+
               <div style={{flex:1}}/>
 
               <button className="sel-btn"
@@ -7161,7 +7175,7 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tag
 /* ═══════════════════════════════════════════════════════════════════
    OBJECTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ObjectsScreen({ objects, onEdit, onDelete, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
+function ObjectsScreen({ objects, onEdit, onDelete, onCopy, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -7350,7 +7364,14 @@ function ObjectsScreen({ objects, onEdit, onDelete, onSetTags, tags, activeTags,
                 )}
               </div>
 
-                            <div style={{flex:1}}/>
+                            <button className="sel-btn"
+                onClick={function() { onCopy(selected); deselect(); }}
+                title="Duplicate this object">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+
+              <div style={{flex:1}}/>
 
               <button className="sel-btn sel-btn-danger"
                 onClick={function() { onDelete(selected); }}>
@@ -7854,6 +7875,52 @@ function App() {
 
   // ── Save shoutout ──
 
+  // ── Copy handlers ──
+  async function handleCopyShoutout(item) {
+    try {
+      const copy = sanitiseForFirestore(Object.assign({}, item, {
+        name: item.name + ' (Copy)',
+        designName: item.designName ? item.designName + ' (Copy)' : '',
+        locked: false,
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      }));
+      delete copy.id;
+      await fb.addDoc(fb.collection(fb.db,'users',authUser.uid,'shoutouts'), copy);
+      showToast('"' + (item.designName||item.name) + '" copied');
+    } catch(e) { showToast('Copy failed: ' + e.message); }
+  }
+
+  async function handleCopyBorder(item) {
+    try {
+      const spec = item.spec || BORDER_SPECS[item.style] || null;
+      const copy = sanitiseForFirestore(Object.assign({}, item, {
+        name: item.name + ' (Copy)',
+        locked: false, builtIn: false,
+        createdBy: authUser.uid,
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+        spec: spec,
+      }));
+      delete copy.id;
+      await fb.addDoc(fb.collection(fb.db,'users',authUser.uid,'borders'), copy);
+      showToast('"' + item.name + '" copied');
+    } catch(e) { showToast('Copy failed: ' + e.message); }
+  }
+
+  async function handleCopyObject(item) {
+    try {
+      const copy = sanitiseForFirestore(Object.assign({}, item, {
+        name: item.name + ' (Copy)',
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      }));
+      delete copy.id;
+      await fb.addDoc(fb.collection(fb.db,'users',authUser.uid,'objects'), copy);
+      showToast('"' + item.name + '" copied');
+    } catch(e) { showToast('Copy failed: ' + e.message); }
+  }
+
   // ── Toggle lock ──
   async function handleToggleLock(item) {
     try {
@@ -7989,6 +8056,7 @@ function App() {
               tmCache={tmCache}
               onCompose={function(s) { setComposeShoutout(s); }}
               onToggleLock={handleToggleLock}
+              onCopy={handleCopyShoutout}
               onExportChart={function(s) {
                 setTimeout(function() { generateChartPDF(s); }, 50);
               }}
@@ -8008,6 +8076,7 @@ function App() {
               onEdit={function(b) { setEditBorder(b); }}
               onDelete={function(b) { setConfirmDel({type:'border', id:b.id}); }}
               onToggleLock={handleToggleBorderLock}
+              onCopy={handleCopyBorder}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               tags={borderTags}
               activeTags={activeBorderTags}
@@ -8021,6 +8090,7 @@ function App() {
             <ObjectsScreen objects={objects}
               onEdit={function(o) { setEditObject(o); }}
               onDelete={function(o) { setConfirmDel({type:'object', id:o.id}); }}
+              onCopy={handleCopyObject}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               tags={objectTags}
               activeTags={activeObjectTags}
