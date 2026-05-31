@@ -5339,7 +5339,7 @@ function buildCompoundGrid(layers, w, h) {
   });
   // build result grid — last layer wins for colour, overlap flagged
   var result = Array.from({length: h}, function() { return Array(w).fill(null); });
-  layers.forEach(function(layer) {
+  layers.forEach(function(layer, li) {
     if (!layer.pattern) return;
     layer.pattern.forEach(function(row, r) {
       if (r >= h) return;
