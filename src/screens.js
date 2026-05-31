@@ -890,7 +890,7 @@ function ObjectPreview({ pattern, layers, size }) {
       {compoundGrid.map(function(row, r) {
         return row.map(function(cell_data, c) {
           if (!cell_data) return null;
-          const colour = cell_data.overlap ? '#CC3300' : layerSlotGrey(cell_data.colorSlot);
+          const colour = cell_data.overlap ? '#CC3300' : layerSlotGrey(cell_data.layerIndex !== undefined ? cell_data.layerIndex : cell_data.colorSlot);
           const mk = markColour(colour);
           const x = c * cell;
           const y = r * cell;

@@ -1012,7 +1012,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
 
                 {viewMode === 'compound' && compoundGrid && compoundGrid.map(function(row, r) {
                   return row.map(function(cell, c) {
-                    const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                    const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.layerIndex !== undefined ? cell.layerIndex : cell.colorSlot)) : null;
                     const mk = colour ? markColour(colour) : '#1A1A1A';
                     return (
                       <div key={r + '-' + c}
@@ -1093,7 +1093,7 @@ function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFold
             }}>
               {compoundGrid.map(function(row, r) {
                 return row.map(function(cell, c) {
-                  const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                  const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.layerIndex !== undefined ? cell.layerIndex : cell.colorSlot)) : null;
                   const mk = colour ? markColour(colour) : '#1A1A1A';
                   return (
                     <div key={r+'-'+c} style={{
