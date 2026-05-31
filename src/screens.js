@@ -55,7 +55,7 @@ function FolderPill({ name, active, count, onClick, onRename, onDelete }) {
 /* ═══════════════════════════════════════════════════════════════════
    SHOUTOUTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
+function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart, onExportAida, onDelete, onToggleLock, onCopy, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -343,6 +343,13 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
                 )}
               </div>
 
+              <button className="sel-btn"
+                onClick={function() { onCopy(selected); deselect(); }}
+                title="Duplicate this design">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+
               <div style={{flex:1}}/>
 
               <button className="sel-btn"
@@ -376,7 +383,7 @@ function ShoutoutsScreen({ shoutouts, borders, tmCache, onCompose, onExportChart
 /* ═══════════════════════════════════════════════════════════════════
    BORDERS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
+function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onCopy, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -593,6 +600,13 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tag
                 )}
               </div>
 
+              <button className="sel-btn"
+                onClick={function() { onCopy(selected); deselect(); }}
+                title="Duplicate this border">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+
               <div style={{flex:1}}/>
 
               <button className="sel-btn"
@@ -628,7 +642,7 @@ function BordersScreen({ borders, onEdit, onDelete, onToggleLock, onSetTags, tag
 /* ═══════════════════════════════════════════════════════════════════
    OBJECTS SCREEN
 ═══════════════════════════════════════════════════════════════════ */
-function ObjectsScreen({ objects, onEdit, onDelete, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
+function ObjectsScreen({ objects, onEdit, onDelete, onCopy, onSetTags, tags, activeTags, onTagChange, onTagCreate, onFolderRename, onFolderDelete }) {
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -817,7 +831,14 @@ function ObjectsScreen({ objects, onEdit, onDelete, onSetTags, tags, activeTags,
                 )}
               </div>
 
-                            <div style={{flex:1}}/>
+                            <button className="sel-btn"
+                onClick={function() { onCopy(selected); deselect(); }}
+                title="Duplicate this object">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+
+              <div style={{flex:1}}/>
 
               <button className="sel-btn sel-btn-danger"
                 onClick={function() { onDelete(selected); }}>

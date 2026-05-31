@@ -430,6 +430,52 @@ function App() {
 
   // ── Save shoutout ──
 
+  // ── Copy handlers ──
+  async function handleCopyShoutout(item) {
+    try {
+      const copy = sanitiseForFirestore(Object.assign({}, item, {
+        name: item.name + ' (Copy)',
+        designName: item.designName ? item.designName + ' (Copy)' : '',
+        locked: false,
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      }));
+      delete copy.id;
+      await fb.addDoc(fb.collection(fb.db,'users',authUser.uid,'shoutouts'), copy);
+      showToast('"' + (item.designName||item.name) + '" copied');
+    } catch(e) { showToast('Copy failed: ' + e.message); }
+  }
+
+  async function handleCopyBorder(item) {
+    try {
+      const spec = item.spec || BORDER_SPECS[item.style] || null;
+      const copy = sanitiseForFirestore(Object.assign({}, item, {
+        name: item.name + ' (Copy)',
+        locked: false, builtIn: false,
+        createdBy: authUser.uid,
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+        spec: spec,
+      }));
+      delete copy.id;
+      await fb.addDoc(fb.collection(fb.db,'users',authUser.uid,'borders'), copy);
+      showToast('"' + item.name + '" copied');
+    } catch(e) { showToast('Copy failed: ' + e.message); }
+  }
+
+  async function handleCopyObject(item) {
+    try {
+      const copy = sanitiseForFirestore(Object.assign({}, item, {
+        name: item.name + ' (Copy)',
+        createdAt: fb.serverTimestamp(),
+        updatedAt: fb.serverTimestamp(),
+      }));
+      delete copy.id;
+      await fb.addDoc(fb.collection(fb.db,'users',authUser.uid,'objects'), copy);
+      showToast('"' + item.name + '" copied');
+    } catch(e) { showToast('Copy failed: ' + e.message); }
+  }
+
   // ── Toggle lock ──
   async function handleToggleLock(item) {
     try {
@@ -565,6 +611,7 @@ function App() {
               tmCache={tmCache}
               onCompose={function(s) { setComposeShoutout(s); }}
               onToggleLock={handleToggleLock}
+              onCopy={handleCopyShoutout}
               onExportChart={function(s) {
                 setTimeout(function() { generateChartPDF(s); }, 50);
               }}
@@ -584,6 +631,7 @@ function App() {
               onEdit={function(b) { setEditBorder(b); }}
               onDelete={function(b) { setConfirmDel({type:'border', id:b.id}); }}
               onToggleLock={handleToggleBorderLock}
+              onCopy={handleCopyBorder}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               tags={borderTags}
               activeTags={activeBorderTags}
@@ -597,6 +645,7 @@ function App() {
             <ObjectsScreen objects={objects}
               onEdit={function(o) { setEditObject(o); }}
               onDelete={function(o) { setConfirmDel({type:'object', id:o.id}); }}
+              onCopy={handleCopyObject}
               onMoveToFolder={function(type, id, folder) { handleMoveToFolder(type, id, folder); }}
               tags={objectTags}
               activeTags={activeObjectTags}
