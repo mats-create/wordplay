@@ -5633,7 +5633,7 @@ function ObjectEditor({ initial, onSave, onClose, saving }) {
 
                 {viewMode === 'compound' && compoundGrid && compoundGrid.map(function(row, r) {
                   return row.map(function(cell, c) {
-                    const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                    const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.layerIndex !== undefined ? cell.layerIndex : cell.colorSlot)) : null;
                     const mk = colour ? markColour(colour) : '#1A1A1A';
                     return (
                       <div key={r + '-' + c}
@@ -5714,7 +5714,7 @@ function ObjectDetail({ object, onEdit, onDelete, onClose, folders, onMoveToFold
             }}>
               {compoundGrid.map(function(row, r) {
                 return row.map(function(cell, c) {
-                  const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.colorSlot)) : null;
+                  const colour = cell ? (cell.overlap ? '#CC3300' : layerSlotGrey(cell.layerIndex !== undefined ? cell.layerIndex : cell.colorSlot)) : null;
                   const mk = colour ? markColour(colour) : '#1A1A1A';
                   return (
                     <div key={r+'-'+c} style={{
@@ -7551,7 +7551,7 @@ function ObjectPreview({ pattern, layers, size }) {
       {compoundGrid.map(function(row, r) {
         return row.map(function(cell_data, c) {
           if (!cell_data) return null;
-          const colour = cell_data.overlap ? '#CC3300' : layerSlotGrey(cell_data.colorSlot);
+          const colour = cell_data.overlap ? '#CC3300' : layerSlotGrey(cell_data.layerIndex !== undefined ? cell_data.layerIndex : cell_data.colorSlot);
           const mk = markColour(colour);
           const x = c * cell;
           const y = r * cell;
